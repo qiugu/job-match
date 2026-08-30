@@ -20,9 +20,11 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.core.logging import get_logger
 from app.models.master_resume import MasterResume
+from app.models.user import User
 from app.schemas.resume import ResumeData
 from app.services.pdf_parser import extract_pdf_text, extract_markdown_structure
 
@@ -160,13 +162,25 @@ def _summary(r: MasterResume) -> dict[str, Any]:
     }
 
 
+def _ensure_owner(r: MasterResume | None, user: User) -> MasterResume:
+    """校验记录归属当前用户：非本人记录返回 404，不暴露资源是否存在。"""
+    if r is None or r.user_id != user.id:
+        raise HTTPException(status_code=404, detail="简历不存在")
+    return r
+
+
 async def _is_master_title_taken(
-    db: AsyncSession, title: str, exclude_id: str | None = None
+    db: AsyncSession, title: str, user_id: str, exclude_id: str | None = None
 ) -> bool:
-    """判断 MasterResume 是否已存在同名标题（排除指定 id）。"""
+    """判断「当前用户」是否已存在同名标题（排除指定 id）。
+
+    标题唯一性的作用域是用户内：多用户共存后全局唯一会让 A 的命名撞上 B 的简历。
+    """
     if not title:
         return False
-    stmt = select(MasterResume).where(MasterResume.title == title)
+    stmt = select(MasterResume).where(
+        MasterResume.title == title, MasterResume.user_id == user_id
+    )
     if exclude_id is not None:
         stmt = stmt.where(MasterResume.id != exclude_id)
     return (await db.execute(stmt.limit(1))).scalars().first() is not None
@@ -186,13 +200,15 @@ async def _commit_or_409(db: AsyncSession, detail: str) -> None:
 
 @router.post("", summary="上传简历 PDF")
 async def upload_master_resume(
-    file: UploadFile = File(...), db: AsyncSession = Depends(get_db)
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="仅支持 PDF 格式的简历")
     # 标题（文件名）是简历的唯一标识：重名先报错让用户改名，
     # 不静默复用/覆盖已有记录，避免「上传的名字」与「列表里的名字」对不上。
-    if await _is_master_title_taken(db, file.filename):
+    if await _is_master_title_taken(db, file.filename, user.id):
         raise HTTPException(
             status_code=409,
             detail=f"简历名称「{file.filename}」已存在，请重命名文件后重新上传",
@@ -214,6 +230,7 @@ async def upload_master_resume(
     # 简历先以原始文本存储；结构化 JSON 由前端 pdfjs 解析后随请求更新，或留空由编辑补全
     master = MasterResume(
         id=rid,
+        user_id=user.id,
         title=file.filename,
         original_filename=file.filename,
         raw_text=text,
@@ -232,7 +249,9 @@ async def upload_master_resume(
 
 @router.post("/json", summary="以结构化 JSON 创建简历（标题必须唯一）")
 async def create_master_resume_json(
-    payload: ResumeData, db: AsyncSession = Depends(get_db)
+    payload: ResumeData,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """前端以结构化 ResumeData（含 markdown 简历）创建简历，无需 PDF。
 
@@ -240,7 +259,7 @@ async def create_master_resume_json(
     （曾按正文指纹复用同内容记录，会把新建的简历错绑到另一条已有记录上，已废弃。）
     """
     title = payload.title or "我的简历"
-    if await _is_master_title_taken(db, title):
+    if await _is_master_title_taken(db, title, user.id):
         raise HTTPException(
             status_code=409,
             detail=f"简历名称「{title}」已存在，请使用其他名称",
@@ -254,6 +273,7 @@ async def create_master_resume_json(
     stored_payload["id"] = rid
     master = MasterResume(
         id=rid,
+        user_id=user.id,
         title=title,
         original_filename=title,
         raw_text="",
@@ -272,9 +292,18 @@ async def create_master_resume_json(
 
 
 @router.get("", summary="简历列表（标题唯一，空记录不返回）")
-async def list_master_resumes(db: AsyncSession = Depends(get_db)):
+async def list_master_resumes(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     rows = (
-        (await db.execute(select(MasterResume).order_by(MasterResume.created_at.desc())))
+        (
+            await db.execute(
+                select(MasterResume)
+                .where(MasterResume.user_id == user.id)
+                .order_by(MasterResume.updated_at.desc())
+            )
+        )
         .scalars()
         .all()
     )
@@ -288,10 +317,12 @@ async def list_master_resumes(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{master_id}", summary="简历详情")
-async def get_master_resume(master_id: str, db: AsyncSession = Depends(get_db)):
-    r = await db.get(MasterResume, master_id)
-    if not r:
-        raise HTTPException(status_code=404, detail="简历不存在")
+async def get_master_resume(
+    master_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    r = _ensure_owner(await db.get(MasterResume, master_id), user)
     resume_json = json.loads(r.resume_json)
     # 回填 markdownContent，保证列表/详情返回与存储一致
     resume_json["markdownContent"] = r.markdown_content
@@ -307,14 +338,15 @@ async def get_master_resume(master_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.put("/{master_id}", summary="更新简历结构化数据")
 async def update_master_resume(
-    master_id: str, payload: ResumeData, db: AsyncSession = Depends(get_db)
+    master_id: str,
+    payload: ResumeData,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    r = await db.get(MasterResume, master_id)
-    if not r:
-        raise HTTPException(status_code=404, detail="简历不存在")
+    r = _ensure_owner(await db.get(MasterResume, master_id), user)
     # 标题改为其他已存在记录的名称：拒绝，避免重名
     if payload.title and payload.title != r.title and await _is_master_title_taken(
-        db, payload.title, exclude_id=master_id
+        db, payload.title, user.id, exclude_id=master_id
     ):
         raise HTTPException(
             status_code=409,
@@ -336,19 +368,23 @@ async def update_master_resume(
 
 
 @router.delete("/{master_id}", summary="删除简历")
-async def delete_master_resume(master_id: str, db: AsyncSession = Depends(get_db)):
-    r = await db.get(MasterResume, master_id)
-    if not r:
-        raise HTTPException(status_code=404, detail="简历不存在")
+async def delete_master_resume(
+    master_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    r = _ensure_owner(await db.get(MasterResume, master_id), user)
     await db.delete(r)
     await db.commit()
     return {"id": master_id, "deleted": True}
 
 
 @router.put("/{resume_id}/set_master")
-async def set_master_resume(resume_id: str, db: AsyncSession = Depends(get_db)):
+async def set_master_resume(
+    resume_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     # 兼容旧前端：主简历概念已废弃，该接口保留空操作
-    r = await db.get(MasterResume, resume_id)
-    if not r:
-        raise HTTPException(status_code=404, detail="简历不存在")
+    _ensure_owner(await db.get(MasterResume, resume_id), user)
     return {"is_master": False}

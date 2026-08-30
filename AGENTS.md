@@ -9,7 +9,7 @@
 - **后端**：独立的 Python 服务（FastAPI + LangChain + LangGraph + SQLite），提供简历结构化存储与基于大模型的匹配/重写能力。
 - **前端**：基于 TanStack Start（React + Vite）的简历编辑器 `frontend/`（原 magic-resume）。
 
-前后端通过 REST API 通信：前端默认访问 `http://localhost:4001`（可由 `VITE_JOBMATCH_API` 覆盖），后端 API 统一以 `/api` 为前缀。
+前后端通过 REST API 通信：API 统一以 `/api` 为前缀。生产经 Nginx 同源代理（宿主 80/443），前端以相对路径 `/api` 调用，无需跨域；`VITE_JOBMATCH_API` 为空即同源相对路径，开发期可覆盖为 `http://localhost:8005`。
 
 ## 目录结构
 
@@ -54,12 +54,12 @@ matcher/
 ```bash
 uv sync --no-dev                     # 创建 .venv 并安装依赖
 cp .env.example .env                 # 填入 LLM_API_KEY 等
-uv run uvicorn app.main:app --host 0.0.0.0 --port 7001 --reload
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
 # 或
 uv run python run.py
 ```
 
-健康检查：`GET http://localhost:7001/health`
+健康检查：`GET http://localhost:8005/health`
 
 > 依赖管理统一使用 [uv](https://docs.astral.sh/uv/)：`pyproject.toml` 声明依赖，`uv.lock` 锁定版本（需提交）。虚拟环境在 `.venv/`。
 
@@ -67,9 +67,9 @@ uv run python run.py
 
 ```bash
 pnpm install
-pnpm dev          # 开发服务器 http://localhost:4001
+pnpm dev          # 开发服务器 http://localhost:3005
 pnpm build        # 产出 dist/
-pnpm start        # 生产服务器 node server.mjs（PORT=4001）
+pnpm start        # 生产服务器 node server.mjs（PORT=3005）
 ```
 
 ### 一键启动
@@ -87,7 +87,8 @@ docker compose up -d --build
 docker compose ps / logs -f / down
 ```
 
-- 前端：http://localhost:4001 ，后端：http://localhost:7001
+- 经 Nginx 同源代理：前端 `http://localhost`（宿主 80），后端 API 走 `/api`；健康检查 `http://localhost/health`
+- `backend`/`frontend` 仅容器网络内可见（不直映宿主端口）；如需直连调试后端：`http://localhost:8005/health`（临时 `docker compose port` 或临时 ports 映射）
 - 后端 SQLite 数据持久化于 `backend-data` 卷（`/app/data/jobmatch.db`）
 
 ## 环境变量（后端 `.env`）
@@ -99,8 +100,13 @@ docker compose ps / logs -f / down
 | `LLM_MODEL`                     | 模型名，如 `deepseek-chat`                              |
 | `LLM_PROVIDER`                  | 厂商标识，默认 `deepseek`                               |
 | `LLM_TEMPERATURE`               | 采样温度，默认 `0.3`                                    |
-| `CORS_ORIGINS`                  | 前端来源，默认 `http://localhost:4001`                  |
+| `CORS_ORIGINS`                  | 前端来源，默认含 dev(3005)、Nginx 同源代理(80)、`http://frontend:3005` |
 | `DATABASE_URL`                  | SQLite 路径（默认 `sqlite+aiosqlite:///./jobmatch.db`） |
+| `AUTH_SECRET_KEY`               | JWT 签名密钥（生产必填，≥32 字节；留空则重启即失效）    |
+| `AUTH_TOKEN_EXPIRE_MINUTES`     | 登录令牌有效期（分钟，默认 10080）                      |
+| `AUTH_ALLOW_REGISTRATION`       | 是否开放注册（默认 true）                               |
+| `AUTH_BOOTSTRAP_USERNAME` / `AUTH_BOOTSTRAP_PASSWORD` | 初始账号（即管理员），创建时接管历史简历数据 |
+| `REGISTRATION_DEFAULT_MATCHES` | 注册码默认授予的匹配次数（默认 10）        |
 | `BACKEND_HOST` / `BACKEND_PORT` | 监听地址/端口                                           |
 
 ## 数据契约
@@ -118,6 +124,7 @@ docker compose ps / logs -f / down
 - **API 路由**：后端路由统一加 `/api` 前缀，按资源拆分到 `app/api/` 下独立 Router。
 - **依赖管理**：后端使用 `uv` 管理——改依赖时编辑 `pyproject.toml` 后执行 `uv lock` / `uv sync`，并提交 `uv.lock`；前端改依赖同步更新 `frontend/package.json` 并重新生成 `pnpm-lock.yaml`。
 - **数据持久化**：不要将 `jobmatch.db`、`.env` 提交进仓库（见 `.gitignore`）。
+- **数据库迁移**：schema 变更必须走 Alembic 迁移（`uv run alembic revision --autogenerate`），禁止改模型后不写迁移；应用启动会自动 `upgrade head`，因此**重启后端前先备份** `jobmatch.db`。
 - **LLM 调用**：统一经由 `app/core` 中的客户端封装，便于切换厂商（DeepSeek / 通义 / 智谱等）。
 - **前端构建产物**：`frontend/dist/` 为构建输出，勿手动编辑。
 - **提交前**：确保 linter/类型检查通过；新增脚本（如 `start.sh`）需 `chmod +x`。

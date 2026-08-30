@@ -32,6 +32,11 @@ yarn-error.log*
 .env
 .env*.local
 
+# Nginx 自签名/真实证书私钥（不提交；生产请放真实证书并自管密钥）
+nginx/certs/*.key
+nginx/certs/*.crt
+nginx/certs/*.pem
+
 # dev 脚本运行时产物（PID / 日志）
 .pids/
 .logs/

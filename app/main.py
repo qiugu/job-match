@@ -13,7 +13,8 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.database import init_db
 from app.core.logging import get_logger
-from app.api import resume, match, ai
+from app.api import resume, match, ai, auth
+from app.services.auth_bootstrap import bootstrap_auth
 
 logger = get_logger("main")
 
@@ -22,6 +23,8 @@ logger = get_logger("main")
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("应用启动：初始化数据库")
     await init_db()
+    # 配置了 AUTH_BOOTSTRAP_USERNAME/PASSWORD 时创建初始账号并接管历史数据
+    await bootstrap_auth()
     logger.info("数据库初始化完成")
     yield
     logger.info("应用关闭")
@@ -71,6 +74,7 @@ def create_app() -> FastAPI:
     # 请求日志 ASGI 中间件：记录每个请求的状态码与耗时，便于排查 5xx
     app.add_middleware(RequestLogMiddleware)
 
+    app.include_router(auth.router)
     app.include_router(resume.router)
     app.include_router(match.router)
     app.include_router(ai.router)

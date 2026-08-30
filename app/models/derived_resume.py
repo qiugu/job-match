@@ -27,6 +27,8 @@ class DerivedResume(Base):
     __tablename__ = "derived_resumes"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
+    # 归属用户（对应 users.id，空串表示迁移遗留的无归属数据）
+    user_id: Mapped[str] = mapped_column(String(32), default="", index=True)
     # 优化后的简历（markdown 文本）
     markdown_content: Mapped[str] = mapped_column(Text, default="")
     title: Mapped[str] = mapped_column(String(255), default="")

@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { authHeaders, handleUnauthorized } from "@/lib/auth";
 
 interface AIPolishDialogProps {
   open: boolean;
@@ -103,10 +104,16 @@ export default function AIPolishDialog({
 
       abortControllerRef.current = new AbortController();
 
+      if (!authHeaders().Authorization) {
+        handleUnauthorized();
+        return;
+      }
+
       const response = await fetch("/api/polish", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...authHeaders()
         },
         body: JSON.stringify({
           content: turndownService.turndown(content),

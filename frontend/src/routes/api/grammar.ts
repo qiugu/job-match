@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 const BACKEND_BASE =
-  (import.meta.env.VITE_JOBMATCH_API || "http://localhost:7001").replace(/\/$/, "");
+  import.meta.env.VITE_JOBMATCH_API?.trim()
+    ? import.meta.env.VITE_JOBMATCH_API.trim().replace(/\/$/, "")
+    : ""; // 空串=同源相对路径（经 Nginx 反向代理）
 
 export const Route = createFileRoute("/api/grammar")({
   server: {
@@ -19,10 +21,20 @@ export const Route = createFileRoute("/api/grammar")({
             });
           }
 
+          // 后端 AI 接口要求登录（每次调用消耗 LLM 额度）：把浏览器请求里的
+          // 令牌原样转发给 Python 后端，未登录直接在代理层拒绝。
+          const authorization = request.headers.get("authorization");
+          if (!authorization) {
+            return Response.json(
+              { error: { message: "未登录或登录状态已失效" } },
+              { status: 401 }
+            );
+          }
+
           // 透传给 Python 后端 AI 代理，由后端持有 api_key 调用大模型
           const upstream = await fetch(`${BACKEND_BASE}/api/ai/grammar`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", Authorization: authorization },
             body: JSON.stringify({ content }),
           });
 

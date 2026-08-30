@@ -5,7 +5,7 @@ import { Readable } from "node:stream";
 import serverEntry from "./dist/server/server.js";
 
 const clientDir = resolve(process.cwd(), "dist/client");
-const port = Number(process.env.PORT || 3000);
+const port = Number(process.env.PORT || 3005);
 const host = process.env.HOSTNAME || "0.0.0.0";
 
 const MIME_TYPES = {

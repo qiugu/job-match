@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { type ImperativePanelGroupHandle } from "react-resizable-panels";
 import { Eye, Edit2, Menu, PanelLeft, Minimize2 } from "lucide-react";
 import { EditorHeader } from "@/components/editor/EditorHeader";
 import { SidePanel } from "@/components/editor/SidePanel";
@@ -169,6 +170,8 @@ export default function Home() {
   const [editPanelCollapsed, setEditPanelCollapsed] = useState(false);
   const [previewPanelCollapsed, setPreviewPanelCollapsed] = useState(false);
   const [panelSizes, setPanelSizes] = useState<number[]>(LAYOUT_CONFIG.DEFAULT);
+  // 命令式控制 ResizablePanelGroup 布局（react-resizable-panels v2 不随 defaultSize 变化自动更新）
+  const panelGroupRef = React.useRef<ImperativePanelGroupHandle>(null);
   // 编辑模式：form（结构化表单编辑）| markdown（所见即所得 Markdown 编辑）
   const [editMode, setEditMode] = useState<"form" | "markdown">("form");
   const t = useTranslations();
@@ -228,59 +231,45 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    let newSizes = [];
+    // 只计算「当前可见面板」的尺寸数组，顺序与渲染顺序一致：
+    // [side-panel?, edit-panel?, preview-panel?]
+    let newSizes: number[] = [];
 
-    // 侧边栏尺寸
-    newSizes.push(sidePanelCollapsed ? 0 : 20);
+    if (!sidePanelCollapsed) newSizes.push(20);
 
-    // 编辑区尺寸
-    if (editPanelCollapsed) {
-      newSizes.push(0);
-    } else {
+    if (!editPanelCollapsed) {
       if (sidePanelCollapsed) {
         newSizes.push(36);
       } else {
-        if (previewPanelCollapsed) {
-          newSizes.push(80);
-        } else {
-          newSizes.push(32);
-        }
+        newSizes.push(previewPanelCollapsed ? 80 : 32);
       }
     }
 
-    // 预览区尺寸
-    if (previewPanelCollapsed) {
-      newSizes.push(0);
-    } else {
+    if (!previewPanelCollapsed) {
       if (editPanelCollapsed && sidePanelCollapsed) {
         newSizes.push(100);
+      } else if (editPanelCollapsed) {
+        newSizes.push(80);
+      } else if (sidePanelCollapsed) {
+        newSizes.push(64);
       } else {
-        if (editPanelCollapsed) {
-          newSizes.push(80);
-        } else {
-          // 如果侧边栏收起且编辑区展开，预览区占64，编辑区占36
-          if (sidePanelCollapsed) {
-            newSizes.push(64);
-          } else {
-            newSizes.push(48);
-          }
-        }
+        newSizes.push(48);
       }
     }
 
-    // 确保总和为 100
+    // 确保总和为 100（把差值补到最后一个可见面板）
     const total = newSizes.reduce((a, b) => a + b, 0);
-    if (total < 100) {
-      const lastNonZeroIndex = newSizes
-        .map((size, index) => ({ size, index }))
-        .filter(({ size }) => size > 0)
-        .pop()?.index;
-
-      if (lastNonZeroIndex !== undefined) {
-        newSizes[lastNonZeroIndex] += 100 - total;
-      }
+    if (total < 100 && newSizes.length > 0) {
+      newSizes[newSizes.length - 1] += 100 - total;
     }
+
     updateLayout([...newSizes]);
+
+    // react-resizable-panels v2 不随 defaultSize 变化自动重排，必须用命令式 setLayout
+    // 在下一帧调用，确保重渲染后 PanelGroup 已挂载且面板数量匹配
+    requestAnimationFrame(() => {
+      panelGroupRef.current?.setLayout(newSizes);
+    });
   }, [sidePanelCollapsed, editPanelCollapsed, previewPanelCollapsed]);
 
   const ModeSwitch = (
@@ -321,7 +310,7 @@ export default function Home() {
 
   const renderModuleEditor = (
     <ResizablePanelGroup
-      key={panelSizes?.join("-")}
+      ref={panelGroupRef}
       direction="horizontal"
       className={cn(
         "h-full",
@@ -363,9 +352,10 @@ export default function Home() {
       <ResizablePanel
         id="preview-panel"
         order={3}
-        collapsible={false}
-        defaultSize={panelSizes?.[2]}
-        className={cn("bg-gray-100", previewPanelCollapsed && "hidden")}
+        collapsible
+        collapsedSize={0}
+        defaultSize={panelSizes?.[panelSizes.length - 1]}
+        className="bg-gray-100"
       >
         <div
           className="h-full overflow-y-auto"

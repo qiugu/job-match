@@ -1,6 +1,6 @@
 # syntax=docker.io/docker/dockerfile:1
 
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN npm install -g corepack@latest && corepack enable
@@ -33,8 +33,8 @@ COPY --from=builder /app/server.mjs ./server.mjs
 
 USER nodeapp
 
-EXPOSE 3000
-ENV PORT=3000
+EXPOSE 3005
+ENV PORT=3005
 ENV HOSTNAME=0.0.0.0
 
 CMD ["node", "server.mjs"]

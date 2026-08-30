@@ -28,8 +28,8 @@ COPY migrations ./migrations
 ENV PATH="/app/.venv/bin:$PATH"
 
 # 数据库与 .env 通过挂载/环境变量提供
-# 生产启动统一监听 8000（可被 BACKEND_PORT 覆盖），关闭 reload
-EXPOSE 8000
+# 生产启动统一监听 8005（可被 BACKEND_PORT 覆盖），关闭 reload
+EXPOSE 8005
 
 # 启动前显式升级数据库到最新版本，再以 uvicorn 直接运行（幂等、无 reload）
-CMD ["sh", "-c", "python -m alembic upgrade head && uvicorn app.main:app --host ${BACKEND_HOST:-0.0.0.0} --port ${BACKEND_PORT:-8000}"]
+CMD ["sh", "-c", "python -m alembic upgrade head && uvicorn app.main:app --host ${BACKEND_HOST:-0.0.0.0} --port ${BACKEND_PORT:-8005}"]

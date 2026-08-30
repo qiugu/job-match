@@ -11,10 +11,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     backend_host: str = "0.0.0.0"
-    backend_port: int = 7001
-    # 允许的前端来源：覆盖本地 dev(4001)/默认(4000)、Vite(5173)、Docker/生产(3000/4173)
+    backend_port: int = 8005
+    # 允许的前端来源：开发与生产统一使用前端端口 3005，以及经 nginx 同源代理(80) 与容器内来源
     cors_origins: str = (
-        "http://localhost:4001,http://127.0.0.1:4001,"
+        "http://localhost:3005,http://127.0.0.1:3005,"
+        "http://localhost,http://frontend:3005"
     )
 
     database_url: str = "sqlite+aiosqlite:///./jobmatch.db"
@@ -34,6 +35,21 @@ class Settings(BaseSettings):
     llm_model: str = "deepseek-v4-flash"
     llm_temperature: float = 0.3
     llm_timeout: int = 300  # LLM 单次请求超时（秒），匹配工作流节点/整体统一沿用此配置
+
+    # ---------- 登录鉴权 ----------
+    # JWT 签名密钥。生产必须显式配置 AUTH_SECRET_KEY：留空时进程会生成随机密钥，
+    # 重启后所有登录态立即失效（详见 app/core/security.py 的 _secret_key）。
+    auth_secret_key: str = ""
+    # 登录令牌有效期（分钟），默认 7 天
+    auth_token_expire_minutes: int = 60 * 24 * 1
+    # 是否开放注册；关闭后只能由 AUTH_BOOTSTRAP_* 或已有账号登录
+    auth_allow_registration: bool = True
+    # 初始账号（可选）：服务启动时若该账号不存在则创建，并接管迁移遗留的历史数据。
+    # 创建出来即为管理员（匹配额度无限制），首次部署时用它登录即可看到升级前已有的简历。
+    auth_bootstrap_username: str = ""
+    auth_bootstrap_password: str = ""
+    # 生成注册码时默认授予的「JD 匹配次数」（scripts/generate_registration_code.py 用）
+    registration_default_matches: int = 10
 
     @property
     def cors_origin_list(self) -> List[str]:

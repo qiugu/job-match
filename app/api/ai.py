@@ -8,11 +8,13 @@ from __future__ import annotations
 import json
 from typing import List, Optional
 
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.api.deps import get_current_user
 from app.core.logging import get_logger
+from app.models.user import User
 from app.services import ai_proxy
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -36,8 +38,11 @@ class ResumeImportRequest(BaseModel):
 
 
 @router.post("/polish")
-async def polish(req: PolishRequest):
-    """流式润色，返回 text/event-stream 纯文本流。"""
+async def polish(req: PolishRequest, user: User = Depends(get_current_user)):
+    """流式润色，返回 text/event-stream 纯文本流。
+
+    需要登录：每次调用都会消耗后端 LLM 额度。
+    """
     if not req.content or not req.content.strip():
         return StreamingResponse(iter([b""]), media_type="text/plain")
 
@@ -56,8 +61,11 @@ async def polish(req: PolishRequest):
 
 
 @router.post("/grammar")
-async def grammar(req: GrammarRequest):
-    """语法/错别字检查，返回 { choices:[{ message:{ content } }] }，content 为 errors JSON。"""
+async def grammar(req: GrammarRequest, user: User = Depends(get_current_user)):
+    """语法/错别字检查，返回 { choices:[{ message:{ content } }] }，content 为 errors JSON。
+
+    需要登录：每次调用都会消耗后端 LLM 额度。
+    """
     if not req.content or not req.content.strip():
         return {"choices": [{"message": {"content": json.dumps({"errors": []}, ensure_ascii=False)}}]}
     try:
@@ -72,8 +80,13 @@ async def grammar(req: GrammarRequest):
 
 
 @router.post("/resume-import")
-async def resume_import(req: ResumeImportRequest):
-    """从文本/图片结构化解析简历，返回 { resume: {...} }。"""
+async def resume_import(
+    req: ResumeImportRequest, user: User = Depends(get_current_user)
+):
+    """从文本/图片结构化解析简历，返回 { resume: {...} }。
+
+    需要登录：每次调用都会消耗后端 LLM 额度。
+    """
     if not req.content and not req.images:
         return {"error": "Missing resume content or images"}
     try:
@@ -88,7 +101,11 @@ async def resume_import(req: ResumeImportRequest):
 
 
 @router.post("/resume-import-pdf")
-async def resume_import_pdf(file: UploadFile = File(...), locale: str = "zh"):
+async def resume_import_pdf(
+    file: UploadFile = File(...),
+    locale: str = "zh",
+    user: User = Depends(get_current_user),
+):
     """从上传的 PDF 中提取纯文本并结构化解析，返回 { resume: {...} }。
 
     走文本提取路径，兼容不支持图片输入的纯文本大模型。

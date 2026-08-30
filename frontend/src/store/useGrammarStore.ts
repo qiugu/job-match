@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { toast } from "sonner";
 import Mark from "mark.js";
 import { cn } from "@/lib/utils";
+import { authHeaders, handleUnauthorized } from "@/lib/auth";
 
 export interface GrammarError {
   context: string;
@@ -95,11 +96,16 @@ export const useGrammarStore = create<GrammarStore>((set, get) => ({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...authHeaders(),
         },
         body: JSON.stringify({
           content: text,
         }),
       });
+
+      if (response.status === 401) {
+        handleUnauthorized();
+      }
 
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status}`);

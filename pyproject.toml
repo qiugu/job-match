@@ -22,6 +22,7 @@ dependencies = [
     "httpx>=0.27",
     "alembic>=1.13",
     "langchain-deepseek>=1.1.0",
+    "pyjwt>=2.13.0",
 ]
 
 [tool.pyrefly]

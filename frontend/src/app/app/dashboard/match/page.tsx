@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { useTranslations } from "@/i18n/compat/client";
 import { toast } from "sonner";
+import { useAuthStore } from "@/store/useAuthStore";
 import { motion } from "framer-motion";
 import {
   Target,
@@ -10,7 +11,7 @@ import {
   Loader2,
   PanelLeftClose,
   PanelLeftOpen,
-  Upload,
+  ArrowRight,
   Tag,
   Check,
   RefreshCw,
@@ -51,7 +52,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  uploadMasterResume,
   listMasterResumes,
   createMatch,
   acceptMatch,
@@ -134,7 +134,6 @@ export default function JobMatchPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [elapsedMs, setElapsedMs] = useState<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [uploading, setUploading] = useState<boolean>(false);
   const [result, setResult] = useState<MatchResult | null>(null);
   const [accepted, setAccepted] = useState<boolean>(false);
   const [accepting, setAccepting] = useState<boolean>(false);
@@ -146,7 +145,6 @@ export default function JobMatchPage() {
   // 「优化简历」内部子视图：A4 预览（用于 PDF 导出） / 左右对比（高亮修改 + hover 依据）
   const [resumeView, setResumeView] = useState<"preview" | "compare">("compare");
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const formCardRef = useRef<HTMLDivElement>(null);
   const resultCardRef = useRef<HTMLDivElement>(null);
 
@@ -200,34 +198,8 @@ export default function JobMatchPage() {
     if (result) setResultTab("analysis");
   }, [result?.id]);
 
-  const handleUploadClick = () => fileInputRef.current?.click();
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const summary = await uploadMasterResume(file);
-      toast.success(t("uploadSuccess"));
-      setMasters((prev) =>
-        prev.some((m) => m.id === summary.id) ? prev : [summary, ...prev]
-      );
-      setSelected({
-        kind: "master",
-        id: summary.id,
-        title: summary.title,
-        rawText: summary.rawText,
-        markdownContent: summary.markdownContent,
-      });
-    } catch (err) {
-      console.error("Upload failed:", err);
-      // 409=同名简历已存在：直接展示后端返回的改名提示，其余错误走通用文案
-      const status = (err as Error & { status?: number }).status;
-      toast.error(status === 409 ? (err as Error).message : t("uploadError"));
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+  const handleGoToResumes = () => {
+    router.push("/app/dashboard/resumes");
   };
 
   const handleCreate = async () => {
@@ -258,9 +230,15 @@ export default function JobMatchPage() {
       const data = await createMatch(payload);
       setResult(data);
       setAccepted(Boolean(data.accepted));
+      // 匹配会扣一次额度：用后端返回的剩余次数刷新侧边栏显示
+      if (typeof data.remainingQuota === "number") {
+        useAuthStore.getState().applyQuota(data.remainingQuota);
+      }
     } catch (err) {
       console.error("Match failed:", err);
-      toast.error(t("matchError"));
+      // 403=匹配次数已用完：直接展示后端提示，其余错误走通用文案
+      const status = (err as Error & { status?: number }).status;
+      toast.error(status === 403 ? (err as Error).message : t("matchError"));
     } finally {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -442,18 +420,17 @@ export default function JobMatchPage() {
                   ) : (
                     <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center">
                       <FileText className="mx-auto h-8 w-8 text-muted-foreground" />
-                      <p className="mx-auto mt-3 max-w-[240px] text-sm text-muted-foreground">
+                      <p className="mx-auto mt-3 max-w-[260px] text-sm text-muted-foreground">
                         {t("noMaster")}
                       </p>
                       <Button
                         variant="outline"
                         size="sm"
                         className="mt-4 border-border bg-transparent text-card-foreground hover:bg-muted/60"
-                        onClick={handleUploadClick}
-                        disabled={uploading}
+                        onClick={handleGoToResumes}
                       >
-                        <Upload className="mr-1.5 h-3.5 w-3.5" />
-                        {t("uploadPdf")}
+                        {t("goToMyResumes")}
+                        <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                       </Button>
                     </div>
                   )}
@@ -490,14 +467,6 @@ export default function JobMatchPage() {
                   {loading ? t("matching") : t("startMatch")}
                 </button>
 
-                {/* 上传入口（无简历时兜底） */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="application/pdf"
-                  className="hidden"
-                  onChange={handleUpload}
-                />
               </div>
             </ScrollArea>
           </aside>

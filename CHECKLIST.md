@@ -60,7 +60,7 @@
 - [x] F4 调用后端 /match，加载返回 ResumeData 进编辑器二次编辑（addResume 接入现有编辑器）
 - [x] F5 求职信纯文本展示（Card 渲染 coverLetter）
 - [x] F6 复用 exportToPdf 预览/下载 PDF（对预览元素 jobmatch-preview 导出）
-- [x] F7 配置后端 base URL（VITE_JOBMATCH_API，默认 localhost:8000）与 CORS 联调（curl 验证跨域头+上传成功）
+- [x] F7 配置后端 base URL（VITE_JOBMATCH_API，默认 localhost:8005）与 CORS 联调（curl 验证跨域头+上传成功）
 
 ### 联调与完成
 

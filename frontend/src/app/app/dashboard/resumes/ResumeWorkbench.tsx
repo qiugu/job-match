@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { authHeaders, handleUnauthorized } from "@/lib/auth";
 import { preloadFontFamily } from "@/utils/fonts";
 import { useResumeStore } from "@/store/useResumeStore";
 import {
@@ -148,8 +149,13 @@ export const ResumeWorkbench = () => {
 
         const response = await fetch("/api/resume-import-pdf", {
             method: "POST",
+            headers: authHeaders(),
             body: formData,
         });
+
+        if (response.status === 401) {
+            handleUnauthorized();
+        }
 
         const data = await response.json();
         if (!response.ok) {

@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LocaleRouteImport } from './routes/$locale'
+import { Route as AppRouteRouteImport } from './routes/app/route'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as ApiGrammarRouteImport } from './routes/api/grammar'
 import { Route as ApiPolishRouteImport } from './routes/api/polish'
 import { Route as ApiResumeImportRouteImport } from './routes/api/resume-import'
@@ -36,6 +38,16 @@ const LocaleRoute = LocaleRouteImport.update({
   path: '/$locale',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppRouteRoute = AppRouteRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGrammarRoute = ApiGrammarRouteImport.update({
   id: '/api/grammar',
   path: '/api/grammar',
@@ -57,14 +69,14 @@ const ApiResumeImportPdfRoute = ApiResumeImportPdfRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
-  id: '/app/',
-  path: '/app/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRouteRoute,
 } as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/app/dashboard',
-  path: '/app/dashboard',
-  getParentRoute: () => rootRouteImport,
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRouteRoute,
 } as any)
 const ApiProxyImageRoute = ApiProxyImageRouteImport.update({
   id: '/api/proxy/image',
@@ -97,19 +109,21 @@ const AppDashboardTemplatesRoute = AppDashboardTemplatesRouteImport.update({
   getParentRoute: () => AppDashboardRoute,
 } as any)
 const AppPreviewTemplateIdRoute = AppPreviewTemplateIdRouteImport.update({
-  id: '/app/preview-template/$id',
-  path: '/app/preview-template/$id',
-  getParentRoute: () => rootRouteImport,
+  id: '/preview-template/$id',
+  path: '/preview-template/$id',
+  getParentRoute: () => AppRouteRoute,
 } as any)
 const AppWorkbenchIdRoute = AppWorkbenchIdRouteImport.update({
-  id: '/app/workbench/$id',
-  path: '/app/workbench/$id',
-  getParentRoute: () => rootRouteImport,
+  id: '/workbench/$id',
+  path: '/workbench/$id',
+  getParentRoute: () => AppRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/app': typeof AppRouteRouteWithChildren
   '/$locale': typeof LocaleRoute
+  '/login': typeof LoginRoute
   '/api/grammar': typeof ApiGrammarRoute
   '/api/polish': typeof ApiPolishRoute
   '/api/resume-import': typeof ApiResumeImportRoute
@@ -128,6 +142,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$locale': typeof LocaleRoute
+  '/login': typeof LoginRoute
   '/api/grammar': typeof ApiGrammarRoute
   '/api/polish': typeof ApiPolishRoute
   '/api/resume-import': typeof ApiResumeImportRoute
@@ -145,7 +160,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/app': typeof AppRouteRouteWithChildren
   '/$locale': typeof LocaleRoute
+  '/login': typeof LoginRoute
   '/api/grammar': typeof ApiGrammarRoute
   '/api/polish': typeof ApiPolishRoute
   '/api/resume-import': typeof ApiResumeImportRoute
@@ -165,7 +182,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/app'
     | '/$locale'
+    | '/login'
     | '/api/grammar'
     | '/api/polish'
     | '/api/resume-import'
@@ -184,6 +203,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$locale'
+    | '/login'
     | '/api/grammar'
     | '/api/polish'
     | '/api/resume-import'
@@ -200,7 +220,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/app'
     | '/$locale'
+    | '/login'
     | '/api/grammar'
     | '/api/polish'
     | '/api/resume-import'
@@ -219,16 +241,14 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRouteRoute: typeof AppRouteRouteWithChildren
   LocaleRoute: typeof LocaleRoute
+  LoginRoute: typeof LoginRoute
   ApiGrammarRoute: typeof ApiGrammarRoute
   ApiPolishRoute: typeof ApiPolishRoute
   ApiResumeImportRoute: typeof ApiResumeImportRoute
   ApiResumeImportPdfRoute: typeof ApiResumeImportPdfRoute
-  AppDashboardRoute: typeof AppDashboardRouteWithChildren
-  AppIndexRoute: typeof AppIndexRoute
   ApiProxyImageRoute: typeof ApiProxyImageRoute
-  AppPreviewTemplateIdRoute: typeof AppPreviewTemplateIdRoute
-  AppWorkbenchIdRoute: typeof AppWorkbenchIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -245,6 +265,20 @@ declare module '@tanstack/react-router' {
       path: '/$locale'
       fullPath: '/$locale'
       preLoaderRoute: typeof LocaleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/grammar': {
@@ -277,17 +311,17 @@ declare module '@tanstack/react-router' {
     }
     '/app/': {
       id: '/app/'
-      path: '/app'
+      path: '/'
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AppRouteRoute
     }
     '/app/dashboard': {
       id: '/app/dashboard'
-      path: '/app/dashboard'
+      path: '/dashboard'
       fullPath: '/app/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AppRouteRoute
     }
     '/api/proxy/image': {
       id: '/api/proxy/image'
@@ -333,17 +367,17 @@ declare module '@tanstack/react-router' {
     }
     '/app/preview-template/$id': {
       id: '/app/preview-template/$id'
-      path: '/app/preview-template/$id'
+      path: '/preview-template/$id'
       fullPath: '/app/preview-template/$id'
       preLoaderRoute: typeof AppPreviewTemplateIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AppRouteRoute
     }
     '/app/workbench/$id': {
       id: '/app/workbench/$id'
-      path: '/app/workbench/$id'
+      path: '/workbench/$id'
       fullPath: '/app/workbench/$id'
       preLoaderRoute: typeof AppWorkbenchIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AppRouteRoute
     }
   }
 }
@@ -368,18 +402,34 @@ const AppDashboardRouteWithChildren = AppDashboardRoute._addFileChildren(
   AppDashboardRouteChildren,
 )
 
+interface AppRouteRouteChildren {
+  AppDashboardRoute: typeof AppDashboardRouteWithChildren
+  AppIndexRoute: typeof AppIndexRoute
+  AppPreviewTemplateIdRoute: typeof AppPreviewTemplateIdRoute
+  AppWorkbenchIdRoute: typeof AppWorkbenchIdRoute
+}
+
+const AppRouteRouteChildren: AppRouteRouteChildren = {
+  AppDashboardRoute: AppDashboardRouteWithChildren,
+  AppIndexRoute: AppIndexRoute,
+  AppPreviewTemplateIdRoute: AppPreviewTemplateIdRoute,
+  AppWorkbenchIdRoute: AppWorkbenchIdRoute,
+}
+
+const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
+  AppRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRouteRoute: AppRouteRouteWithChildren,
   LocaleRoute: LocaleRoute,
+  LoginRoute: LoginRoute,
   ApiGrammarRoute: ApiGrammarRoute,
   ApiPolishRoute: ApiPolishRoute,
   ApiResumeImportRoute: ApiResumeImportRoute,
   ApiResumeImportPdfRoute: ApiResumeImportPdfRoute,
-  AppDashboardRoute: AppDashboardRouteWithChildren,
-  AppIndexRoute: AppIndexRoute,
   ApiProxyImageRoute: ApiProxyImageRoute,
-  AppPreviewTemplateIdRoute: AppPreviewTemplateIdRoute,
-  AppWorkbenchIdRoute: AppWorkbenchIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

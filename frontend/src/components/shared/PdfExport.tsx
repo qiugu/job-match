@@ -83,8 +83,9 @@ const PdfExport = ({ children }: { children?: React.ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
-  const [isExportingJson, setIsExportingJson] = useState(false);
-  const [isExportingMarkdown, setIsExportingMarkdown] = useState(false);
+  // 暂时不支持 JSON / Markdown 导出，相关状态先注释
+  // const [isExportingJson, setIsExportingJson] = useState(false);
+  // const [isExportingMarkdown, setIsExportingMarkdown] = useState(false);
   const { activeResume } = useResumeStore();
   const { globalSettings = {}, title } = activeResume || {};
   const t = useTranslations("pdfExport");
@@ -103,38 +104,39 @@ const PdfExport = ({ children }: { children?: React.ReactNode }) => {
     });
   };
 
-  const handleJsonExport = () => {
-    exportResumeAsJson({
-      resume: activeResume,
-      title,
-      onStart: () => setIsExportingJson(true),
-      onEnd: () => setIsExportingJson(false),
-      successMessage: t("toast.jsonSuccess"),
-      errorMessage: t("toast.jsonError")
-    });
-  };
+  // 暂时不支持 JSON / Markdown 导出，相关处理函数先注释
+  // const handleJsonExport = () => {
+  //   exportResumeAsJson({
+  //     resume: activeResume,
+  //     title,
+  //     onStart: () => setIsExportingJson(true),
+  //     onEnd: () => setIsExportingJson(false),
+  //     successMessage: t("toast.jsonSuccess"),
+  //     errorMessage: t("toast.jsonError")
+  //   });
+  // };
 
-  const handleMarkdownExport = () => {
-    exportResumeAsMarkdown({
-      resume: activeResume,
-      title,
-      onStart: () => setIsExportingMarkdown(true),
-      onEnd: () => setIsExportingMarkdown(false),
-      successMessage: t("toast.markdownSuccess"),
-      errorMessage: t("toast.markdownError"),
-      markdownOptions: {
-        basicFieldLabels: {
-          name: tBasicField("name"),
-          title: tBasicField("title"),
-          employementStatus: tBasicField("employementStatus"),
-          birthDate: tBasicField("birthDate"),
-          email: tBasicField("email"),
-          phone: tBasicField("phone"),
-          location: tBasicField("location")
-        }
-      }
-    });
-  };
+  // const handleMarkdownExport = () => {
+  //   exportResumeAsMarkdown({
+  //     resume: activeResume,
+  //     title,
+  //     onStart: () => setIsExportingMarkdown(true),
+  //     onEnd: () => setIsExportingMarkdown(false),
+  //     successMessage: t("toast.markdownSuccess"),
+  //     errorMessage: t("toast.markdownError"),
+  //     markdownOptions: {
+  //       basicFieldLabels: {
+  //         name: tBasicField("name"),
+  //         title: tBasicField("title"),
+  //         employementStatus: tBasicField("employementStatus"),
+  //         birthDate: tBasicField("birthDate"),
+  //         email: tBasicField("email"),
+  //         phone: tBasicField("phone"),
+  //         location: tBasicField("location")
+  //       }
+  //     }
+  //   });
+  // };
 
   const handlePrint = async () => {
     const resumeContent = document.getElementById("resume-preview");
@@ -156,16 +158,8 @@ const PdfExport = ({ children }: { children?: React.ReactNode }) => {
     }
   };
 
-  const isLoading = isExporting || isExportingJson || isExportingMarkdown || isPrinting;
-  const loadingText = isExporting
-    ? t("button.exporting")
-    : isExportingJson
-      ? t("button.exportingJson")
-      : isExportingMarkdown
-        ? t("button.exportingMarkdown")
-        : isPrinting
-          ? t("button.exporting")
-          : "";
+  const isLoading = isExporting || isPrinting;
+  const loadingText = isExporting || isPrinting ? t("button.exporting") : "";
 
   return (
     <Dialog open={isOpen} onOpenChange={(val) => {
@@ -231,7 +225,8 @@ const PdfExport = ({ children }: { children?: React.ReactNode }) => {
               bgGradientClass="from-sky-500/10 dark:from-sky-500/20"
               hoverBorderClass="hover:border-sky-500/40 hover:ring-1 hover:ring-sky-500/20"
             />
-            <ExportCard
+            {/* 暂时不支持 JSON / Markdown 导出，前端先注释 */}
+            {/* <ExportCard
               icon={JsonGlassIcon}
               title={t("button.exportJson")}
               description={t("modal.jsonDesc")}
@@ -248,7 +243,7 @@ const PdfExport = ({ children }: { children?: React.ReactNode }) => {
               onClick={handleMarkdownExport}
               bgGradientClass="from-indigo-500/10 dark:from-indigo-500/20"
               hoverBorderClass="hover:border-indigo-500/40 hover:ring-1 hover:ring-indigo-500/20"
-            />
+            /> */}
           </div>
 
           {/* 隐私保护横幅 */}

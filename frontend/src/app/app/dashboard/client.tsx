@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { LogOut } from "lucide-react";
+import { toast } from "sonner";
 import { IconResumes, IconTemplates, IconSettings, IconJobMatch } from "@/components/shared/icons/SidebarIcons";
 import { usePathname, useRouter } from "@/lib/navigation";
 import {
@@ -22,6 +24,7 @@ import {
 } from "@/components/ui/tooltip";
 import Logo from "@/components/shared/Logo";
 import { useLocale, useTranslations } from "@/i18n/compat/client";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface MenuItem {
   title: string;
@@ -33,6 +36,14 @@ interface MenuItem {
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const t = useTranslations("dashboard");
+  const tAuth = useTranslations();
+  const user = useAuthStore((state) => state.user);
+  const displayName = user?.nickname || user?.username || "";
+  // 负值（管理员默认 -1）即无限制；无限额度用独立整句，不套「剩余匹配」前缀
+  const quotaText =
+    user && user.matchQuota < 0
+      ? tAuth("auth.quotaUnlimited")
+      : `${tAuth("auth.quota")} · ${user?.matchQuota ?? 0}`;
   const sidebarItems: MenuItem[] = [
     {
       title: t("sidebar.jobmatch"),
@@ -72,6 +83,12 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       return item.items.some((subItem) => pathname === subItem.href);
     }
     return item.url === pathname || item.href === pathname;
+  };
+
+  const handleLogout = async () => {
+    await useAuthStore.getState().logout();
+    toast.success(tAuth("auth.logoutSuccess"));
+    router.push("/login");
   };
 
   return (
@@ -160,7 +177,33 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
               </SidebarGroupContent>
             </SidebarGroup>
           </SidebarContent>
-          <SidebarFooter />
+          <SidebarFooter className="border-t border-border/40 p-3">
+            <div className="flex items-center gap-2">
+              {open && (
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium" title={displayName}>
+                    {displayName}
+                  </p>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span className="truncate">{quotaText}</span>
+                    <span aria-hidden>·</span>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="shrink-0 transition-colors hover:text-foreground"
+                    >
+                      {tAuth("auth.logout")}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <LogOut
+                className="size-4 shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-destructive"
+                onClick={handleLogout}
+                aria-label={tAuth("auth.logout")}
+              />
+            </div>
+          </SidebarFooter>
         </Sidebar>
         <main className="flex-1 flex flex-col">
           <div className="p-2">

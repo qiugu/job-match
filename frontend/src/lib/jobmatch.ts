@@ -1,19 +1,24 @@
 // 简历匹配 Agent 后端 API 客户端。
-// 后端为独立 Python(FastAPI) 服务，地址通过 VITE_JOBMATCH_API 配置，默认本地 7001。
+// 后端为独立 Python(FastAPI) 服务，地址通过 VITE_JOBMATCH_API 配置，默认本地 8005。
+// 所有接口都要求登录：请求统一携带 Bearer 令牌，401 时跳登录页。
 import { ResumeData } from "@/types/resume";
+import { API_BASE } from "./apiBase";
+import { authHeaders, handleUnauthorized } from "./auth";
 
-export const API_BASE =
-  (import.meta.env.VITE_JOBMATCH_API as string | undefined)?.replace(/\/$/, "") ||
-  "http://localhost:7001";
+export { API_BASE };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      ...authHeaders(),
       ...(init?.headers || {}),
     },
   });
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
   if (!res.ok) {
     let detail = `请求失败 (${res.status})`;
     try {
@@ -62,7 +67,11 @@ export async function uploadMasterResume(file: File): Promise<MasterResumeSummar
   const res = await fetch(`${API_BASE}/api/master-resumes`, {
     method: "POST",
     body: form,
+    headers: authHeaders(),
   });
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
   if (!res.ok) {
     let detail = `上传失败 (${res.status})`;
     try {
@@ -90,10 +99,16 @@ export async function getMasterResume(id: string): Promise<MasterResumeDetail> {
   return request(`/api/master-resumes/${id}`);
 }
 
-export async function updateMasterResume(data: ResumeData): Promise<{ id: string }> {
-  return request(`/api/master-resumes/${data.id}`, {
+export async function updateMasterResume(
+  data: ResumeData,
+  backendId?: string
+): Promise<{ id: string }> {
+  // PUT 目标 id 必须为真实后端记录 id：resume_json 内嵌的 id 可能为空（历史脏数据）
+  // 或前端临时 uuid，应以 store 中的真实后端 id（backendId）为准。
+  const targetId = backendId ?? data.id;
+  return request(`/api/master-resumes/${targetId}`, {
     method: "PUT",
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, id: targetId }),
   });
 }
 
@@ -190,6 +205,8 @@ export interface MatchResult {
   matchAnalysis?: MatchAnalysis | null;
   /** 用户是否已确认接受该匹配结果 */
   accepted: boolean;
+  /** 本次匹配后剩余的匹配次数（-1 表示无限制），失败时不存在 */
+  remainingQuota?: number;
   createdAt: string;
 }
 

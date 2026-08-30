@@ -937,8 +937,10 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
         const synced = get().syncedIds.has(resumeId);
 
         // 已落库 -> 用后端 id 直接 PUT 更新；未落库 -> POST 新建拿后端 id。
+        // 传给 updateMasterResume 的 resumeId 是真实后端记录 id（来自 URL / store），
+        // 避免 resume_json 内嵌的 id 为空（历史脏数据）导致 PUT /api/master-resumes/ -> 405。
         const result = synced
-          ? await updateMasterResume(resume)
+          ? await updateMasterResume(resume, resumeId)
           : await createMasterResumeJson(resume);
 
         const backendId = result.id;

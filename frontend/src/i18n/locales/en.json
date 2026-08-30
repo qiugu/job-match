@@ -1,8 +1,30 @@
 {
+  "auth": {
+    "title": "Sign in to JDMatch",
+    "subtitle": "Sign in to use resume matching and AI polishing",
+    "notice": "AI features are served by the backend. A registration code is required to sign up; it sets how many matches your account can run.",
+    "username": "Username",
+    "usernamePlaceholder": "3-64 chars: letters, digits, _ . -",
+    "password": "Password",
+    "passwordPlaceholder": "At least 8 characters",
+    "code": "Registration code",
+    "codePlaceholder": "Ask the admin, e.g. ABCD-EFGH-JKLM",
+    "quota": "Matches left",
+    "quotaUnlimited": "Unlimited matches",
+    "submitLogin": "Sign in",
+    "submitRegister": "Sign up",
+    "toRegister": "No account yet? Sign up",
+    "toLogin": "Already have an account? Sign in",
+    "loginSuccess": "Signed in",
+    "registerSuccess": "Account created",
+    "logout": "Sign out",
+    "logoutSuccess": "Signed out",
+    "sessionExpired": "Session expired, please sign in again"
+  },
   "common": {
     "title": "JDMatch",
-    "subtitle": "AI Driven Resume Editor",
-    "description": "JDMatch is an open source resume editor, free, privacy-first. No registration required, all data stored locally, support data backup and export, ensuring your resume data is always available.",
+    "subtitle": "AI Driven Resume × JD Matching",
+    "description": "JDMatch is an AI-powered resume matching tool: upload your resume and a target JD, and it automatically rewrites and optimizes the resume to fit the role. Log in to unlock all AI features — your resumes and match results are saved under your account.",
     "dashboard": "Dashboard",
     "edit": "Edit",
     "delete": "Delete",
@@ -28,33 +50,33 @@
       "dashboard": "Dashboard"
     },
     "hero": {
-      "badge": "Smart Resume Creation",
-      "title": "Make Resume Creation Simple and Smart",
-      "subtitle": "JDMatch uses AI technology to help you quickly create professional resumes. No registration required, free to use, with secure data storage.",
-      "cta": "Get Started",
+      "badge": "AI Resume × JD Matching",
+      "title": "Let AI Make Your Resume Hit the Job",
+      "subtitle": "JDMatch uses large language models to automatically rewrite and optimize your resume against a target job description, producing a derived resume that better fits the role. Log in to start matching — your quota is set by your registration code.",
+      "cta": "Start Matching",
       "secondary": "Browse Templates"
     },
     "features": {
       "title": "Why Choose JDMatch?",
-      "subtitle": "We provide an all-in-one resume solution to make your job search journey smoother",
+      "subtitle": "Let AI close the gap between your resume and the role, so every application is more targeted",
       "ai": {
-        "badge": "AI Smart Check",
-        "title": "Smart Detection, Professional Advice",
-        "description": "Built-in smart grammar check, automatically identifies inappropriate expressions, provides professional modification suggestions, making your resume more outstanding.",
-        "item1": "Intelligent enhancement",
-        "item1_description": "AI automatically optimizes content expression, making your resume more professional",
-        "item2": "Grammar check",
-        "item2_description": "Automatically detects and corrects grammar and spelling errors"
+        "badge": "AI Powered",
+        "title": "Resume × JD Smart Matching",
+        "description": "Upload your resume and a target JD, and AI analyzes the role requirements to rewrite and polish your resume, highlighting the most relevant experience and keywords.",
+        "item1": "Match & Rewrite",
+        "item1_description": "Reshape structure and wording to the JD to boost relevance",
+        "item2": "Keyword Alignment",
+        "item2_description": "Auto-align with role keywords to reduce missed information"
       },
       "storage": {
-        "badge": "Local Storage",
-        "title": "Data Security, Privacy First",
-        "description": "All resume data is fully stored locally, no need to worry about privacy leaks. Support data export backup, ensure your resume data is always available.",
-        "item1": "Local file storage",
-        "item1_description": "Resume data securely stored on your computer's hard drive",
-        "item2": "Multiple export formats",
-        "item2_description": "Support PDF and JSON format export",
-        "item3": "Support data export backup"
+        "badge": "Account Based",
+        "title": "Log In & Cloud Storage",
+        "description": "Log in to unlock all AI features. Your resumes and match results are saved under your account, always available to review and revisit.",
+        "item1": "Account Isolation",
+        "item1_description": "Your resumes and matches are visible only to you",
+        "item2": "Match Quota",
+        "item2_description": "Your registration code grants how many matches you can run",
+        "item3": "Revisable History"
       },
       "preview": {
         "badge": "Real-time Preview",
@@ -65,39 +87,39 @@
     },
     "news": {
       "label": "News",
-      "content": "New AI Resume Enhancement Feature is Live"
+      "content": "New AI Resume × JD Matching Feature is Live"
     },
     "footer": {
       "copyright": " 2025 JDMatch. All rights reserved."
     },
     "changelog": "Changelog",
     "cta": {
-      "title": "Start Your New Career Chapter",
-      "description": "Start using JDMatch now to create an impressive resume",
-      "button": "Start Using for Free"
+      "title": "Make Your Next Resume Understand the Role",
+      "description": "Log in to JDMatch and use AI to align your resume with the JD, improving the hit rate of every application",
+      "button": "Log In & Start Matching"
     },
     "faq": {
       "title": "Frequently Asked Questions",
       "items": [
         {
-          "question": "Is JDMatch free to use?",
-          "answer": "JDMatch is currently free, meeting basic resume creation needs. The open-source version's features will remain unchanged"
+          "question": "What does JDMatch do?",
+          "answer": "JDMatch is an AI-powered resume matching tool: upload your resume and a target JD, and it automatically rewrites and optimizes the resume to fit the role, producing a ready-to-send derived resume."
         },
         {
-          "question": "Is my resume data secure?",
-          "answer": "Yes, very secure. JDMatch uses local storage, meaning all your data is stored on your own device with no cloud storage, ensuring complete privacy protection."
+          "question": "Do I need to log in?",
+          "answer": "Yes. AI capabilities are served centrally to prevent quota abuse, so you must register with a registration code and log in. The code determines how many matches your account can run."
         },
         {
           "question": "What export formats are supported?",
           "answer": "We currently support PDF export, ensuring your resume maintains consistent formatting on any device. We plan to support more export formats in the future."
         },
         {
-          "question": "How can I sync across devices?",
-          "answer": "We provide JSON configuration export, allowing you to save your resume settings in JSON format, accessible anytime, anywhere, on any device."
+          "question": "Is my resume data secure?",
+          "answer": "Your resumes and match records are stored under your logged-in account and isolated from other accounts — visible only to you."
         },
         {
-          "question": "How customizable is it?",
-          "answer": "We offer rich customization options, including colors, layouts, and more, allowing you to adjust your resume style according to personal preferences and industry requirements."
+          "question": "What if my match quota runs out?",
+          "answer": "The number of matches is granted by the registration code used at sign-up. Once exhausted, no further matches can be started. To get more quota, ask an admin for a new registration code."
         }
       ]
     }
@@ -265,8 +287,8 @@
     "subtitle": "Upload a resume and optimize it against a job description to generate an editable, PDF-exportable matched resume.",
     "masterResume": "Resume to optimize",
     "masterResumeDesc": "Pick a resume as the baseline. The first one is selected by default.",
-    "uploadPdf": "Upload a PDF resume as the baseline",
-    "noMaster": "No resume available yet. Create one in the editor, or upload a PDF resume as the baseline.",
+    "noMaster": "No resume available yet. Please go to My Resumes to create or upload one first.",
+    "goToMyResumes": "Go to My Resumes",
     "createMatch": "Create Matched Resume",
     "createMatchDesc": "Match and optimize the resume against the job description (mode is auto-decided by AI).",
     "jd": "Job Description (JD)",
@@ -280,8 +302,6 @@
     "edit": "Open in Editor",
     "startMatch": "Start Match",
     "matching": "Matching…",
-    "uploadSuccess": "Resume uploaded",
-    "uploadError": "Resume upload failed",
     "matchSuccess": "Matched resume generated",
     "matchError": "Match failed. Check backend service and model config.",
     "selectResumeFirst": "Please select a resume to optimize first",
@@ -296,8 +316,7 @@
     "saveMatchError": "Failed to save match result",
     "sourceUnknown": "Unknown source",
     "selectMaster": "Select a resume",
-    "uploadMaster": "Upload PDF Resume",
-    "matchingDesc": "The agent is parsing the job description and optimizing your resume. This usually takes 10–30 seconds…",
+    "matchingDesc": "The agent is parsing the job description and optimizing your resume. This usually takes about 3 minutes…",
     "matchAnalysis": "Match Analysis",
     "matchAnalysisRole": "Target Role",
     "matchAnalysisScore": "Match Score",

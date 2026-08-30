@@ -39,7 +39,13 @@ def _run_migrations() -> None:
 
 async def init_db() -> None:
     # 延迟导入模型以注册表（确保元数据完整）
-    from app.models import master_resume, derived_resume, cover_letter  # noqa: F401
+    from app.models import (  # noqa: F401
+        user,
+        registration_code,
+        master_resume,
+        derived_resume,
+        cover_letter,
+    )
 
     # 数据库 schema 由 Alembic 迁移统一管理，启动时确保已升级到最新版本。
     # 若迁移系统尚未初始化（无 alembic_version 表），则自动执行升级以建表，

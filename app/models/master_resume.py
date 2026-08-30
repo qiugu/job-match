@@ -20,10 +20,17 @@ def _id() -> str:
 
 class MasterResume(Base):
     __tablename__ = "master_resumes"
-    # 标题即简历的唯一标识：与列表中用户看到的名字一致，重名写入会被数据库拒绝。
-    __table_args__ = (UniqueConstraint("title", name="uq_master_resumes_title"),)
+    # 标题在「单个用户内」唯一：与列表中用户看到的名字一致，重名写入会被数据库拒绝。
+    # 多用户共存后不能再用全局唯一，否则 A 起名会撞上 B 的简历（也等于泄露他人信息）。
+    __table_args__ = (
+        UniqueConstraint("user_id", "title", name="uq_master_resumes_user_title"),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
+    # 归属用户（对应 users.id，空串表示迁移遗留的无归属数据）。
+    # 不加数据库外键：SQLite 下给既有表加约束需整表重建，且删除用户时不希望
+    # 级联删简历；归属关系由应用层保证。
+    user_id: Mapped[str] = mapped_column(String(32), default="", index=True)
     title: Mapped[str] = mapped_column(String(255), default="我的简历")
     original_filename: Mapped[str] = mapped_column(String(255), default="")
     # 原始 PDF 文本（解析所得）
