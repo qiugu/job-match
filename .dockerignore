@@ -1,0 +1,15 @@
+# 后端构建上下文忽略项
+Dockerfile
+.dockerignore
+.dockerignore.*
+.env
+.env.*
+*.db
+*.db.bak.*
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.git
+.gitignore
+migrations/versions/__pycache__

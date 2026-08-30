@@ -1,0 +1,123 @@
+# AGENTS.md
+
+面向 AI 编程助手（CodeBuddy / Cursor / Claude Code 等）的项目指南。阅读本文件可快速了解仓库结构、技术栈与协作约定。
+
+## 项目概览
+
+简历匹配 Agent（magic-resume）：一个前后端分离的应用。
+
+- **后端**：独立的 Python 服务（FastAPI + LangChain + LangGraph + SQLite），提供简历结构化存储与基于大模型的匹配/重写能力。
+- **前端**：基于 TanStack Start（React + Vite）的简历编辑器 `frontend/`（原 magic-resume）。
+
+前后端通过 REST API 通信：前端默认访问 `http://localhost:4001`（可由 `VITE_JOBMATCH_API` 覆盖），后端 API 统一以 `/api` 为前缀。
+
+## 目录结构
+
+```
+matcher/
+├── app/                  # 后端 Python 代码（FastAPI）
+│   ├── api/              # 路由层（master.py, match.py ...）
+│   ├── core/             # 配置、数据库、LLM 客户端等核心
+│   ├── models/           # SQLAlchemy 模型
+│   ├── schemas/          # Pydantic 请求/响应模型（与前端共用 ResumeData 契约）
+│   ├── services/         # 业务逻辑、Agent、LLM 调用
+│   ├── main.py           # FastAPI 应用入口
+│   └── __init__.py
+├── frontend/             # 前端 TanStack Start 应用
+│   ├── src/              # 源码（routes, components, lib, types ...）
+│   │   ├── types/resume.ts   # 与后端对齐的 ResumeData 类型
+│   │   └── lib/jobmatch.ts    # 后端 API 客户端（读 VITE_JOBMATCH_API）
+│   ├── Dockerfile        # 前端生产镜像（node:20-alpine -> server.mjs）
+│   ├── server.mjs        # 生产静态 + SSR 服务器
+│   ├── vite.config.ts    # Vite / TanStack Start 配置
+│   └── package.json
+├── Dockerfile            # 后端生产镜像（python:3.12-slim + uv）
+├── docker-compose.yml    # 前后端一体编排（backend + frontend）
+├── pyproject.toml        # 后端 Python 依赖声明（uv 管理）
+├── uv.lock               # 后端依赖锁定文件（由 uv 生成）
+├── start.sh              # 本地一键启动脚本（开发模式）
+├── run.py                # 后端 uvicorn 启动入口
+├── .env.example          # 后端环境变量模板
+└── README.md             # 运行说明
+```
+
+## 技术栈
+
+- 后端：Python 3.12、FastAPI、Uvicorn、SQLAlchemy 2 + aiosqlite、Pydantic v2、LangChain / LangGraph、pypdf、python-dotenv。
+- 前端：Node 20、pnpm 10、React 18、TanStack Start / Router、Vite 7、Tailwind CSS 3、HeroUI、Tiptap、Zustand。
+- 部署：Docker + Docker Compose。
+
+## 常用命令
+
+### 后端（仓库根目录，使用 uv 管理）
+
+```bash
+uv sync --no-dev                     # 创建 .venv 并安装依赖
+cp .env.example .env                 # 填入 LLM_API_KEY 等
+uv run uvicorn app.main:app --host 0.0.0.0 --port 7001 --reload
+# 或
+uv run python run.py
+```
+
+健康检查：`GET http://localhost:7001/health`
+
+> 依赖管理统一使用 [uv](https://docs.astral.sh/uv/)：`pyproject.toml` 声明依赖，`uv.lock` 锁定版本（需提交）。虚拟环境在 `.venv/`。
+
+### 前端（frontend/）
+
+```bash
+pnpm install
+pnpm dev          # 开发服务器 http://localhost:4001
+pnpm build        # 产出 dist/
+pnpm start        # 生产服务器 node server.mjs（PORT=4001）
+```
+
+### 一键启动
+
+```bash
+./start.sh            # 本地同时启动前后端（开发模式）
+./start.sh --build    # 强制安装依赖后启动
+```
+
+### Docker 部署
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+docker compose ps / logs -f / down
+```
+
+- 前端：http://localhost:4001 ，后端：http://localhost:7001
+- 后端 SQLite 数据持久化于 `backend-data` 卷（`/app/data/jobmatch.db`）
+
+## 环境变量（后端 `.env`）
+
+| 变量                            | 说明                                                    |
+| ------------------------------- | ------------------------------------------------------- |
+| `LLM_API_KEY`                   | 大模型 API Key（必填，缺失时匹配接口返回 503）          |
+| `LLM_BASE_URL`                  | OpenAI 兼容接口地址，如 `https://api.deepseek.com/v1`   |
+| `LLM_MODEL`                     | 模型名，如 `deepseek-chat`                              |
+| `LLM_PROVIDER`                  | 厂商标识，默认 `deepseek`                               |
+| `LLM_TEMPERATURE`               | 采样温度，默认 `0.3`                                    |
+| `CORS_ORIGINS`                  | 前端来源，默认 `http://localhost:4001`                  |
+| `DATABASE_URL`                  | SQLite 路径（默认 `sqlite+aiosqlite:///./jobmatch.db`） |
+| `BACKEND_HOST` / `BACKEND_PORT` | 监听地址/端口                                           |
+
+## 数据契约
+
+前后端共用 `ResumeData` 结构化 JSON：
+
+- 后端定义见 `app/schemas/`
+- 前端类型见 `frontend/src/types/resume.ts`
+
+修改结构时需两端同步，保持字段一致。
+
+## 约定与最佳实践
+
+- **修复问题**：从最佳实践角度分析原因再修复，不盲目打补丁。
+- **API 路由**：后端路由统一加 `/api` 前缀，按资源拆分到 `app/api/` 下独立 Router。
+- **依赖管理**：后端使用 `uv` 管理——改依赖时编辑 `pyproject.toml` 后执行 `uv lock` / `uv sync`，并提交 `uv.lock`；前端改依赖同步更新 `frontend/package.json` 并重新生成 `pnpm-lock.yaml`。
+- **数据持久化**：不要将 `jobmatch.db`、`.env` 提交进仓库（见 `.gitignore`）。
+- **LLM 调用**：统一经由 `app/core` 中的客户端封装，便于切换厂商（DeepSeek / 通义 / 智谱等）。
+- **前端构建产物**：`frontend/dist/` 为构建输出，勿手动编辑。
+- **提交前**：确保 linter/类型检查通过；新增脚本（如 `start.sh`）需 `chmod +x`。

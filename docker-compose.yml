@@ -1,0 +1,50 @@
+services:
+  # 后端：Python FastAPI 简历匹配服务
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # 统一使用 8000：Dockerfile EXPOSE、run 启动端口、本映射三者一致
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - BACKEND_HOST=0.0.0.0
+      - BACKEND_PORT=8000
+      # 容器网络内的前端来源（与 frontend 暴露端口一致）
+      - CORS_ORIGINS=http://localhost:3000
+      # 数据库持久化到命名卷 /app/data
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/jobmatch.db
+    volumes:
+      - backend-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # 前端：TanStack Start 生产服务器（SSR + 静态资源）
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # 构建期注入：import.meta.env.VITE_JOBMATCH_API 是编译期常量，
+        # 运行时通过 environment 设置无效，必须在 build 阶段传入。
+        VITE_JOBMATCH_API: http://backend:8000
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  backend-data:

@@ -1,0 +1,67 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/frontend/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+.output/
+
+# production
+/build
+/frontend/dist/
+
+# misc
+.DS_Store
+*.pem
+*.db
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env
+.env*.local
+
+# dev 脚本运行时产物（PID / 日志）
+.pids/
+.logs/
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+src/routeTree.gen.ts
+
+# idea
+.idea
+.vscode/
+
+# 误生成的临时截图（无扩展名，以 -- 开头）
+--full-page
+
+.history
+.agent
+.tanstack
+
+# uv 虚拟环境
+.venv/
+
+# 临时 / 测试用数据库（非用户数据，勿提交）
+_alembic_test.db
+*.db.bak.*
+jobmatch.db.bak.*
+
+# Alembic 迁移产物（versions/ 下的迁移脚本需提交，仅忽略缓存）
+migrations/__pycache__/
+__pycache__/

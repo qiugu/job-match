@@ -1,0 +1,894 @@
+{
+  "common": {
+    "title": "JDMatch",
+    "subtitle": "AI Driven Resume Editor",
+    "description": "JDMatch is an open source resume editor, free, privacy-first. No registration required, all data stored locally, support data backup and export, ensuring your resume data is always available.",
+    "dashboard": "Dashboard",
+    "edit": "Edit",
+    "delete": "Delete",
+    "newResume": "New Resume",
+    "copy": "Copy",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "deleteSuccess": "Deleted successfully",
+    "deleteModuleConfirm": "Are you sure you want to delete this module? This action cannot be undone.",
+    "configured": "Configured",
+    "notConfigured": "Not configured",
+    "setMaster": "Set as default"
+  },
+  "home": {
+    "header": {
+      "title": "JDMatch",
+      "startButton": "Get Started",
+      "features": "Features",
+      "pricing": "Pricing",
+      "about": "About",
+      "login": "Login",
+      "register": "Register",
+      "dashboard": "Dashboard"
+    },
+    "hero": {
+      "badge": "Smart Resume Creation",
+      "title": "Make Resume Creation Simple and Smart",
+      "subtitle": "JDMatch uses AI technology to help you quickly create professional resumes. No registration required, free to use, with secure data storage.",
+      "cta": "Get Started",
+      "secondary": "Browse Templates"
+    },
+    "features": {
+      "title": "Why Choose JDMatch?",
+      "subtitle": "We provide an all-in-one resume solution to make your job search journey smoother",
+      "ai": {
+        "badge": "AI Smart Check",
+        "title": "Smart Detection, Professional Advice",
+        "description": "Built-in smart grammar check, automatically identifies inappropriate expressions, provides professional modification suggestions, making your resume more outstanding.",
+        "item1": "Intelligent enhancement",
+        "item1_description": "AI automatically optimizes content expression, making your resume more professional",
+        "item2": "Grammar check",
+        "item2_description": "Automatically detects and corrects grammar and spelling errors"
+      },
+      "storage": {
+        "badge": "Local Storage",
+        "title": "Data Security, Privacy First",
+        "description": "All resume data is fully stored locally, no need to worry about privacy leaks. Support data export backup, ensure your resume data is always available.",
+        "item1": "Local file storage",
+        "item1_description": "Resume data securely stored on your computer's hard drive",
+        "item2": "Multiple export formats",
+        "item2_description": "Support PDF and JSON format export",
+        "item3": "Support data export backup"
+      },
+      "preview": {
+        "badge": "Real-time Preview",
+        "title": "What You See Is What You Get",
+        "item1": "Real-time preview of editing effects",
+        "item2": "Multiple export format support"
+      }
+    },
+    "news": {
+      "label": "News",
+      "content": "New AI Resume Enhancement Feature is Live"
+    },
+    "footer": {
+      "copyright": " 2025 JDMatch. All rights reserved."
+    },
+    "changelog": "Changelog",
+    "cta": {
+      "title": "Start Your New Career Chapter",
+      "description": "Start using JDMatch now to create an impressive resume",
+      "button": "Start Using for Free"
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "items": [
+        {
+          "question": "Is JDMatch free to use?",
+          "answer": "JDMatch is currently free, meeting basic resume creation needs. The open-source version's features will remain unchanged"
+        },
+        {
+          "question": "Is my resume data secure?",
+          "answer": "Yes, very secure. JDMatch uses local storage, meaning all your data is stored on your own device with no cloud storage, ensuring complete privacy protection."
+        },
+        {
+          "question": "What export formats are supported?",
+          "answer": "We currently support PDF export, ensuring your resume maintains consistent formatting on any device. We plan to support more export formats in the future."
+        },
+        {
+          "question": "How can I sync across devices?",
+          "answer": "We provide JSON configuration export, allowing you to save your resume settings in JSON format, accessible anytime, anywhere, on any device."
+        },
+        {
+          "question": "How customizable is it?",
+          "answer": "We offer rich customization options, including colors, layouts, and more, allowing you to adjust your resume style according to personal preferences and industry requirements."
+        }
+      ]
+    }
+  },
+  "dashboard": {
+    "sidebar": {
+      "appName": "JDMatch",
+      "resumes": "Resumes",
+      "settings": "Settings",
+      "templates": "Templates",
+      "ai": "AI Config",
+      "jobmatch": "Job Match"
+    },
+    "resumes": {
+      "created": "Created At",
+      "synced": "Synced Files",
+      "view": "View",
+      "myResume": "My Resumes",
+      "create": "Create Resume",
+      "newResume": "New Resume",
+      "newResumeDescription": "Create a new resume to get started.",
+      "import": "Import Resume",
+      "untitled": "Untitled Resume",
+      "importSuccess": "Configuration imported successfully",
+      "importError": "Import failed, please check the file format",
+      "importDialog": {
+        "title": "Import Resume",
+        "jsonTitle": "Import JSON",
+        "jsonDescription": "Import an exported resume config file (.json)",
+        "pdfTitle": "Import PDF",
+        "pdfDescription": "Upload a PDF resume and let AI parse the layout into an editable structured resume",
+        "importing": "Importing, please wait...",
+        "geminiConfigRequired": "Please configure Gemini API Key and Model ID in AI settings first",
+        "pdfSuccess": "PDF imported successfully",
+        "pdfError": "PDF import failed. Please check PDF content or Gemini configuration"
+      },
+      "notice": {
+        "title": "Attention",
+        "description": "It is recommended to configure a resume backup folder in the settings to prevent your data from being lost when the browser cache is cleared",
+        "goToSettings": "Go to Settings"
+      },
+      "deleteConfirmTitle": "Confirm Delete Resume?",
+      "deleteConfirmDescription": "This action cannot be undone. This will permanently delete this resume and remove the data from your device.",
+      "createDialog": {
+        "title": "Create New Resume",
+        "description": "Start a new resume from a blank template",
+        "tabs": {
+          "fromTemplate": "From Template",
+          "uploadFile": "Upload File"
+        },
+        "namePlaceholder": "Name",
+        "switchTemplate": "Switch Template",
+        "cancel": "Cancel",
+        "create": "Create",
+        "blankTitle": "Blank Resume",
+        "startFromBlank": "Start from Blank",
+        "startFromTemplate": "Start from Template",
+        "blankCardDescription": "Use a default built-in layout and start from scratch.",
+        "blankThumbnailDescription": "Start with a clean page and shape a code-driven resume with complete creative control.",
+        "createNow": "Create Now",
+        "backToGrid": "Back to template grid",
+        "blankPreviewDescription": "Choose a blank page and build everything from zero, without any preset constraints.",
+        "useThisTemplate": "Use This Template",
+        "sample": {
+          "company": "Google",
+          "position": "Senior Software Engineer",
+          "present": "Present",
+          "workDescription": "Led the frontend team and improved page performance by 40%."
+        }
+      }
+    },
+    "settings": {
+      "title": "Settings",
+      "syncDirectory": {
+        "title": "Sync Directory",
+        "description": "Choose a folder to sync and backup your resumes.",
+        "currentSyncFolder": "Current Sync Folder",
+        "noFolderConfigured": "No folder configured",
+        "changeFolder": "Change Folder",
+        "selectFolder": "Select Folder"
+      },
+      "sync": {
+        "title": "Sync Directory",
+        "description": "Choose a folder to sync and backup your resumes.",
+        "select": "Select Folder"
+      }
+    },
+    "templates": {
+      "title": "Templates",
+      "useTemplate": "Use Template",
+      "preview": "Preview",
+      "switchTemplate": "Switch Template",
+      "defaultColor": "Follow template default color",
+      "themeColor": "Theme color",
+      "classic": {
+        "name": "Classic",
+        "description": "Skills → Experience → Projects → Education, bold underlined section titles"
+      },
+      "modern": {
+        "name": "Business Split",
+        "description": "Experience first, role left and date right, thin grey rules, high density"
+      },
+      "leftRight": {
+        "name": "Side Date Rail",
+        "description": "Content block on the left, date and city rail on the right, bar-titled sections"
+      },
+      "timeline": {
+        "name": "Timeline",
+        "description": "Dates as tick-marked sub-headings, career in reverse order, skills last"
+      },
+      "minimalist": {
+        "name": "Minimalist",
+        "description": "Skills condensed to one line, only three sections, wide-tracked small titles"
+      },
+
+      "elegant": {
+        "name": "Elegant Serif",
+        "description": "Centered name and centered titles, opens with a profile paragraph, serif type"
+      },
+      "creative": {
+        "name": "Creative Block",
+        "description": "Projects first with quantified impact, section titles as solid colour blocks"
+      },
+      "editorial": {
+        "name": "Editorial",
+        "description": "Oversized serif name with a lead paragraph, prose over bullet lists"
+      },
+      "swiss": {
+        "name": "Swiss Aesthetic",
+        "description": "Education and tabular skills first, heavy top rules, rational international style"
+      }
+    }
+  },
+  "pdfExport": {
+    "modal": {
+      "title": "Export Resume",
+      "subtitle": "Select the format you want to export your resume",
+      "pdfDesc": "High-precision rendering with 100% format accuracy. Recommended for job applications.",
+      "printDesc": "Save via system print dialog. Use as a fallback or for custom margins.",
+      "jsonDesc": "Export your resume data as JSON to backup or transfer between devices.",
+      "markdownDesc": "Convert to plain Markdown text for easy sharing with AI models.",
+      "privacyNotice": "JDMatch promise never to collect, upload, or store any of your resume data. Your privacy is fully protected."
+    },
+    "button": {
+      "export": "Export",
+      "exportPdf": "Export PDF (Server)",
+      "exportJson": "Export JSON Config",
+      "exportMarkdown": "Export Markdown",
+      "exporting": "Exporting...",
+      "exportingJson": "Exporting...",
+      "exportingMarkdown": "Exporting...",
+      "print": "Browser Print"
+    },
+    "toast": {
+      "success": "PDF exported successfully",
+      "error": "PDF export failed",
+      "jsonSuccess": "Configuration exported successfully",
+      "jsonError": "Configuration export failed",
+      "markdownSuccess": "Markdown exported successfully",
+      "markdownError": "Markdown export failed"
+    }
+  },
+  "jobmatch": {
+    "title": "Job Match",
+    "subtitle": "Upload a resume and optimize it against a job description to generate an editable, PDF-exportable matched resume.",
+    "masterResume": "Resume to optimize",
+    "masterResumeDesc": "Pick a resume as the baseline. The first one is selected by default.",
+    "uploadPdf": "Upload a PDF resume as the baseline",
+    "noMaster": "No resume available yet. Create one in the editor, or upload a PDF resume as the baseline.",
+    "createMatch": "Create Matched Resume",
+    "createMatchDesc": "Match and optimize the resume against the job description (mode is auto-decided by AI).",
+    "jd": "Job Description (JD)",
+    "jdPlaceholder": "Paste the job description. The agent extracts keywords and optimizes…",
+    "coverLetter": "Cover Letter",
+    "coverLetterHint": "About 200 words greeting to the recruiter (plain text).",
+    "optimizedResume": "Optimized Resume",
+    "result": "Match Result",
+    "resultEmpty": "No matched resume generated yet",
+    "resultHint": "Fill the JD and click \"Start Match\"; the result previews here.",
+    "edit": "Open in Editor",
+    "startMatch": "Start Match",
+    "matching": "Matching…",
+    "uploadSuccess": "Resume uploaded",
+    "uploadError": "Resume upload failed",
+    "matchSuccess": "Matched resume generated",
+    "matchError": "Match failed. Check backend service and model config.",
+    "selectResumeFirst": "Please select a resume to optimize first",
+    "emptyResumeText": "Selected resume is empty and cannot be matched",
+    "jdRequired": "Please fill the job description",
+    "openedInEditor": "Loaded into editor for further editing",
+    "exportSuccess": "PDF exported",
+    "exportError": "PDF export failed",
+    "saveMatch": "Save Match",
+    "saveMatchHint": "Write current edits back to this matched resume on the backend",
+    "saveMatchSuccess": "Match result saved",
+    "saveMatchError": "Failed to save match result",
+    "sourceUnknown": "Unknown source",
+    "selectMaster": "Select a resume",
+    "uploadMaster": "Upload PDF Resume",
+    "matchingDesc": "The agent is parsing the job description and optimizing your resume. This usually takes 10–30 seconds…",
+    "matchAnalysis": "Match Analysis",
+    "matchAnalysisRole": "Target Role",
+    "matchAnalysisScore": "Match Score",
+    "matchAnalysisRequirements": "Requirements",
+    "matchAnalysisSummary": "Summary",
+    "matchReqMet": "Met",
+    "matchReqPartial": "Partial",
+    "matchReqMissing": "Missing",
+    "matchReqUnsupported": "Unsupported",
+    "matchReqEvidence": "Evidence",
+    "matchReqSuggestion": "Suggestion",
+    "matchRefactorMode": "Refactor Mode",
+    "matchRefactorModeRewrite": "Full Rewrite",
+    "matchRefactorModeOptimize": "Description Polish",
+    "matchRefactorModeRewriteDesc": "Rewrite the whole resume for this role, keeping core info",
+    "matchRefactorModeOptimizeDesc": "Keep the structure, polish wording to hit keywords",
+    "matchAnalysisCoverLetter": "Match Pitch",
+    "diffCompare": "Compare",
+    "diffPreview": "A4 Preview",
+    "diffOriginal": "Original",
+    "diffOptimized": "Optimized",
+    "diffAdded": "Added",
+    "diffModified": "Modified",
+    "diffRemoved": "Removed",
+    "diffChangedCount": "{{count}} changes",
+    "diffOnlyChanged": "Only changes",
+    "diffWhy": "Why changed",
+    "diffHitHint": "This block hits the keywords above and was strengthened for the role.",
+    "previewResume": "Preview Resume",
+    "previewResumeDesc": "Preview of the optimized resume",
+    "acceptResult": "Accept Result",
+    "reMatch": "Re-match",
+    "acceptedHint": "Result accepted",
+    "acceptError": "Failed to accept result",
+    "acceptSavedToMyResume": "Saved to My Resumes",
+    "editNowTitle": "Edit this resume now?",
+    "editNowDesc": "The matched result has been saved to My Resumes. Open the editor to keep tweaking it now?",
+    "editNow": "Edit now",
+    "editLater": "Later",
+    "reMatching": "Re-matching…",
+    "loadMastersError": "Failed to load resume list",
+    "sourcePdf": "PDF",
+    "sourceEditor": "Editor",
+    "deleteResume": "Delete Resume",
+    "deleteResumeConfirm": "Delete \"{title}\"? This action cannot be undone.",
+    "deleteResumeSuccess": "Resume deleted",
+    "deleteResumeError": "Failed to delete resume",
+    "cancel": "Cancel",
+    "confirm": "Delete"
+  },
+  "previewDock": {
+    "switchTemplate": "Switch Template",
+    "grammarCheck": {
+      "idle": "AI Grammar Check",
+      "checking": "Checking...",
+      "configurePrompt": "Please configure AI Model",
+      "configureButton": "Configure",
+      "errorToast": "Grammar check failed, please try again"
+    },
+    "sidePanel": {
+      "expand": "Expand Side Panel",
+      "collapse": "Collapse Side Panel"
+    },
+    "editPanel": {
+      "expand": "Expand Edit Panel",
+      "collapse": "Collapse Edit Panel"
+    },
+    "previewPanel": {
+      "expand": "Expand Preview Panel",
+      "collapse": "Collapse Preview Panel"
+    },
+    "github": "GitHub",
+    "backToDashboard": "Back to Dashboard",
+    "copyResume": {
+      "tooltip": "Copy Resume",
+      "success": "Resume copied successfully",
+      "error": "Failed to copy resume"
+    },
+    "export": {
+      "tooltip": "Export Resume",
+      "pdf": "Export PDF",
+      "json": "Export JSON",
+      "markdown": "Export Markdown",
+      "print": "Print"
+    },
+    "autoOnePage": {
+      "tooltip": "Auto Fit One Page",
+      "enabled": "One page mode enabled",
+      "disabled": "One page mode disabled",
+      "cannotFit": "Too much content. Optimized as much as possible but cannot fit on one page. Try simplifying the content or adjusting margins and font size in the sidebar."
+    },
+    "backup": {
+      "configured": "Backed up",
+      "notConfigured": "Not backed up",
+      "clickToConfigure": "Click to configure"
+    }
+  },
+  "workbench": {
+    "sidePanel": {
+      "layout": {
+        "title": "Layout",
+        "addCustomSection": "Add Module",
+        "addCustomSectionOption": "Add Custom Section",
+        "standardSections": {
+          "skills": "Skills",
+          "experience": "Experience",
+          "projects": "Projects",
+          "education": "Education",
+          "selfEvaluation": "Self Evaluation",
+          "certificates": "Certificates"
+        }
+      },
+      "theme": {
+        "title": "Theme Color",
+        "custom": "Custom"
+      },
+      "typography": {
+        "title": "Typography",
+        "font": {
+          "title": "Font",
+          "alibaba": "Alibaba PuHuiTi",
+          "misans": "MiSans",
+          "notosanssc": "Noto Sans SC",
+          "sourcehanserifsc": "Source Han Serif SC",
+          "note": "MiSans is used under its free commercial license. Keep MiSans attribution when distributing this project."
+        },
+        "lineHeight": {
+          "title": "Line Height",
+          "normal": "Default",
+          "relaxed": "Relaxed",
+          "loose": "Loose"
+        },
+        "baseFontSize": {
+          "title": "Base Font Size"
+        },
+        "headerSize": {
+          "title": "Section Header Size"
+        },
+        "subheaderSize": {
+          "title": "Subsection Header Size"
+        }
+      },
+      "spacing": {
+        "title": "Spacing",
+        "pagePadding": {
+          "title": "Page Padding"
+        },
+        "sectionSpacing": {
+          "title": "Section Spacing"
+        },
+        "paragraphSpacing": {
+          "title": "Paragraph Spacing"
+        }
+      },
+      "mode": {
+        "title": "Mode",
+        "useIconMode": {
+          "title": "Icon Mode"
+        },
+        "centerSubtitle": {
+          "title": "Center Subtitle"
+        },
+        "flexibleHeaderLayout": {
+          "title": "Long Title"
+        }
+      }
+    },
+    "basicPanel": {
+      "title": "Profile",
+      "avatar": "Avatar",
+      "basicField": "Basic",
+      "customField": "Custom",
+      "layout": "Align",
+      "customFields": {
+        "placeholders": {
+          "label": "Label",
+          "value": "Value"
+        },
+        "displayLabel": "Show label",
+        "addButton": "Add Custom Field"
+      },
+      "basicFields": {
+        "name": "Name",
+        "title": "Title",
+        "email": "Email",
+        "phone": "Phone",
+        "website": "Website",
+        "location": "Location",
+        "birthDate": "Birth Date",
+        "employementStatus": "Employ"
+      },
+      "fieldVisibility": {
+        "show": "Show",
+        "hide": "Hide"
+      },
+      "githubContributions": "GitHub Contributions"
+    },
+    "experiencePanel": {
+      "title": "Work Experience",
+      "addButton": "Add Work Experience",
+      "defaultProject": {
+        "company": "Tech Company Ltd.",
+        "position": "Senior Frontend Engineer",
+        "date": "2020 - Present",
+        "details": "Responsible for core product development..."
+      },
+      "placeholders": {
+        "company": "company name",
+        "position": "job title",
+        "date": "employment period",
+        "details": "job responsibilities and achievements"
+      }
+    },
+    "experienceItem": {
+      "labels": {
+        "company": "Company Name",
+        "position": "Position",
+        "date": "Employment Period",
+        "details": "Job Responsibilities"
+      },
+      "placeholders": {
+        "company": "Enter company name",
+        "position": "e.g., Frontend Engineer",
+        "date": "e.g., 2020-Present",
+        "details": "Describe your responsibilities and achievements in this role"
+      },
+      "buttons": {
+        "edit": "Edit",
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "visibility": {
+        "show": "Show",
+        "hide": "Hide"
+      }
+    },
+    "projectPanel": {
+      "title": "Project Experience",
+      "addButton": "Add Project",
+      "defaultProject": {
+        "name": "Personal Project",
+        "description": "Project Description",
+        "role": "Responsibilities",
+        "date": "2023.01 - 2023.06"
+      },
+      "placeholders": {
+        "name": "Project Name",
+        "description": "Briefly describe project background and goals",
+        "role": "Your role and responsibilities in the project",
+        "date": "Project time range",
+        "link": "Project link "
+      }
+    },
+    "projectItem": {
+      "labels": {
+        "name": "Project Name",
+        "role": "Project Role",
+        "date": "Project Period",
+        "description": "Project Description",
+        "technologies": "Tech Stack",
+        "link": "Project Link",
+        "linkLabel": "Display Text"
+      },
+      "placeholders": {
+        "name": "Enter project name",
+        "role": "Your role in the project",
+        "date": "Project time range",
+        "description": "Briefly describe project background and goals",
+        "technologies": "Technologies and tools used",
+        "link": "Project link",
+        "linkLabel": "Display text"
+      },
+      "hints": {
+        "linkLabel": "If display text is empty, the domain or full URL will be shown automatically. Only http:// and https:// links are supported."
+      },
+      "buttons": {
+        "edit": "Edit",
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "visibility": {
+        "show": "Show",
+        "hide": "Hide"
+      }
+    },
+    "educationPanel": {
+      "title": "Education",
+      "addButton": "Add Education",
+      "defaultProject": {
+        "school": "School Name",
+        "degree": "Degree",
+        "major": "Major",
+        "date": "2020.09 - 2024.06"
+      },
+      "placeholders": {
+        "school": "Enter school name",
+        "degree": "Select degree",
+        "major": "Enter major",
+        "date": "Enter study period"
+      }
+    },
+    "educationItem": {
+      "labels": {
+        "school": "School Name",
+        "degree": "Degree",
+        "major": "Major",
+        "date": "Study Period",
+        "description": "Description",
+        "gpa": "GPA",
+        "location": "Location",
+        "startDate": "Start Date",
+        "endDate": "End Date"
+      },
+      "placeholders": {
+        "school": "Enter school name",
+        "degree": "Select degree",
+        "major": "Enter major",
+        "date": "Enter study time range",
+        "description": "Enter school description",
+        "gpa": "Enter GPA",
+        "location": "Enter location"
+      },
+      "buttons": {
+        "edit": "Edit",
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "visibility": {
+        "show": "Show",
+        "hide": "Hide"
+      }
+    },
+    "certificatesPanel": {
+      "title": "Certificates",
+      "addButton": "Add Certificate",
+      "tips": "Upload or paste (Cmd/Ctrl + V) images directly. Adjust width ratio for horizontal layout.",
+      "width": "Width (%)",
+      "delete": "Delete",
+      "empty": "No images yet. Please upload or paste images."
+    }
+  },
+  "field": {
+    "selectDate": "Select Date",
+    "enterYear": "Enter Year",
+    "toPresent": "To Present"
+  },
+  "richEditor": {
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "link": "Link",
+    "linkPlaceholder": "Enter a URL, for example https://example.com",
+    "linkApply": "Apply",
+    "linkRemove": "Remove",
+    "linkInvalid": "Please enter a valid URL",
+    "textColor": "Text Color",
+    "backgroundColor": "Background Color",
+    "alignLeft": "Align Left",
+    "alignCenter": "Align Center",
+    "alignRight": "Align Right",
+    "alignJustify": "Justify",
+    "bulletList": "Bullet List",
+    "orderedList": "Ordered List",
+    "undo": "Undo",
+    "redo": "Redo",
+    "aiPolish": "AI Polish",
+    "paragraph": "Paragraph",
+    "heading1": "Heading 1",
+    "heading2": "Heading 2",
+    "heading3": "Heading 3",
+    "colors": {
+      "black": "Black",
+      "darkGray": "Dark Gray",
+      "gray": "Gray",
+      "red": "Red",
+      "orange": "Orange",
+      "orangeYellow": "Orange Yellow",
+      "yellow": "Yellow",
+      "yellowGreen": "Yellow Green",
+      "green": "Green",
+      "cyan": "Cyan",
+      "lightBlue": "Light Blue",
+      "blue": "Blue",
+      "purple": "Purple",
+      "magenta": "Magenta",
+      "pink": "Pink"
+    }
+  },
+  "iconSelector": {
+    "all": "All",
+    "searchPlaceholder": "Search icons...",
+    "noMatchingIcons": "No matching icons found",
+    "tryOtherKeywords": "Please try other search keywords",
+    "selectOtherCategory": "Please select another category",
+    "categories": {
+      "personal": "Personal Info",
+      "education": "Education",
+      "experience": "Work Experience",
+      "skills": "Skills",
+      "languages": "Languages",
+      "projects": "Projects",
+      "achievements": "Achievements",
+      "hobbies": "Hobbies",
+      "social": "Social Media",
+      "others": "Others"
+    },
+    "icons": {
+      "user": "User",
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
+      "website": "Website",
+      "mobile": "Mobile",
+      "education": "Education",
+      "school": "School",
+      "major": "Major",
+      "library": "Library",
+      "scholarship": "Scholarship",
+      "work": "Work",
+      "company": "Company",
+      "office": "Office",
+      "dateRange": "Date Range",
+      "workTime": "Work Time",
+      "programming": "Programming",
+      "system": "System",
+      "database": "Database",
+      "terminal": "Terminal",
+      "techStack": "Tech Stack",
+      "language": "Language",
+      "speaking": "Speaking",
+      "communication": "Communication",
+      "project": "Project",
+      "branch": "Branch",
+      "release": "Release",
+      "target": "Target",
+      "trophy": "Trophy",
+      "medal": "Medal",
+      "star": "Star",
+      "interest": "Interest",
+      "music": "Music",
+      "art": "Art",
+      "photography": "Photography",
+      "linkedin": "LinkedIn",
+      "twitter": "Twitter",
+      "facebook": "Facebook",
+      "instagram": "Instagram",
+      "profile": "Profile",
+      "review": "Review",
+      "filter": "Filter",
+      "link": "Link",
+      "salary": "Salary",
+      "idea": "Idea",
+      "send": "Send",
+      "share": "Share",
+      "settings": "Settings",
+      "search": "Search",
+      "flag": "Flag",
+      "bookmark": "Bookmark",
+      "thumbsUp": "Thumbs Up",
+      "skill": "Skill"
+    }
+  },
+  "aiPolishDialog": {
+    "title": "AI Polish",
+    "description": {
+      "ready": "Add optional instructions, then click \"Start polish\"",
+      "polishing": "Polishing your content...",
+      "finished": "Content has been optimized, please check the result"
+    },
+    "error": {
+      "configRequired": "Please configure AI model first",
+      "polishFailed": "Polish failed",
+      "applied": "Polish content applied"
+    },
+    "content": {
+      "original": "Original Content",
+      "polished": "Polished Content"
+    },
+    "customInstructions": "Custom instructions",
+    "customInstructionsPlaceholder": "e.g. Use more technical terms, highlight metrics, keep tone formal… (optional)",
+    "button": {
+      "start": "Start polish",
+      "regenerate": "Regenerate",
+      "generating": "Generating...",
+      "apply": "Apply Content"
+    }
+  },
+  "photoConfig": {
+    "title": "Photo Settings",
+    "description": "Customize your resume photo",
+    "upload": {
+      "title": "Online Link",
+      "dragHint": "Drag and drop or click to upload image",
+      "sizeLimit": "Image size must not exceed 2MB",
+      "typeLimit": "Please upload an image file",
+      "urlPlaceholder": "Enter image link",
+      "invalidUrl": "Invalid image URL or inaccessible, please try another image link",
+      "timeout": "Loading timeout",
+      "loadError": "Failed to load image"
+    },
+    "config": {
+      "aspectRatio": "Aspect Ratio",
+      "size": "Size",
+      "width": "Width",
+      "height": "Height",
+      "border-radius": "Border Radius",
+      "widthPlaceholder": "Width",
+      "heightPlaceholder": "Height",
+      "ratios": {
+        "1:1": "1:1 Square",
+        "4:3": "4:3 Landscape",
+        "3:4": "3:4 Portrait",
+        "16:9": "16:9 Widescreen",
+        "custom": "Custom"
+      },
+      "borderRadius": {
+        "none": "None",
+        "medium": "Medium",
+        "full": "Circle",
+        "custom": "Custom",
+        "customPlaceholder": "Custom border radius"
+      }
+    },
+    "actions": {
+      "reset": "Reset",
+      "close": "Close",
+      "cancel": "Cancel",
+      "removePhoto": "Remove Photo"
+    }
+  },
+  "templates": {
+    "switchTemplate": "Switch Template"
+  },
+  "themeModal": {
+    "delete": {
+      "title": "Confirm Deletion",
+      "description": "Are you sure you want to delete {title}?",
+      "confirmText": "Delete",
+      "cancelText": "Cancel"
+    }
+  },
+  "grammarCheck": {
+    "title": "AI Grammar Check",
+    "description": "Found {count} suggestions",
+    "exit": "Exit",
+    "spelling": "Spelling",
+    "punctuation": "Punctuation",
+    "original": "Original",
+    "error_point": "Error",
+    "suggestion": "Suggestion",
+    "reason": "Reason",
+    "accept": "Apply",
+    "ignore": "Ignore",
+    "found_issues": "Found {count} issues",
+    "applied_success": "Changes applied",
+    "apply_error": "Text not found, cannot apply automatically",
+    "no_errors_title": "Perfect!",
+    "no_errors_desc": "No grammar or punctuation errors found."
+  },
+  "faqDialog": {
+    "title": "Frequently Asked Questions (FAQ)",
+    "description": "Common tips and solutions for the JDMatch workbench.",
+    "items": {
+      "browser-compatibility": {
+        "question": "Which browser is recommended?",
+        "answer": "We recommend using the latest version of Chrome or Edge for the best layout and export experience. Some outdated browsers may cause styling issues."
+      },
+      "export-failure": {
+        "question": "What if export fails or style is broken?",
+        "answer": "1. We recommend using Google Chrome (https://www.google.cn/intl/zh-CN/chrome/) for best compatibility.\n2. If it still fails, try in 'Incognito Mode' to exclude extension interference.\n3. Alternatively, click 'PDF (Backup)' in the export menu and select 'Save as PDF' in the print dialog."
+      },
+      "export-methods": {
+        "question": "What's the difference between the two export methods?",
+        "answer": "• Export PDF: Uses a backend service for high-precision rendering, 100% restoring the layout. Recommended for formal submission to HR.\n\n• Browser Print: Invokes your current browser's native print function (Save as PDF). Suitable when the backend export service is busy or you need to fine-tune print margins via your browser."
+      },
+      "drag-and-drop": {
+        "question": "How do I drag and drop to reorder modules?",
+        "answer": "In the 'Layout' settings of the left edit panel, hover your cursor over the 'Drag Handle' (usually represented by a six-dot icon) on the left side of the module card. Click and hold the left mouse button to drag the module up or down to reorder the sections of your entire resume."
+      }
+    }
+  },
+  "markdownEditor": {
+    "switchForm": "Form Editor",
+    "switchMarkdown": "Markdown Editor",
+    "editorTitle": "Markdown Source",
+    "previewTitle": "Live Preview",
+    "placeholder": "# John Doe\n## Senior Frontend Engineer\n\n## Experience\n### Alibaba\n2022 - 2025\n- Responsible for XXX\n- Built core modules with React / TypeScript",
+    "modeHint": "Markdown mode: write Markdown on the left, preview live on the right, and export to PDF with one click (what you see is what you get).",
+    "saveHint": "Save the current resume to the database"
+  }
+}
