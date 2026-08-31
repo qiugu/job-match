@@ -32,6 +32,13 @@ python-interpreter-path = ".venv/bin/python3"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "reportlab>=5.0.1",
+]
+
 # 代码位于 app/ 目录，但项目名为 jobmatch；显式声明包目录，
 # 否则 hatchling 默认按“包名=目录名”查找 jobmatch/ 失败。
 [tool.hatch.build.targets.wheel]

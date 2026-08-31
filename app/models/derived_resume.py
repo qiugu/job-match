@@ -33,8 +33,6 @@ class DerivedResume(Base):
     markdown_content: Mapped[str] = mapped_column(Text, default="")
     title: Mapped[str] = mapped_column(String(255), default="")
     jd_text: Mapped[str] = mapped_column(Text, default="")
-    # 匹配方式（rewrite/optimize）由 AI 判断后记录
-    match_mode: Mapped[str] = mapped_column(String(32), default="rewrite")
     keywords: Mapped[str] = mapped_column(Text, default="[]")
     has_cover_letter: Mapped[bool] = mapped_column(Boolean, default=False)
     # 用户是否已确认接受该匹配结果（前端「接受」按钮）

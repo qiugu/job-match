@@ -732,39 +732,6 @@ export default function JobMatchPage() {
                               )}
                             </div>
 
-                            {/* 优化方式（refactor_mode）：由 LLM 在 resume_match 节点判定 */}
-                            {a.refactor_mode && (
-                              <div
-                                className="flex items-start gap-2 rounded-lg border px-3 py-2.5"
-                                style={{
-                                  borderColor: `hsl(${BRAND_VIOLET} / 0.25)`,
-                                  backgroundColor: `hsl(${BRAND_VIOLET} / 0.05)`,
-                                }}
-                              >
-                                <Sparkles
-                                  className="mt-0.5 h-3.5 w-3.5 shrink-0"
-                                  style={{ color: `hsl(${BRAND_VIOLET})` }}
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex flex-wrap items-center gap-x-2">
-                                    <span className="text-xs text-muted-foreground">
-                                      {t("matchRefactorMode")}：
-                                    </span>
-                                    <span className="text-sm font-medium">
-                                      {a.refactor_mode === "rewrite"
-                                        ? t("matchRefactorModeRewrite")
-                                        : t("matchRefactorModeOptimize")}
-                                    </span>
-                                  </div>
-                                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                                    {a.refactor_mode === "rewrite"
-                                      ? t("matchRefactorModeRewriteDesc")
-                                      : t("matchRefactorModeOptimizeDesc")}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-
                             {a.requirements && a.requirements.length > 0 && (
                               <div className="space-y-2">
                                 <div className="text-xs font-medium text-muted-foreground">
@@ -850,8 +817,8 @@ export default function JobMatchPage() {
                             )}
 
                             {/* 匹配话术（cover_letter）：resume_match 节点输出；
-                                与顶层「求职信」tab 的 coverLetter 来源不同（后者由
-                                generate_cover_letter 节点单独生成），故两者都展示。 */}
+                                顶层「求职信」tab 的 coverLetter 直接复用同一字段
+                                （withCoverLetter=true 时返回），两者内容一致。 */}
                             {a.cover_letter && (
                               <div className="space-y-1.5">
                                 <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
