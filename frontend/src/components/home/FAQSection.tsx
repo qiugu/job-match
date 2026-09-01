@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useTranslations } from "@/i18n/compat/client";
 import {
@@ -8,10 +7,18 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import AnimatedFeature from "./client/AnimatedFeature";
+import RegistrationCodeCTA from "./client/RegistrationCodeCTA";
+
+interface FaqItem {
+  question: string;
+  answer: string;
+  /** 答案尾部附加的自助入口，当前支持 registration-code（获取注册码弹框） */
+  action?: string;
+}
 
 export default function FAQSection() {
   const t = useTranslations("home.faq");
-  const faqItems = t.raw("items");
+  const faqItems = t.raw("items") as FaqItem[];
 
   return (
     <section className="py-24 md:py-40 bg-background relative overflow-hidden">
@@ -27,8 +34,7 @@ export default function FAQSection() {
 
         <AnimatedFeature delay={0.2}>
           <Accordion type="single" collapsible className="w-full space-y-4">
-            {faqItems.map(
-              (item: { question: string; answer: string }, index: number) => (
+            {faqItems.map((item, index) => (
                 <AccordionItem 
                   key={index} 
                   value={`item-${index}`}
@@ -39,10 +45,10 @@ export default function FAQSection() {
                   </AccordionTrigger>
                   <AccordionContent className="text-muted-foreground leading-relaxed text-base pb-6 font-light">
                     {item.answer}
+                    {item.action === "registration-code" && <RegistrationCodeCTA />}
                   </AccordionContent>
                 </AccordionItem>
-              )
-            )}
+            ))}
           </Accordion>
         </AnimatedFeature>
       </div>

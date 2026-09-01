@@ -14,6 +14,8 @@ dependencies = [
     "greenlet>=3.0",
     "python-multipart>=0.0.9",
     "pypdf>=4.0",
+    "pymupdf>=1.28",
+    "pymupdf4llm>=1.28",
     "langchain>=0.2",
     "langchain-core>=0.2",
     "langchain-openai>=0.1",
@@ -23,6 +25,7 @@ dependencies = [
     "alembic>=1.13",
     "langchain-deepseek>=1.1.0",
     "pyjwt>=2.13.0",
+    "markitdown[pdf]>=0.1.7",
 ]
 
 [tool.pyrefly]

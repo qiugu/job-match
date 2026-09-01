@@ -127,3 +127,40 @@ export function changePassword(
     body: JSON.stringify({ oldPassword, newPassword }),
   });
 }
+
+// ---------- 自助领取注册码（官网 FAQ 入口，匿名可用） ----------
+
+export interface RegistrationCodeStatus {
+  /** 每日发放上限 */
+  dailyLimit: number;
+  /** 今日剩余可领数量 */
+  remaining: number;
+  /** 注册码授予的匹配次数 */
+  grantMatches: number;
+  /** 有效天数 */
+  validityDays: number;
+  /** 下次重置时间（ISO8601 含时区，前端转本地时区展示） */
+  nextResetAt: string;
+}
+
+export interface RegistrationCodeIssue {
+  code: string;
+  grantMatches: number;
+  /** 过期时间（ISO8601 含时区） */
+  expiresAt: string;
+  /** 领取后的今日剩余名额 */
+  remaining: number;
+  nextResetAt: string;
+}
+
+/** 弹框打开时查询：今日剩余名额与下次重置时间（顶部状态条） */
+export function fetchRegistrationCodeStatus(): Promise<RegistrationCodeStatus> {
+  return request<RegistrationCodeStatus>("/api/auth/registration-code/status");
+}
+
+/** 领取一枚注册码；429 时 detail 为后端给出的重置提示 */
+export function issueRegistrationCode(): Promise<RegistrationCodeIssue> {
+  return request<RegistrationCodeIssue>("/api/auth/registration-code", {
+    method: "POST",
+  });
+}

@@ -1,10 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations, useLocale } from "@/i18n/compat/client";
 import { useRouter } from "@/lib/navigation";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import {
     Card,
     CardContent,
@@ -13,22 +12,17 @@ import {
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { authHeaders, handleUnauthorized } from "@/lib/auth";
 import { preloadFontFamily } from "@/utils/fonts";
 import { useResumeStore } from "@/store/useResumeStore";
 import {
     MARKDOWN_TEMPLATES,
     getMarkdownTemplateContent,
 } from "@/config";
+import { blankResumeState, blankResumeStateEn } from "@/config/initialResumeData";
+import type { ResumeData } from "@/types/resume";
+import { uploadMasterResume } from "@/lib/jobmatch";
 import { CreateResumeModal } from "./CreateResumeModal";
-import { ImportResumeDialog } from "./ImportResumeDialog";
 import { ResumeCardItem } from "./ResumeCardItem";
-import { AnimatedImportButton } from "./AnimatedImportButton";
-import {
-    extractJsonContent,
-    createResumeFromAIResult,
-    toStringArray
-} from "./utils";
 
 export const ResumeWorkbench = () => {
     const t = useTranslations();
@@ -40,7 +34,6 @@ export const ResumeWorkbench = () => {
         deleteResume,
         createResume,
         loadResumesFromBackend,
-        syncResumeToBackend,
     } = useResumeStore();
 
     // 「我的简历」页统一读后端 master_resumes：进入时从后端拉取全部简历填充内存，
@@ -52,9 +45,7 @@ export const ResumeWorkbench = () => {
     }, [loadResumesFromBackend]);
     const router = useRouter();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
-    const pdfFileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const fontFamilies = Array.from(
@@ -143,60 +134,49 @@ export const ResumeWorkbench = () => {
     };
 
     const importResumeFromPdf = async (file: File) => {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("locale", locale);
-
-        const response = await fetch("/api/resume-import-pdf", {
-            method: "POST",
-            headers: authHeaders(),
-            body: formData,
-        });
-
-        if (response.status === 401) {
-            handleUnauthorized();
+        // PDF 导入走 resume.py 的确定性上传落库（POST /api/master-resumes）：
+        // 后端用 pypdf/pymupdf 重建层级 Markdown 骨架（无 LLM），直接写入
+        // master_resumes 并返回真实记录 id 与 markdownContent。前端以 blank
+        // 简历为基底、把 markdownContent 写入编辑器，得到可编辑的 markdown 简历。
+        let summary;
+        try {
+            summary = await uploadMasterResume(file);
+        } catch (err) {
+            // 标题（文件名）重复时后端返回 409，必须让用户看见：否则本地无简历、
+            // 数据库已有同名记录，重新进入列表会被后端数据覆盖掉。
+            console.error("PDF 简历导入失败:", err);
+            toast.error(`导入失败：${(err as Error).message}`);
+            setIsCreateModalOpen(false);
+            return;
         }
 
-        const data = await response.json();
-        if (!response.ok) {
-            const message = data?.details
-                ? `${data?.error || "Resume import failed"}\n${data.details}`
-                : data?.error || "Resume import failed";
-            throw new Error(message);
-        }
-
-        const aiResume = data?.resume
-            ? data.resume
-            : data?.choices?.[0]?.message?.content
-                ? extractJsonContent(data.choices[0].message.content)
-                : null;
-
-        if (!aiResume) {
-            throw new Error("Invalid AI response");
-        }
-
-        const nameWithoutExt = file.name.replace(/\.[^.]+$/, "").trim();
-        const resume = createResumeFromAIResult(aiResume, nameWithoutExt);
-        const resumeId = addResume(resume);
-        setActiveResume(resumeId);
-        // 导入即落库：把这份简历写入后端 master_resumes，保证「我的简历」与
-        // 「优化简历」下拉同源一致（不再依赖后续进入匹配页时兜底补同步）。
-        await syncResumeToBackend(resumeId).catch((err) => {
-            console.error("导入简历落库失败:", err);
-            // 标题（文件名）重复时后端返回 409，必须让用户看见：否则本地有简历、
-            // 数据库没有，重新进入列表会被后端数据覆盖掉。
-            toast.error(`已导入，但保存到数据库失败：${(err as Error).message}`);
-        });
-        setIsImportDialogOpen(false);
+        const base = locale === "en" ? blankResumeStateEn : blankResumeState;
+        const resume: ResumeData = {
+            ...base,
+            id: summary.id,
+            title: summary.title,
+            markdownContent: summary.markdownContent || "",
+            // 后端从 PDF 版式反推的 globalSettings：还原原文件字号/间距/版式，
+            // 避免一律套默认 16px 导致字体大小、标题层级视觉偏差。
+            globalSettings: (summary.globalSettings as ResumeData["globalSettings"]) ?? base.globalSettings,
+            templateId: summary.templateId ?? null,
+            createdAt: summary.createdAt,
+            updatedAt: summary.updatedAt,
+            // blankResumeState 缺这两个 ResumeData 必填字段，导入时补齐
+            // （对应「在编辑器打开需补齐 templateId/draggingProjectId」约定）。
+            activeSection: base.menuSections[0]?.id ?? "",
+            draggingProjectId: null,
+        };
+        // 用后端真实 id 作为本地缓存 key，避免编辑器 GET
+        // /api/master-resumes/{临时uuid} -> 404 导致空白（历史坑）。
+        addResume(resume);
+        setActiveResume(summary.id);
+        setIsCreateModalOpen(false);
         toast.success(t("dashboard.resumes.importDialog.pdfSuccess"));
-        router.push({ to: "/app/workbench/$id", params: { id: resumeId } });
+        router.push({ to: "/app/workbench/$id", params: { id: summary.id } });
     };
 
-    const handlePdfFileChange = async (
-        event: React.ChangeEvent<HTMLInputElement>
-    ) => {
-        const file = event.target.files?.[0];
-        event.target.value = "";
+    const handleImportFile = async (file: File) => {
         if (!file || isImporting) return;
 
         try {
@@ -232,9 +212,6 @@ export const ResumeWorkbench = () => {
                     <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
                         {t("dashboard.resumes.myResume")}
                     </h1>
-                    <div className="flex items-center space-x-2">
-                        <AnimatedImportButton onClick={() => setIsImportDialogOpen(true)} t={t} />
-                    </div>
                 </motion.div>
 
                 <motion.div
@@ -303,14 +280,8 @@ export const ResumeWorkbench = () => {
                     open={isCreateModalOpen}
                     onOpenChange={setIsCreateModalOpen}
                     onCreate={handleCreateFromModal}
-                />
-
-                <ImportResumeDialog
-                    open={isImportDialogOpen}
+                    onImportPdf={handleImportFile}
                     isImporting={isImporting}
-                    onOpenChange={setIsImportDialogOpen}
-                    pdfFileInputRef={pdfFileInputRef}
-                    onPdfFileChange={handlePdfFileChange}
                 />
             </motion.div>
         </ScrollArea>

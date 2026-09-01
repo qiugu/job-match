@@ -12,14 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LocaleRouteImport } from './routes/$locale'
 import { Route as AppRouteRouteImport } from './routes/app/route'
+import { Route as ImageProxyRouteImport } from './routes/image-proxy'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as ApiGrammarRouteImport } from './routes/api/grammar'
-import { Route as ApiPolishRouteImport } from './routes/api/polish'
-import { Route as ApiResumeImportRouteImport } from './routes/api/resume-import'
-import { Route as ApiResumeImportPdfRouteImport } from './routes/api/resume-import-pdf'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppDashboardRouteImport } from './routes/app/dashboard'
-import { Route as ApiProxyImageRouteImport } from './routes/api/proxy/image'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
 import { Route as AppDashboardMatchRouteImport } from './routes/app/dashboard/match'
 import { Route as AppDashboardResumesRouteImport } from './routes/app/dashboard/resumes'
@@ -43,29 +39,14 @@ const AppRouteRoute = AppRouteRouteImport.update({
   path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ImageProxyRoute = ImageProxyRouteImport.update({
+  id: '/image-proxy',
+  path: '/image-proxy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiGrammarRoute = ApiGrammarRouteImport.update({
-  id: '/api/grammar',
-  path: '/api/grammar',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPolishRoute = ApiPolishRouteImport.update({
-  id: '/api/polish',
-  path: '/api/polish',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiResumeImportRoute = ApiResumeImportRouteImport.update({
-  id: '/api/resume-import',
-  path: '/api/resume-import',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiResumeImportPdfRoute = ApiResumeImportPdfRouteImport.update({
-  id: '/api/resume-import-pdf',
-  path: '/api/resume-import-pdf',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -77,11 +58,6 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => AppRouteRoute,
-} as any)
-const ApiProxyImageRoute = ApiProxyImageRouteImport.update({
-  id: '/api/proxy/image',
-  path: '/api/proxy/image',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const AppDashboardIndexRoute = AppDashboardIndexRouteImport.update({
   id: '/',
@@ -123,14 +99,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
   '/$locale': typeof LocaleRoute
+  '/image-proxy': typeof ImageProxyRoute
   '/login': typeof LoginRoute
-  '/api/grammar': typeof ApiGrammarRoute
-  '/api/polish': typeof ApiPolishRoute
-  '/api/resume-import': typeof ApiResumeImportRoute
-  '/api/resume-import-pdf': typeof ApiResumeImportPdfRoute
   '/app/dashboard': typeof AppDashboardRouteWithChildren
   '/app/': typeof AppIndexRoute
-  '/api/proxy/image': typeof ApiProxyImageRoute
   '/app/dashboard/match': typeof AppDashboardMatchRoute
   '/app/dashboard/resumes': typeof AppDashboardResumesRoute
   '/app/dashboard/settings': typeof AppDashboardSettingsRoute
@@ -142,13 +114,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$locale': typeof LocaleRoute
+  '/image-proxy': typeof ImageProxyRoute
   '/login': typeof LoginRoute
-  '/api/grammar': typeof ApiGrammarRoute
-  '/api/polish': typeof ApiPolishRoute
-  '/api/resume-import': typeof ApiResumeImportRoute
-  '/api/resume-import-pdf': typeof ApiResumeImportPdfRoute
   '/app': typeof AppIndexRoute
-  '/api/proxy/image': typeof ApiProxyImageRoute
   '/app/dashboard/match': typeof AppDashboardMatchRoute
   '/app/dashboard/resumes': typeof AppDashboardResumesRoute
   '/app/dashboard/settings': typeof AppDashboardSettingsRoute
@@ -162,14 +130,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
   '/$locale': typeof LocaleRoute
+  '/image-proxy': typeof ImageProxyRoute
   '/login': typeof LoginRoute
-  '/api/grammar': typeof ApiGrammarRoute
-  '/api/polish': typeof ApiPolishRoute
-  '/api/resume-import': typeof ApiResumeImportRoute
-  '/api/resume-import-pdf': typeof ApiResumeImportPdfRoute
   '/app/dashboard': typeof AppDashboardRouteWithChildren
   '/app/': typeof AppIndexRoute
-  '/api/proxy/image': typeof ApiProxyImageRoute
   '/app/dashboard/match': typeof AppDashboardMatchRoute
   '/app/dashboard/resumes': typeof AppDashboardResumesRoute
   '/app/dashboard/settings': typeof AppDashboardSettingsRoute
@@ -184,14 +148,10 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/$locale'
+    | '/image-proxy'
     | '/login'
-    | '/api/grammar'
-    | '/api/polish'
-    | '/api/resume-import'
-    | '/api/resume-import-pdf'
     | '/app/dashboard'
     | '/app/'
-    | '/api/proxy/image'
     | '/app/dashboard/match'
     | '/app/dashboard/resumes'
     | '/app/dashboard/settings'
@@ -203,13 +163,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$locale'
+    | '/image-proxy'
     | '/login'
-    | '/api/grammar'
-    | '/api/polish'
-    | '/api/resume-import'
-    | '/api/resume-import-pdf'
     | '/app'
-    | '/api/proxy/image'
     | '/app/dashboard/match'
     | '/app/dashboard/resumes'
     | '/app/dashboard/settings'
@@ -222,14 +178,10 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/$locale'
+    | '/image-proxy'
     | '/login'
-    | '/api/grammar'
-    | '/api/polish'
-    | '/api/resume-import'
-    | '/api/resume-import-pdf'
     | '/app/dashboard'
     | '/app/'
-    | '/api/proxy/image'
     | '/app/dashboard/match'
     | '/app/dashboard/resumes'
     | '/app/dashboard/settings'
@@ -243,12 +195,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRouteRoute: typeof AppRouteRouteWithChildren
   LocaleRoute: typeof LocaleRoute
+  ImageProxyRoute: typeof ImageProxyRoute
   LoginRoute: typeof LoginRoute
-  ApiGrammarRoute: typeof ApiGrammarRoute
-  ApiPolishRoute: typeof ApiPolishRoute
-  ApiResumeImportRoute: typeof ApiResumeImportRoute
-  ApiResumeImportPdfRoute: typeof ApiResumeImportPdfRoute
-  ApiProxyImageRoute: typeof ApiProxyImageRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -274,39 +222,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/image-proxy': {
+      id: '/image-proxy'
+      path: '/image-proxy'
+      fullPath: '/image-proxy'
+      preLoaderRoute: typeof ImageProxyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/grammar': {
-      id: '/api/grammar'
-      path: '/api/grammar'
-      fullPath: '/api/grammar'
-      preLoaderRoute: typeof ApiGrammarRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/polish': {
-      id: '/api/polish'
-      path: '/api/polish'
-      fullPath: '/api/polish'
-      preLoaderRoute: typeof ApiPolishRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/resume-import': {
-      id: '/api/resume-import'
-      path: '/api/resume-import'
-      fullPath: '/api/resume-import'
-      preLoaderRoute: typeof ApiResumeImportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/resume-import-pdf': {
-      id: '/api/resume-import-pdf'
-      path: '/api/resume-import-pdf'
-      fullPath: '/api/resume-import-pdf'
-      preLoaderRoute: typeof ApiResumeImportPdfRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/': {
@@ -322,13 +249,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRouteRoute
-    }
-    '/api/proxy/image': {
-      id: '/api/proxy/image'
-      path: '/api/proxy/image'
-      fullPath: '/api/proxy/image'
-      preLoaderRoute: typeof ApiProxyImageRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/app/dashboard/': {
       id: '/app/dashboard/'
@@ -424,12 +344,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRouteRoute: AppRouteRouteWithChildren,
   LocaleRoute: LocaleRoute,
+  ImageProxyRoute: ImageProxyRoute,
   LoginRoute: LoginRoute,
-  ApiGrammarRoute: ApiGrammarRoute,
-  ApiPolishRoute: ApiPolishRoute,
-  ApiResumeImportRoute: ApiResumeImportRoute,
-  ApiResumeImportPdfRoute: ApiResumeImportPdfRoute,
-  ApiProxyImageRoute: ApiProxyImageRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

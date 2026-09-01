@@ -10,7 +10,7 @@
    - code 唯一，grant_matches=用该码注册的账号获得的匹配次数（默认 10）；
    - expires_at 过期时间，过期后不能用于注册；
    - redeemed_count / last_redeemed_at 仅审计（不做兑换次数上限）；
-   - 注册码由 scripts/generate_registration_code.py 生成。
+   - 注册码现由官网自助领取接口发放（POST /api/auth/registration-code）。
 2. users 增加 role（user/admin，管理员不受额度限制）、match_quota（剩余匹配
    次数，-1 表示无限制）、registered_code（注册时用的码，审计用）。
 3. 存量账号的 match_quota 统一为 -1（沿用升级前的「不限制」），避免升级后

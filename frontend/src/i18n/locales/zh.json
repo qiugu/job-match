@@ -108,7 +108,8 @@
         },
         {
           "question": "使用需要登录吗？",
-          "answer": "是的。AI 能力由服务端统一提供，为避免额度被滥用，需使用注册码注册并登录后使用。注册码决定账号可发起的匹配次数。"
+          "answer": "是的。AI 能力由服务端统一提供，为避免额度被滥用，需使用注册码注册并登录后使用。注册码决定账号可发起的匹配次数。",
+          "action": "registration-code"
         },
         {
           "question": "支持哪些简历格式导出？",
@@ -123,6 +124,27 @@
           "answer": "匹配次数由注册时使用的注册码授予，额度耗尽后将无法继续发起匹配。如需更多额度，请向管理员获取新的注册码。"
         }
       ]
+    },
+    "registrationCode": {
+      "button": "获取注册码",
+      "dailyHint": "网站每天最多发放 10 个注册账号",
+      "dialogTitle": "获取注册码",
+      "dialogDescription": "注册码是注册账号的入场券，决定新账号可发起的匹配次数。每日限量发放。",
+      "statusLoading": "正在查询今日名额…",
+      "remaining": "今日名额 {total} 个，剩余 {count} 个",
+      "resetAt": "{time} 重置",
+      "resetTomorrow": "明天 {time}",
+      "resetOn": "{date} {time}",
+      "exhaustedHint": "今日名额已发完，名额每天 0:00 更新，请明天再来",
+      "getCta": "立即领取注册码",
+      "grantMatches": "注册后获得 {count} 次匹配额度",
+      "validUntil": "有效期至 {date}",
+      "copy": "复制",
+      "copied": "已复制",
+      "goRegisterHint": "拿到注册码后，",
+      "goRegister": "前往登录页完成注册",
+      "loadFailed": "查询失败",
+      "issueFailed": "领取失败"
     }
   },
   "dashboard": {
@@ -142,12 +164,10 @@
       "create": "新建简历",
       "newResume": "新建简历",
       "newResumeDescription": "创建一个新简历以开始。",
-      "import": "导入简历",
       "untitled": "未命名简历",
       "importSuccess": "配置导入成功",
       "importError": "配置导入失败，请检查文件格式",
       "importDialog": {
-        "title": "导入简历",
         "jsonTitle": "导入 JSON",
         "jsonDescription": "导入已导出的简历配置文件（.json）",
         "pdfTitle": "导入 PDF",
@@ -176,9 +196,12 @@
         "cancel": "取消",
         "create": "创建",
         "blankTitle": "空白简历",
-        "startFromBlank": "从空白开始",
+        "startCreate": "开始创建",
         "startFromTemplate": "从模板开始",
         "blankCardDescription": "从内置默认模板创建，空白开始",
+        "importTitle": "导入 PDF 简历",
+        "importDescription": "上传已有的 PDF 简历，自动解析版面层级，生成可编辑的简历",
+        "importCta": "选择 PDF 文件",
         "blankThumbnailDescription": "一张白纸，不受任何预设干扰，自由发挥您的创意，打造完全属于您个人风格的代码级简历",
         "createNow": "立即创建",
         "backToGrid": "返回模板列表",
@@ -905,6 +928,20 @@
     "previewTitle": "实时预览",
     "placeholder": "# 张三\n## 高级前端工程师\n\n## 工作经历\n### 阿里巴巴\n2022 - 2025\n- 负责 XXX\n- 使用 React / TypeScript 构建核心模块",
     "modeHint": "Markdown 编辑模式：左侧编写 Markdown，右侧实时预览，可一键导出 PDF（所见即所得）。",
-    "saveHint": "将当前简历保存到数据库"
+    "saveHint": "将当前简历保存到数据库",
+    "toolbar": {
+      "paragraph": "正文（普通段落）",
+      "heading1": "一级标题",
+      "heading2": "二级标题（模块）",
+      "heading3": "三级标题（子条目）",
+      "bold": "加粗",
+      "italic": "斜体",
+      "bulletList": "无序列表",
+      "orderedList": "有序列表",
+      "alignLeft": "左对齐",
+      "alignCenter": "居中对齐",
+      "alignRight": "右对齐",
+      "alignNone": "取消对齐（默认）"
+    }
   }
 }

@@ -41,6 +41,9 @@ export interface MasterResumeSummary {
   /** 简历正文：PDF 解析原文；编辑器保存的记录回退为 markdown 内容 */
   rawText: string;
   markdownContent: string | null;
+  /** 导入 PDF 时由后端从版式元数据反推，使字体大小/间距贴合原文件 */
+  globalSettings?: Record<string, any> | null;
+  templateId?: string | null;
   /** 来源：pdf=上传的 PDF 解析；editor=编辑器保存 */
   source: "pdf" | "editor";
   createdAt: string;

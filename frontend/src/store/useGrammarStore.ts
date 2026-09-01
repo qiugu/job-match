@@ -92,7 +92,7 @@ export const useGrammarStore = create<GrammarStore>((set, get) => ({
     set({ isChecking: true });
 
     try {
-      const response = await fetch("/api/grammar", {
+      const response = await fetch("/api/ai/grammar", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

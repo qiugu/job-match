@@ -48,8 +48,14 @@ class Settings(BaseSettings):
     # 创建出来即为管理员（匹配额度无限制），首次部署时用它登录即可看到升级前已有的简历。
     auth_bootstrap_username: str = ""
     auth_bootstrap_password: str = ""
-    # 生成注册码时默认授予的「JD 匹配次数」（scripts/generate_registration_code.py 用）
+    # 注册码默认授予的「JD 匹配次数」（官网自助领取的注册码用）
     registration_default_matches: int = 10
+    # 官网「自助获取注册码」每日发放上限（对应官网提示「每天可获取的注册账号最多 10 个」）
+    registration_daily_limit: int = 10
+    # 自助获取的注册码有效期（天）
+    registration_code_validity_days: int = 30
+    # 每日发放窗口的时区偏移（小时）：「每天 0 点重置」按该时区计算，默认 UTC+8（北京时间）
+    registration_reset_utc_offset: int = 8
 
     @property
     def cors_origin_list(self) -> List[str]:

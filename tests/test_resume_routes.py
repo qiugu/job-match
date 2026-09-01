@@ -137,3 +137,24 @@ async def test_cannot_access_others_resume(client, session):
     # a2 访问 a1 的资源 → 404（不暴露存在性）
     r = await client.get(f"/api/master-resumes/{rid}", headers=auth_headers(h2))
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_json_created_id_immediately_fetchable(client, session):
+    """回归（2026-08-31 导入简历后编辑器 404）：前端导入 PDF 落库用 POST
+    /api/master-resumes/json，拿到返回 id 后立即跳编辑器，编辑器 loader 马上
+    GET /api/master-resumes/{id}。返回的 id 必须立刻可读、且带结构化数据，
+    否则编辑器 404 回退空白态，用户刚导入的简历"消失"。"""
+    token = await _login(client, session, "imm1", "IMM1")
+    h = auth_headers(token)
+    payload = {"title": "Imported.pdf", "markdownContent": "# Imported\n- item"}
+    r = await client.post("/api/master-resumes/json", json=payload, headers=h)
+    assert r.status_code == 200, r.text
+    created_id = r.json()["id"]
+    assert created_id, "POST /json 必须返回真实记录 id（前端跳转依赖它）"
+
+    detail = await client.get(f"/api/master-resumes/{created_id}", headers=h)
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["id"] == created_id
+    assert detail.json()["title"] == "Imported.pdf"
+    assert "resumeJson" in detail.json()

@@ -54,39 +54,31 @@ function enhanceBracketSections(srcHtml: string): string {
 
   // A. 子标题（公司 · 角色（日期））：原 LLM 在工作/项目段内用 markdown 把
   // "上海爱数 · 平台方向负责人（2022-04 - 2026-05）"作为整段导出，被 markdown-it
-  // 解析为普通段落。这里把"包含（yyyy-mm..."格式的段落拆出来当子标题。
+  // 解析为普通段落。pymupdf4llm 还会把"子标题 + 正文"合并成同一段且包进
+  // <strong>（如 `**字节跳动 · 高级工程师（2020-2023） 负责核心系统设计…**`），
+  // 这里兼容 <strong> 包裹，并把"公司·角色（日期）"前缀拆为子标题、剩余
+  // 正文作为独立段落，恢复层级与换行。
   out = out.replace(
-    /<p>((?:[^\n<·]{2,40}?[·][^\n<]{2,40}?[（][^）\n<]{2,40}?[）][\s\S]*?))<\/p>/g,
+    /<p>(?:<strong>)?((?:[^\n<·]{2,40}?[·][^\n<]{2,40}?[（][^）\n<]{2,40}?[）][\s\S]*?))(?:<\/strong>)?<\/p>/g,
     (_m, inner) => {
-      // 仅当段落核心是「公司 · 角色（日期）」结构才拆
-      if (RE_MOD_SUBTITLE.test(inner.trim())) {
-        return `<div class="mod-item-title">${inner.trim()}</div>`;
+      const text = String(inner).replace(/<\/?strong>/g, "").trim();
+      // 仅当段落以「公司 · 角色（日期）」结构开头才拆为子标题 + 正文
+      const sub = text.match(RE_MOD_SUBTITLE);
+      if (sub) {
+        const title = sub[0].trim();
+        const rest = text.slice(title.length).trim();
+        if (rest) {
+          return `<div class="mod-item-title">${title}</div><p>${rest}</p>`;
+        }
+        return `<div class="mod-item-title">${title}</div>`;
       }
-      return `<p>${inner}</p>`;
-    }
-  );
-
-  // B. 第一行姓名|职位：把"毕友佳 | AI全栈开发"识别为整篇 H1 标题
-  // 兼容「-」分隔（LLM 偶尔输出「姓名 - 方向」而非「姓名 | 方向」）
-  out = out.replace(
-    /<p>([^\n<|]{2,30}\s[|－-]\s[^\n<|]{2,40})<\/p>/,
-    `<div class="mod-title-first-h1">$1</div>`
-  );
-
-  // B2. 姓名标题区整体居中：把「姓名 H1」与其后紧跟的个人信息段落（性别/电话/邮箱行）
-  // 包进 md-align-center。简历姓名区常见居中排版，且 LLM 自由写的 :::center 不可靠，
-  // 这里用确定性规则保证居中，不依赖模型输出。
-  out = out.replace(
-    /(<div class="mod-title-first-h1">[\s\S]*?<\/div>)\s*(<p>[\s\S]*?<\/p>)?/,
-    (_m, h1, info) => {
-      const infoPart = info || "";
-      return `<div class="md-align-center resume-name-block">${h1}${infoPart}</div>`;
+      return `<p>${text}</p>`;
     }
   );
 
   // C. 【xxx】独立段落（模块标题）：把后续所有兄弟段落/列表包成 section
   out = out.replace(
-    /<p>【([^】]+)】<\/p>([\s\S]*?)(?=<p>【|<div class="mod-title-first-h1">|$)/g,
+    /<p>【([^】]+)】<\/p>([\s\S]*?)(?=<p>【|$)/g,
     (_m, name, body) => {
       const nm = String(name).trim();
       return `<section class="mod-section" data-mod="${nm}"><div class="mod-title">【${nm}】</div>${body}</section>`;
@@ -100,6 +92,14 @@ function enhanceBracketSections(srcHtml: string): string {
       const nm = String(name).trim();
       return `<section class="mod-section" data-mod="${nm}"><div class="mod-title">【${nm}】</div><p>${rest}</p></section>`;
     }
+  );
+
+  // E. 去除标题内冗余 <strong>：pymupdf4llm 会把 #/##/### 标题整体加粗
+  // （如 `## **工作经历**`），嵌套 <strong> 不会改变字号但会让标题意外变重、
+  // 与纯 CSS 控制的层级视觉不一致。去掉后标题层级由版式变体统一控制。
+  out = out.replace(
+    /<(h[1-3])>(?:<strong>)?([\s\S]*?)(?:<\/strong>)?<\/\1>/g,
+    (_m, tag, inner) => `<${tag}>${String(inner).replace(/<\/?strong>/g, "")}</${tag}>`
   );
 
   return out;
@@ -406,21 +406,6 @@ const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
             font-weight: 700;
             color: var(--resume-theme);
             line-height: 1.25;
-          }
-          .resume-markdown-preview .mod-title-first-h1 {
-            font-size: ${headerSize + 6}px;
-            font-weight: 700;
-            color: var(--resume-theme);
-            line-height: 1.2;
-            margin-bottom: ${Math.round(lineUnit * 0.5)}px;
-          }
-          /* 姓名区整体居中：姓名 H1 与个人信息行统一居中排版 */
-          .resume-markdown-preview .resume-name-block {
-            text-align: center;
-            margin-bottom: ${Math.round(lineUnit * 0.5)}px;
-          }
-          .resume-markdown-preview .resume-name-block .mod-title-first-h1 {
-            margin-bottom: ${Math.round(lineUnit * 0.15)}px;
           }
           .resume-markdown-preview .mod-item-title {
             font-size: ${subheaderSize}px;

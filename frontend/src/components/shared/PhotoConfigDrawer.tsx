@@ -152,7 +152,7 @@ const PhotoConfigDrawer: React.FC<Props> = ({
     }
 
     try {
-      const proxyUrl = `/api/proxy/image?url=${encodeURIComponent(url)}`;
+      const proxyUrl = `/image-proxy?url=${encodeURIComponent(url)}`;
 
       const img = new Image();
       img.crossOrigin = "anonymous";

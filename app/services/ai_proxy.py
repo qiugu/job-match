@@ -10,7 +10,14 @@ import json
 from typing import AsyncIterator, List, Optional
 
 from app.core.llm import get_llm, is_configured
-from app.services.pdf_parser import extract_pdf_text
+from app.core.logging import get_logger
+from app.services.pdf_parser import (
+    extract_markdown_structure,
+    extract_markdown_via_pymupdf,
+    extract_pdf_text,
+)
+
+logger = get_logger("ai_proxy")
 
 POLISH_SYSTEM = """你是一个专业的简历优化助手。请帮助优化以下 Markdown 格式的文本，使其更加专业和有吸引力。
 
@@ -62,10 +69,19 @@ GRAMMAR_SYSTEM = """你是一个专业的中文简历校对助手。你的任务
 
 RESUME_IMPORT_SYSTEM = """你是一个专业的简历结构化助手。根据用户提供的简历内容，提取信息并只输出一个合法 JSON 对象。
 
+输入格式说明（重要）：
+- 简历内容通常是从 PDF 确定性提取的层级 Markdown：`#`/`##` 开头的行是模块标题；行首带 `-`、`•` 或数字/中文序号的行是列表条目；`**文本**` 是原文加粗片段。
+- 严格依据这些结构信号归类：标题行决定模块归属（教育/工作经历/项目/技能等）；列表条目按原顺序逐条进入对应条目的 details/description 数组，不合并、不拆分、不遗漏；加粗文本优先映射到 company/position/school/name 等关键字段。
+- 技能区（skills 数组）的粒度必须与原文行一致：原文的一行/一条列表就是一个数组项，整项原样保留（含「前端：」「Frontend:」等分组前缀和 / 、等分隔符）；严禁把一行内的多个技能词拆成多个数组项，严禁丢弃分组前缀。
+
+description/details 输出规则（必须遵守，保证前端按原样渲染、样式统一）：
+- 每一项必须是「原样保留其 markdown 结构」的单行：列表条目以 `- ` 开头；子标题（如「核心贡献」「项目成果」）写成 `### 子标题`；普通段落不加任何前缀。
+- 严禁把所有项统一转成列表或统一拍平——原 PDF 里的列表保留为 `- `，子标题保留为 `### `，段落保留为无前缀文本。
+- 严禁凭空捏造列表中不存在的条目，也严禁丢弃任何原文条目。
+
 输出约束：
 1. 只允许输出 JSON，不要输出 Markdown，不要输出解释。
 2. 如果某个字段不确定，使用空字符串或空数组。
-3. description/details 字段输出字符串数组，每一项为一句可读内容。
 
 JSON 结构：
 {
@@ -180,29 +196,6 @@ async def resume_import(content: Optional[str], images: Optional[List[str]], loc
     parsed = _extract_json(raw)
     if parsed is None:
         raise RuntimeError("AI 未返回可解析的 JSON")
-    return parsed
-
-
-async def resume_import_from_pdf(data: bytes, locale: str) -> dict:
-    """从 PDF 二进制中提取纯文本 + 版式元数据，做结构化解析。
-
-    结构化内容走纯文本模型（避免依赖多模态模型），而版式元数据（字体 /
-    字号 / 页边距 / 分栏 / 主色）直接从 PDF 结构提取，不经由 LLM，
-    既准确又不受模型能力影响。最终把 layout 元数据一并回传前端，
-    让导入后的简历在样式上尽量贴近原始 PDF。
-    """
-    _require_configured()
-    text = await extract_pdf_text(data)
-    if not text.strip():
-        raise RuntimeError("无法从 PDF 提取文本内容，请确认文件未加密或为扫描件")
-    parsed = await resume_import(text, None, locale)
-    # 版式元数据独立于 LLM 输出，附加到结果顶层
-    try:
-        layout = await extract_pdf_layout(data)
-    except Exception as e:  # noqa: BLE001
-        # 版式提取失败不应阻断导入，仅记录
-        layout = {}
-    parsed["layout"] = layout
     return parsed
 
 

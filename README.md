@@ -106,12 +106,14 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
 - 额度用完后 `POST /api/derived-resumes` 返回 403「匹配次数已用完」；
 - 管理员账号（初始账号）不受限制：`matchQuota = -1` 表示无限。
 
-生成注册码（直接写数据库，不需要后端服务在跑）：
+发放注册码：官网「常见问题 → 使用需要登录吗」提供**自助领取**入口
+（`GET/POST /api/auth/registration-code`），是注册码唯一的发放渠道：
 
-```bash
-uv run python scripts/generate_registration_code.py                                    # 30 天 / 10 次 / 1 个
-uv run python scripts/generate_registration_code.py --days 7 --matches 20 --count 3 --note "内测"
-```
+- 每日限量 `REGISTRATION_DAILY_LIMIT`（默认 10 个），北京时间 0 点重置，
+  每个网络每日限领 3 个；
+- 领取的注册码有效期 `REGISTRATION_CODE_VALIDITY_DAYS`（默认 30 天），
+  授予匹配次数 `REGISTRATION_DEFAULT_MATCHES`（默认 10 次）；
+- 弹框顶部会展示当日剩余名额与下次重置时间。
 
 ### 初始账号与历史数据
 
@@ -149,6 +151,8 @@ AUTH_BOOTSTRAP_PASSWORD=至少8位
 | `AUTH_ALLOW_REGISTRATION` | 是否开放注册（默认 true）                      |
 | `AUTH_BOOTSTRAP_USERNAME` / `AUTH_BOOTSTRAP_PASSWORD` | 初始账号（即管理员），创建时接管历史数据 |
 | `REGISTRATION_DEFAULT_MATCHES` | 注册码默认授予的匹配次数（默认 10） |
+| `REGISTRATION_DAILY_LIMIT` | 官网每日自助发放的注册码上限（默认 10，北京时间 0 点重置） |
+| `REGISTRATION_CODE_VALIDITY_DAYS` | 自助领取的注册码有效期（天，默认 30） |
 
 ## 数据库迁移（Alembic）
 

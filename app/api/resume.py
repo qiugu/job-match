@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import uuid
@@ -26,7 +27,12 @@ from app.core.logging import get_logger
 from app.models.master_resume import MasterResume
 from app.models.user import User
 from app.schemas.resume import ResumeData
-from app.services.pdf_parser import extract_pdf_text, extract_markdown_structure
+from app.services.pdf_parser import (
+    extract_markdown_structure,
+    extract_markdown_via_pymupdf,
+    extract_pdf_layout,
+    extract_pdf_text,
+)
 
 logger = get_logger("resume")
 
@@ -150,16 +156,66 @@ def _resume_text(r: MasterResume) -> str:
 
 
 def _summary(r: MasterResume) -> dict[str, Any]:
-    """列表/上传响应：正文统一取 rawText（markdown 兜底），并标注来源。"""
+    """列表/上传响应：正文统一取 rawText（markdown 兜底），并标注来源。
+
+    结构化的 globalSettings / templateId 透传给前端，导入的 PDF 简历
+    据此还原原文件的字号/间距/版式，避免一律套默认 16px 导致样式偏差。
+    """
+    try:
+        _resume_json = json.loads(r.resume_json) if r.resume_json else {}
+    except (json.JSONDecodeError, TypeError):
+        _resume_json = {}
     return {
         "id": r.id,
         "title": r.title,
         "rawText": _resume_text(r),
         "markdownContent": r.markdown_content,
+        "globalSettings": _resume_json.get("globalSettings"),
+        "templateId": _resume_json.get("templateId"),
         "source": "pdf" if (r.raw_text or "").strip() else "editor",
         "createdAt": r.created_at.isoformat(),
         "updatedAt": r.updated_at.isoformat(),
     }
+
+
+async def _layout_to_global_settings(data: bytes) -> dict[str, Any] | None:
+    """从 PDF 版式元数据反推 GlobalSettings，让导入简历贴近原文件视觉。
+
+    纯规则、无 LLM：extract_pdf_layout 用 pypdf 确定性取得主字体/主字号/
+    页边距/分栏/主色。版面提取异常时返回 None，导入仍成功（仅走默认样式）。
+    """
+    try:
+        layout = await extract_pdf_layout(data)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("PDF 版式提取失败（导入简历走默认样式）: %s", e)
+        return None
+    if not layout or not isinstance(layout, dict):
+        return None
+
+    settings: dict[str, Any] = {}
+    font_size = layout.get("fontSize")
+    if isinstance(font_size, (int, float)) and font_size > 0:
+        base = min(18, max(10, round(font_size)))
+        settings["baseFontSize"] = base
+        # 标题/子标题字号按主字号等比推导，避免整体比例失调
+        settings["headerSize"] = min(28, max(14, round(base * 1.4)))
+        settings["subheaderSize"] = min(20, max(11, round(base * 1.15)))
+    font_family = layout.get("fontFamily")
+    if font_family:
+        settings["fontFamily"] = font_family
+    page_padding = layout.get("pagePadding")
+    if isinstance(page_padding, (int, float)) and page_padding > 0:
+        settings["pagePadding"] = min(64, max(12, round(page_padding)))
+    theme_color = layout.get("themeColor")
+    if theme_color and str(theme_color).lower() not in ("#000000", "#ffffff", "#000", ""):
+        settings["themeColor"] = theme_color
+    # 中文简历偏紧凑的稳妥默认值
+    settings["lineHeight"] = 1.55
+    if "baseFontSize" in settings:
+        base = settings["baseFontSize"]
+        settings["paragraphSpacing"] = max(6, int(round(base * 0.6)))
+        settings["sectionSpacing"] = max(8, int(round(base * 0.9)))
+    return settings
 
 
 def _ensure_owner(r: MasterResume | None, user: User) -> MasterResume:
@@ -219,15 +275,35 @@ async def upload_master_resume(
         raise HTTPException(status_code=422, detail="无法从 PDF 提取文本内容")
 
     # 确定性（无 LLM）重建原简历的层级 Markdown 骨架，作为匹配时
-    # 「结构不动、只改内容」的锚点；提取失败时退回纯文本，避免阻断上传。
-    try:
-        markdown_structure = extract_markdown_structure(data)
-    except Exception as e:  # noqa: BLE001
-        logger.warning("PDF 层级结构提取失败（已回退纯文本）: %s", e)
+    # 「结构不动、只改内容」的锚点。首选 pymupdf4llm（正确解码 CID/Type3
+    # 中文字体、自动还原标题层级），失败回退自研 span 级提取，再回退纯文本。
+    # pymupdf4llm.to_markdown 是 CPU 密集型同步调用（且需遍历全文档预扫描标题），
+    # 必须用 to_thread 卸载到线程池，否则会阻塞整个 asyncio 事件循环、卡死所有并发请求。
+    markdown_structure = await asyncio.to_thread(extract_markdown_via_pymupdf, data)
+    if not markdown_structure:
+        try:
+            markdown_structure = extract_markdown_structure(data)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("PDF 层级结构提取失败（已回退纯文本）: %s", e)
+            markdown_structure = ""
+    if not markdown_structure:
         markdown_structure = text.strip()
+
+    # 从 PDF 版式元数据（字体/字号/页边距/分栏/主色）反推 globalSettings，
+    # 让导入后的简历在字号/间距/分页上贴近原 PDF（否则固定走默认 16px，
+    # 与原 PDF 的字号/视觉差异明显）。版面提取失败不应阻断导入，仅记日志。
+    global_settings = await _layout_to_global_settings(data)
 
     rid = uuid.uuid4().hex
     # 简历先以原始文本存储；结构化 JSON 由前端 pdfjs 解析后随请求更新，或留空由编辑补全
+    resume_data = ResumeData(
+        id=rid, title=file.filename, createdAt=_now_iso(), updatedAt=_now_iso()
+    )
+    resume_dump = resume_data.model_dump()
+    # globalSettings 是版式还原结果（dict），直接注入 JSON 避免经 Pydantic
+    # GlobalSettings 字段的强类型校验（字段均可选，dict 即可被前端消费）。
+    if global_settings:
+        resume_dump["globalSettings"] = global_settings
     master = MasterResume(
         id=rid,
         user_id=user.id,
@@ -235,9 +311,7 @@ async def upload_master_resume(
         original_filename=file.filename,
         raw_text=text,
         markdown_content=markdown_structure,
-        resume_json=json.dumps(
-            ResumeData(id=rid, title=file.filename, createdAt=_now_iso(), updatedAt=_now_iso()).model_dump()
-        ),
+        resume_json=json.dumps(resume_dump),
     )
     db.add(master)
     await _commit_or_409(
