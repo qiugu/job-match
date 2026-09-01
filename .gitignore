@@ -59,6 +59,9 @@ src/routeTree.gen.ts
 .agent
 .tanstack
 
+# git worktrees（隔离工作区）
+.worktrees/
+
 # uv 虚拟环境
 .venv/
 

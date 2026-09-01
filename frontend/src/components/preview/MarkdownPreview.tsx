@@ -539,32 +539,26 @@ ${variantCss}
             list-style-position: inside;
           }
 
-          /* 单行内联容器：用于同一行左右分布（如 学校 | 日期） */
-          .resume-markdown-preview p:has(> .md-align-left):has(> .md-align-right),
-          .resume-markdown-preview p:has(> .md-align-right):has(> .md-align-left) {
+          /* 单行内联容器：用于同一行左右分布（如 学校 | 日期）。
+             直接以 .md-align-inline-pair 类名定位，避免依赖 CSS :has()
+             选择器（部分浏览器/环境下不生效，导致居左居右失效）。 */
+          .resume-markdown-preview p.md-align-inline-pair {
             display: flex;
-            justify-content: space-between;
             align-items: baseline;
+            gap: 1rem;
           }
-          .resume-markdown-preview p:has(> .md-align-left):not(:has(> .md-align-right)) {
-            display: flex;
-            justify-content: flex-start;
-            align-items: baseline;
+          .resume-markdown-preview p.md-align-inline-pair > .md-align-left {
+            flex: 1 1 auto;
+            text-align: left;
           }
-          .resume-markdown-preview p:has(> .md-align-right):not(:has(> .md-align-left)) {
-            display: flex;
-            justify-content: flex-end;
-            align-items: baseline;
+          .resume-markdown-preview p.md-align-inline-pair > .md-align-right {
+            flex: 0 0 auto;
+            text-align: right;
+            white-space: nowrap;
           }
-          .resume-markdown-preview p:has(> .md-align-center) {
-            display: flex;
-            justify-content: center;
-            align-items: baseline;
-          }
-          .resume-markdown-preview p > .md-align-left,
-          .resume-markdown-preview p > .md-align-right,
-          .resume-markdown-preview p > .md-align-center {
-            display: inline;
+          .resume-markdown-preview p.md-align-inline-pair > .md-align-center {
+            flex: 1 1 100%;
+            text-align: center;
           }
 
           /* 多行块配对行：:::left 与紧随的 :::right 合并为同一行左右分布 */

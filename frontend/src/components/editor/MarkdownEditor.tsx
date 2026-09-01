@@ -21,7 +21,7 @@ import {
   AlignRight,
   AlignJustify,
 } from "lucide-react";
-import Align from "./extensions/align";
+import Align from "@tiptap/extension-text-align";
 import "@/styles/tiptap.scss";
 
 // tiptap-markdown 在 editor.storage.markdown 上暴露 getMarkdown()，
