@@ -41,6 +41,9 @@ export interface MasterResumeSummary {
   /** 简历正文：PDF 解析原文；编辑器保存的记录回退为 markdown 内容 */
   rawText: string;
   markdownContent: string | null;
+  /** 导入 PDF 时由后端从版式元数据反推，使字体大小/间距贴合原文件 */
+  globalSettings?: Record<string, any> | null;
+  templateId?: string | null;
   /** 来源：pdf=上传的 PDF 解析；editor=编辑器保存 */
   source: "pdf" | "editor";
   createdAt: string;
@@ -154,7 +157,6 @@ export async function saveResumeToBackend(
 export interface DerivedResumeSummary {
   id: string;
   title: string;
-  matchMode: "rewrite" | "keyword";
   createdAt: string;
 }
 
@@ -175,20 +177,18 @@ export interface MatchRequirement {
  *
  * 注意字段名是 snake_case：该对象由 `match_results.model_dump(exclude_none=True)`
  * 直接序列化（agent.py run_match），未走其他字段那样的手工 camelCase 映射，
- * 因此这里是 refactor_mode / cover_letter，而不是 refactorMode / coverLetter。
+ * 因此这里是 cover_letter，而不是 coverLetter。
  * 且 exclude_none=True 意味着值为 None 的字段不会出现在响应里，故全部可选。
  */
 export interface MatchAnalysis {
   role?: string;
   /** 匹配得分：后端约定为 0~1 的浮点数（0.595 表示 59.5%），展示时需要 ×100 */
   score?: number;
-  /** LLM 判定的重构方式：rewrite=保留基础信息整体重写；optimize=不动结构仅优化描述 */
-  refactor_mode?: "rewrite" | "optimize";
   requirements?: MatchRequirement[];
   /**
    * resume_match 节点输出的打招呼话术。
-   * 与顶层 coverLetter 来源不同：后者由 generate_cover_letter 节点用
-   * COVER_LETTER_PROMPT 单独生成，两者内容可能不一致。
+   * 与顶层 coverLetter 同源：后者直接复用本字段（withCoverLetter=true 时随响应返回），
+   * 不再由 generate_cover_letter 节点单独生成，两者内容一致。
    */
   cover_letter?: string;
   summary?: string;
@@ -197,7 +197,6 @@ export interface MatchAnalysis {
 export interface MatchResult {
   id: string;
   title: string;
-  matchMode: "rewrite" | "keyword";
   keywords: string[];
   /** Agent 产出的匹配后简历，markdown 文本 */
   markdownContent: string;

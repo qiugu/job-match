@@ -89,7 +89,7 @@ async def create_match(
         reserved = True
 
     try:
-        keywords, resume_md, cover, refactor_mode, analysis = await run_match(
+        keywords, resume_md, cover, analysis = await run_match(
             master_text=req.resumeText,
             jd_text=req.jdText,
             with_cover_letter=req.withCoverLetter,
@@ -108,11 +108,9 @@ async def create_match(
 
     did = uuid.uuid4().hex
     now = _now_iso()
-    # 匹配方式（rewrite/optimize）由 LLM 自行判断，记录其输出
-    matched_mode = refactor_mode or "rewrite"
     # 标题冲突时自动追加「自动1/自动2…」，确保 JD 生成的简历名称唯一
     title = await _unique_derived_title(
-        db, req.title or f"匹配简历-{matched_mode}", user.id
+        db, req.title or "匹配简历", user.id
     )
 
     # 匹配结果即 markdown 简历文本（非结构化 JSON 模块化简历）
@@ -121,7 +119,6 @@ async def create_match(
         user_id=user.id,
         title=title,
         jd_text=req.jdText,
-        match_mode=matched_mode,
         markdown_content=resume_md,
         keywords=json.dumps(keywords),
         has_cover_letter=bool(cover),
@@ -143,7 +140,6 @@ async def create_match(
     return {
         "id": derived.id,
         "title": derived.title,
-        "matchMode": derived.match_mode,
         "keywords": keywords,
         "markdownContent": resume_md,
         "coverLetter": cover,
@@ -180,7 +176,6 @@ async def list_derived(
         {
             "id": r.id,
             "title": r.title,
-            "matchMode": r.match_mode,
             "hasCoverLetter": r.has_cover_letter,
             "createdAt": r.created_at.isoformat(),
         }
@@ -206,7 +201,6 @@ async def get_derived(
     return {
         "id": r.id,
         "title": r.title,
-        "matchMode": r.match_mode,
         "jdText": r.jd_text,
         "keywords": json.loads(r.keywords),
         "markdownContent": r.markdown_content,

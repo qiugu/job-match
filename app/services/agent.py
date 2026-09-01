@@ -1,18 +1,23 @@
 """简历匹配 Agent：基于 LangGraph 的多节点工作流。
 
 流程：
-  1. extract_keywords  —— 从 JD 提取关键词（技能/经验/要求）
-  2. branch            —— 根据 match_mode 路由
-  3a. rewrite_resume   —— 全部重写：以简历为素材，按 JD 重写整份简历（markdown）
-  3b. keyword_optimize —— 关键词优化：保留简历结构，仅针对性优化描述以命中 JD 关键词
-  4. cover_letter?     —— 若需要，生成约 200 字求职信纯文本
+  1. jd_extract       —— 从 JD 提取关键词（技能/经验/要求），打平为 keywords
+  2. resume_match     —— 基于 JD 分析结果与简历的匹配关系，产出匹配项、优化建议
+                         与求职信话术（MatchResult.cover_letter）
+  3. keyword_optimize —— 关键词/模块级优化：保持简历大结构，在建议指导下
+                         优化措辞，允许有依据时新增/删除条目或模块（markdown）
 
-状态在节点间以 TypedDict 传递，最终产出结构化 ResumeData 与可选求职信。
+已删除 refactor_mode（rewrite/optimize）分支：统一走 keyword_optimize。
+rewrite_resume / generate_cover_letter 节点代码留存但不再路由（求职信复用
+resume_match 的 MatchResult.cover_letter，不再单独调用一次 LLM）。
+
+状态在节点间以 TypedDict 传递，最终产出优化后的 markdown 简历与可选求职信。
 """
 from __future__ import annotations
 
 import asyncio
 import json
+import time
 from typing import Any
 
 from langgraph.graph import StateGraph, END
@@ -27,39 +32,24 @@ from app.schemas.agent import AgentState, JDAnalysis, MatchResult
 
 logger = get_logger("agent")
 
-RULES = (
-    "你是资深简历优化顾问。仅输出符合要求的 JSON，不要包含多余解释或 Markdown 代码块标记。"
-    "所有字段使用中文（除非专有名词/技术栈）。保持真实，不得编造不存在的经历、公司或技能。"
-)
 
-SCHEMA_HINT = (
-    "输出 JSON 结构："
-    '{"basic":{"name","title","email","phone","location","customFields":[{"label","value"}]},'
-    '"education":[{"school","major","degree","startDate","endDate","description"}],'
-    '"experience":[{"company","position","date","details"}],'
-    '"projects":[{"name","role","date","description"}],'
-    '"skillContent":"技能总结文本","selfEvaluationContent":"自我评价文本"}'
-)
+def _flatten_keywords(analysis: JDAnalysis) -> list[str]:
+    """把 JD 分析结果打平为关键词列表（去重、上限 20）。
 
-# LLM 结构化输出的清洗策略（LLM 输出不稳定，可能带 null 或类型错位，需兜底）：
-# - null 值：直接删除，Pydantic 回退到字段默认值
-# - 文本字段：非字符串转成字符串（列表用「；」拼接），避免 ValidationError
-_TEXT_FIELDS = {
-    # BasicInfo
-    "name", "title", "email", "phone", "location", "birthDate",
-    "employementStatus", "photo", "githubKey", "githubUseName",
-    # Education
-    "school", "major", "degree", "startDate", "endDate", "gpa",
-    # Experience / Project / CustomItem
-    "company", "position", "date", "details", "description", "role",
-    "link", "linkLabel", "subtitle", "dateRange",
-    # CustomFieldType / 通用
-    "label", "value", "icon", "id",
-    # ResumeData
-    "skillContent", "selfEvaluationContent", "activeSection",
-}
+    供 keyword_optimize 的 {kw}、API 返回的 keywords 与前端 diff 高亮使用。
+    experiences/rigid 常为长句（如「3 年以上金融行业经验」），不适合做高亮
+    token，故只取技能类与加分项。
+    """
+    out: list[str] = []
+    for item in [*analysis.hard_skills, *analysis.soft_skills, *analysis.plus]:
+        s = item.strip()
+        if s and s not in out:
+            out.append(s)
+    return out[:20]
+
 
 async def jd_extract(state: AgentState) -> AgentState:
+    t0 = time.perf_counter()
     prompt = JD_EXTRACT_PROMPT.format(
         jd=state["jd_text"]
     )
@@ -75,8 +65,11 @@ async def jd_extract(state: AgentState) -> AgentState:
         )
         if isinstance(resp, JDAnalysis):
             state["jd_analyze_results"] = resp
+            # 打平为关键词列表：此前没有任何节点写入 state["keywords"]，
+            # 导致 keyword_optimize 的 {kw}、API 返回值与前端关键词高亮全部失效。
+            state["keywords"] = _flatten_keywords(resp)
     except Exception as e:
-        # 兜底：JD 提取失败时也要写入空结果，避免下游 resume_match 因缺失
+        # 兜底：JD 提取失败时也要写入空结果，避免下游因缺失
         # jd_analyze_results 触发 KeyError（AgentState 该字段为可选字段）。
         logger.exception("JD 关键词提取节点失败（已降级为空结果）: %s", str(e))
         state["jd_analyze_results"] = JDAnalysis(
@@ -87,19 +80,21 @@ async def jd_extract(state: AgentState) -> AgentState:
             rigid=[],
         )
         state["error"] = str(e)
+    finally:
+        logger.info("节点 jd_extract 耗时 %.1fs", time.perf_counter() - t0)
     return state
 
 
 async def resume_match(state: AgentState) -> AgentState:
+    t0 = time.perf_counter()
     jd_analyze_results = state.get("jd_analyze_results")
     # 上游（jd_extract）未产出分析结果时跳过，避免 KeyError 崩溃。
     if jd_analyze_results is None:
         state["error"] = state.get("error") or "JD 分析未产出结果，无法执行匹配"
         return state
+    # 消费 jd_extract 的格式化结果（结构化 JD 要点）进行匹配。
     prompt = RESUME_MATCHER_PROMPT.format(
-        jd_analyze_results=jd_analyze_results.model_dump_json(
-            indent=2
-        ),
+        jd_analyze_results=jd_analyze_results.model_dump_json(),
         resume=state["resume_text"]
     )
     try:
@@ -110,12 +105,13 @@ async def resume_match(state: AgentState) -> AgentState:
             model_with_structure.ainvoke(prompt),
             timeout=settings.llm_timeout
         )
-        if isinstance(resp, MatchResult): 
+        if isinstance(resp, MatchResult):
             state["resume_match_results"] = resp
-            state["refactor_mode"] = resp.refactor_mode
     except Exception as e:
         logger.exception("简历匹配节点失败: %s", e)
         state["error"] = str(e)
+    finally:
+        logger.info("节点 resume_match 耗时 %.1fs", time.perf_counter() - t0)
     return state
 
 def _strip(s: str) -> str:
@@ -244,25 +240,39 @@ async def rewrite_resume(state: AgentState) -> AgentState:
 
 
 async def keyword_optimize(state: AgentState) -> AgentState:
+    t0 = time.perf_counter()
     resume_match_results = state.get("resume_match_results")
     if resume_match_results is None:
         state["error"] = state.get("error") or "匹配结果缺失，无法优化关键词"
         return state
     kw = "、".join(state.get("keywords", []))
+    # 紧凑 JSON（不带 indent）：indent=2 的缩进/换行会额外增加 30%+ 的输入 token，
+    # 抬高 TTFT 与费用，对模型解析没有帮助。
     prompt = KEYWORDS_OPTIMIZE.format(
         resume_match_results=resume_match_results.model_dump_json(
-            indent=2,
             exclude=set(["cover_letter", "resume_match_results"])
         ),
         resume_text=state["resume_text"],
-        kw={kw}
+        kw=kw
     )
-    resp = await asyncio.wait_for(model.ainvoke(prompt), timeout=settings.llm_timeout)
-    state["markdown_content"] = _strip(_to_text(resp.content))
+    try:
+        resp = await asyncio.wait_for(
+            model.ainvoke(prompt), timeout=settings.llm_timeout
+        )
+        state["markdown_content"] = _strip(_to_text(resp.content))
+    finally:
+        logger.info(
+            "节点 keyword_optimize 耗时 %.1fs（注入关键词 %d 个）",
+            time.perf_counter() - t0,
+            len(state.get("keywords", [])),
+        )
     return state
 
 
 async def generate_cover_letter(state: AgentState) -> AgentState:
+    """（留档，未接入图）求职信已由 resume_match 节点顺带产出
+    （MatchResult.cover_letter 随匹配分析一起生成），单独再调一次 LLM 生成
+    同样的内容纯属浪费时长；run_match 直接取该字段返回。"""
     if not state.get("with_cover_letter"):
         return state
     prompt = COVER_LETTER_PROMPT.format(
@@ -274,25 +284,20 @@ async def generate_cover_letter(state: AgentState) -> AgentState:
     return state
 
 
-def _route(state: AgentState) -> str:
-    return "rewrite" if state.get("refactor_mode") == "rewrite" else "optimize"
-
-
 def build_graph():
     # Pyrefly/ty 无法对 TypedDict 类做结构匹配（langgraph StateT 上界 TypedDictLikeV1/V2，
     # 且其错误码不互通，只能使用无码 ignore）。运行时已验证正常。
     g = StateGraph(AgentState)  # type: ignore
     g.add_node("jd_extract", jd_extract)
     g.add_node("resume_match", resume_match)
-    g.add_node("rewrite_resume", rewrite_resume)
     g.add_node("keyword_optimize", keyword_optimize)
 
     g.set_entry_point("jd_extract")
     g.add_edge("jd_extract", "resume_match")
-    g.add_conditional_edges(
-        "resume_match", _route, {"rewrite": "rewrite_resume", "optimize": "keyword_optimize"}
-    )
-    g.add_edge("rewrite_resume", END)
+    # 已删除 refactor_mode 分支：统一走 keyword_optimize（描述/模块级优化）。
+    # rewrite_resume / generate_cover_letter 节点保留（代码留存不路由）。
+    g.add_edge("resume_match", "keyword_optimize")
+    g.add_edge("keyword_optimize", END)
     return g.compile()
 
 
@@ -300,17 +305,20 @@ async def run_match(
     master_text: str,
     jd_text: str,
     with_cover_letter: bool,
-) -> tuple[list[str], str, str, str, dict | None]:
-    """执行匹配工作流，返回 (关键词, 优化后简历, 求职信, 匹配方式, 匹配分析)。
+) -> tuple[list[str], str, str, dict | None]:
+    """执行匹配工作流，返回 (关键词, 优化后简历, 求职信, 匹配分析)。
 
-    匹配方式（rewrite/optimize）由 LLM 在 resume_match 节点自行判断，无需调用方传入。
+    匹配方式已统一为 optimize（描述/模块级优化），不再由 LLM 判定 rewrite/optimize，
+    因此不再返回匹配方式字段。
+    求职信复用 resume_match 节点顺带产出的 MatchResult.cover_letter（仅在
+    with_cover_letter=True 时随响应返回），不再单独调用 LLM。
     匹配分析为 resume_match 节点产出的结构化结果（岗位角色、得分、匹配项、总结），
     下游节点不直接消费但前端需要展示，因此一并回传。
     """
     if not is_configured():
         raise RuntimeError("LLM 未配置：请在 .env 设置 LLM_API_KEY 等参数")
 
-    async def _run_once() -> tuple[list[str], str, str, str, dict | None]:
+    async def _run_once() -> tuple[list[str], str, str, dict | None]:
         graph = build_graph()
         init: AgentState = {
             "resume_text": master_text,
@@ -325,20 +333,24 @@ async def run_match(
             raise RuntimeError(f"匹配流程执行失败：{result['error']}")
 
         resume_raw = result.get("markdown_content", "")
-        refactor_mode = result.get("refactor_mode", "rewrite")
         match_results = result.get("resume_match_results")
         analysis = (
             match_results.model_dump(exclude_none=True) if match_results else None
         )
+        # 求职信复用 resume_match 的产出（随匹配分析一起生成）：
+        # generate_cover_letter 节点从未接入图，原实现下 with_cover_letter 一直不生效。
+        cover = ""
+        if with_cover_letter and match_results is not None:
+            cover = (match_results.cover_letter or "").strip()
 
         return (
             result.get("keywords", []),
             resume_raw,
-            result.get("cover_letter", ""),
-            refactor_mode,
+            cover,
             analysis,
         )
 
+    t0 = time.perf_counter()
     try:
         return await _run_once()
     except ValidationError as e:
@@ -362,3 +374,5 @@ async def run_match(
         # 转成 RuntimeError 让 match.py 返回 503 而非默认 500。
         logger.exception("匹配工作流执行失败: %s", e)
         raise RuntimeError(f"匹配请求处理失败：{e}") from e
+    finally:
+        logger.info("匹配工作流总耗时 %.1fs", time.perf_counter() - t0)

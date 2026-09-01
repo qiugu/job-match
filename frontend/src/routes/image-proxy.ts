@@ -1,6 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/api/proxy/image")({
+// 图片代理（绕过外链图片的 Referer 防盗链 / CORS 限制）。
+// 注意：路径刻意不带 /api 前缀 —— vite dev 与 Nginx 生产都把 /api 全量转发给
+// Python 后端，带 /api 前缀的 server route 在两种环境下都不可达（404）。
+// /image-proxy 走 TanStack server（dev）与 Nginx location / → frontend（生产）。
+export const Route = createFileRoute("/image-proxy")({
   server: {
     handlers: {
       GET: async ({ request }) => {
@@ -22,7 +26,7 @@ export const Route = createFileRoute("/api/proxy/image")({
           }
 
           if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-            console.error(`不支持的URL协议: ${parsedUrl.protocol}`);
+            console.error(`不支持的URL协议: ${imageUrl}`);
             return Response.json({ error: "只支持HTTP和HTTPS协议" }, { status: 400 });
           }
 

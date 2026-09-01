@@ -107,7 +107,8 @@
         },
         {
           "question": "Do I need to log in?",
-          "answer": "Yes. AI capabilities are served centrally to prevent quota abuse, so you must register with a registration code and log in. The code determines how many matches your account can run."
+          "answer": "Yes. AI capabilities are served centrally to prevent quota abuse, so you must register with a registration code and log in. The code determines how many matches your account can run.",
+          "action": "registration-code"
         },
         {
           "question": "What export formats are supported?",
@@ -122,6 +123,27 @@
           "answer": "The number of matches is granted by the registration code used at sign-up. Once exhausted, no further matches can be started. To get more quota, ask an admin for a new registration code."
         }
       ]
+    },
+    "registrationCode": {
+      "button": "Get a registration code",
+      "dailyHint": "The site issues at most 10 registration codes per day",
+      "dialogTitle": "Get a registration code",
+      "dialogDescription": "A registration code is your ticket to sign up — it decides how many matches the new account can run. Daily supply is limited.",
+      "statusLoading": "Checking today's availability…",
+      "remaining": "{count} of {total} codes left today",
+      "resetAt": "Resets {time}",
+      "resetTomorrow": "tomorrow at {time}",
+      "resetOn": "on {date} at {time}",
+      "exhaustedHint": "Today's codes are all claimed. The quota updates daily at midnight — please come back tomorrow.",
+      "getCta": "Claim my code",
+      "grantMatches": "{count} matches granted on registration",
+      "validUntil": "Valid until {date}",
+      "copy": "Copy",
+      "copied": "Copied",
+      "goRegisterHint": "Got your code? ",
+      "goRegister": "Finish registration on the login page",
+      "loadFailed": "Failed to load",
+      "issueFailed": "Failed to claim"
     }
   },
   "dashboard": {
@@ -141,12 +163,10 @@
       "create": "Create Resume",
       "newResume": "New Resume",
       "newResumeDescription": "Create a new resume to get started.",
-      "import": "Import Resume",
       "untitled": "Untitled Resume",
       "importSuccess": "Configuration imported successfully",
       "importError": "Import failed, please check the file format",
       "importDialog": {
-        "title": "Import Resume",
         "jsonTitle": "Import JSON",
         "jsonDescription": "Import an exported resume config file (.json)",
         "pdfTitle": "Import PDF",
@@ -175,9 +195,12 @@
         "cancel": "Cancel",
         "create": "Create",
         "blankTitle": "Blank Resume",
-        "startFromBlank": "Start from Blank",
+        "startCreate": "Start Creating",
         "startFromTemplate": "Start from Template",
         "blankCardDescription": "Use a default built-in layout and start from scratch.",
+        "importTitle": "Import PDF Resume",
+        "importDescription": "Upload an existing PDF resume; its layout is parsed automatically into an editable resume.",
+        "importCta": "Choose PDF File",
         "blankThumbnailDescription": "Start with a clean page and shape a code-driven resume with complete creative control.",
         "createNow": "Create Now",
         "backToGrid": "Back to template grid",
@@ -328,11 +351,6 @@
     "matchReqUnsupported": "Unsupported",
     "matchReqEvidence": "Evidence",
     "matchReqSuggestion": "Suggestion",
-    "matchRefactorMode": "Refactor Mode",
-    "matchRefactorModeRewrite": "Full Rewrite",
-    "matchRefactorModeOptimize": "Description Polish",
-    "matchRefactorModeRewriteDesc": "Rewrite the whole resume for this role, keeping core info",
-    "matchRefactorModeOptimizeDesc": "Keep the structure, polish wording to hit keywords",
     "matchAnalysisCoverLetter": "Match Pitch",
     "diffCompare": "Compare",
     "diffPreview": "A4 Preview",
@@ -908,6 +926,20 @@
     "previewTitle": "Live Preview",
     "placeholder": "# John Doe\n## Senior Frontend Engineer\n\n## Experience\n### Alibaba\n2022 - 2025\n- Responsible for XXX\n- Built core modules with React / TypeScript",
     "modeHint": "Markdown mode: write Markdown on the left, preview live on the right, and export to PDF with one click (what you see is what you get).",
-    "saveHint": "Save the current resume to the database"
+    "saveHint": "Save the current resume to the database",
+    "toolbar": {
+      "paragraph": "Paragraph",
+      "heading1": "Heading 1",
+      "heading2": "Heading 2 (section)",
+      "heading3": "Heading 3 (item)",
+      "bold": "Bold",
+      "italic": "Italic",
+      "bulletList": "Bullet list",
+      "orderedList": "Ordered list",
+      "alignLeft": "Align left",
+      "alignCenter": "Align center",
+      "alignRight": "Align right",
+      "alignNone": "Clear alignment"
+    }
   }
 }

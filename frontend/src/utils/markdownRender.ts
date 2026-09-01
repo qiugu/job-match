@@ -9,6 +9,11 @@ const md = new MarkdownIt({
   html: true,
   linkify: true,
   typographer: true,
+  // 渲染语义：单 \n = 软换行（空格连接），\n\n = 硬换行/段落分隔（CommonMark 标准）。
+  // 早期曾开启 breaks:true（单 \n 即渲染为 <br> 硬换行），但 PDF 提取会把超长句子按
+  // 页面宽度切分为多个视觉行并以单 \n 输出，breaks:true 会把这些「句子续行」渲染成
+  // <br>，产生「前端↵工程体系搭建」这类破坏词义的词中断行。改为 breaks:false 后，
+  // 单 \n 统一空格连接（符合语义且不破坏词义），真正的段落仍由 \n\n 分隔，不受影响。
   breaks: false,
 });
 

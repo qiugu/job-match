@@ -17,7 +17,9 @@ import {
 import { useResumeStore } from "@/store/useResumeStore";
 import MarkdownPreview from "@/components/preview/MarkdownPreview";
 import type { Translator } from "@/i18n/compat/utils";
-import { ChevronLeft, FilePlus, Sparkles, X } from "lucide-react";
+import { ChevronLeft, FilePlus, Loader2, Sparkles, X } from "lucide-react";
+import { PdfIcon } from "@/components/shared/icons/PdfIcon";
+import { cn } from "@/lib/utils";
 
 const A4_WIDTH_PX = 793.700787;
 const A4_HEIGHT_PX = 1122.519685;
@@ -125,20 +127,33 @@ interface CreateResumeModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onCreate: (templateId: string | null) => void;
+    onImportPdf: (file: File) => void;
+    isImporting: boolean;
 }
 
 export const CreateResumeModal = ({
     open,
     onOpenChange,
     onCreate,
+    onImportPdf,
+    isImporting,
 }: CreateResumeModalProps) => {
     const t = useTranslations();
     const locale = useLocale();
     const [previewTarget, setPreviewTarget] = useState<TemplateOption | null>(null);
+    const pdfFileInputRef = useRef<HTMLInputElement>(null);
 
     const handleCreate = (template: TemplateOption) => {
+        if (isImporting) return;
         onCreate(template.id);
         setPreviewTarget(null);
+    };
+
+    const handlePdfFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file || isImporting) return;
+        onImportPdf(file);
     };
 
     // Close preview when dialog closes
@@ -150,12 +165,27 @@ export const CreateResumeModal = ({
     }, [open]);
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog
+            open={open}
+            onOpenChange={(nextOpen) => {
+                if (isImporting) return;
+                onOpenChange(nextOpen);
+            }}
+        >
             <DialogContent hideClose className="max-w-[1100px] w-[95vw] h-[90vh] sm:h-[85vh] p-0 overflow-hidden bg-white/95 dark:bg-gray-950/95 backdrop-blur-2xl border-white/20 dark:border-white/10 shadow-2xl rounded-[2rem] flex flex-col">
                 {/* We keep an empty DialogTitle to satisfy accessibility requirements without taking up space */}
                 <DialogTitle className="sr-only">{t("dashboard.resumes.createDialog.title")}</DialogTitle>
 
                 <div className="relative w-full h-full min-h-0 flex flex-col">
+                    {/* Hidden PDF file picker for the import card */}
+                    <input
+                        ref={pdfFileInputRef}
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        className="hidden"
+                        disabled={isImporting}
+                        onChange={handlePdfFileChange}
+                    />
                     {/* HEADER BAR */}
                     <div className="flex-none px-8 py-6 flex items-center justify-between z-10">
                         <div className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-gray-400 flex items-center">
@@ -164,8 +194,9 @@ export const CreateResumeModal = ({
                         <button
                             type="button"
                             onClick={() => onOpenChange(false)}
+                            disabled={isImporting}
                             aria-label={t("common.cancel")}
-                            className="p-2 -mr-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                            className="p-2 -mr-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <X className="w-6 h-6 text-gray-400" />
                         </button>
@@ -174,44 +205,103 @@ export const CreateResumeModal = ({
                     <div className="flex-1 min-h-0 relative w-full">
                         <ScrollArea className="h-full w-full">
                             <div className="px-8 pb-12 max-w-7xl mx-auto space-y-12">
-                                {/* SECTION 1: BLANK TEMPLATE */}
+                                {/* SECTION 1: CREATE ENTRY — BLANK OR IMPORT PDF */}
                                 <section>
                                     <div className="flex items-center mb-6">
                                         <h4 className="text-xl font-bold text-gray-900 dark:text-white">
-                                            {t("dashboard.resumes.createDialog.startFromBlank")}
+                                            {t("dashboard.resumes.createDialog.startCreate")}
                                         </h4>
                                         <div className="h-px bg-gray-200 dark:bg-gray-800 flex-1 ml-6" />
                                     </div>
-                                    <motion.div
-                                        layoutId={`card-container-blank`}
-                                        whileHover={{ y: -4, scale: 1.01 }}
-                                        whileTap={{ scale: 0.99 }}
-                                        onClick={() => handleCreate(BLANK_TEMPLATE)}
-                                        className="group cursor-pointer rounded-2xl border border-gray-200/60 dark:border-gray-800/60 shadow-sm bg-gray-50/50 dark:bg-gray-900/50 hover:bg-white dark:hover:bg-gray-900 hover:shadow-xl hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 p-6 flex flex-col sm:flex-row items-center gap-6"
-                                    >
-                                        {/* Small visual icon area */}
+                                    <div className={cn("grid gap-6 lg:grid-cols-2", isImporting && "pointer-events-none")}>
+                                        {/* BLANK RESUME CARD */}
                                         <motion.div
-                                            layoutId={`card-image-blank`}
-                                            className="h-28 w-28 sm:h-32 sm:w-32 flex-shrink-0 rounded-2xl bg-white dark:bg-gray-800 shadow-inner flex items-center justify-center border border-gray-100 dark:border-gray-700"
+                                            layoutId={`card-container-blank`}
+                                            whileHover={{ y: -4, scale: 1.01 }}
+                                            whileTap={{ scale: 0.99 }}
+                                            role="button"
+                                            tabIndex={0}
+                                            aria-disabled={isImporting}
+                                            onClick={() => handleCreate(BLANK_TEMPLATE)}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter" || event.key === " ") {
+                                                    event.preventDefault();
+                                                    handleCreate(BLANK_TEMPLATE);
+                                                }
+                                            }}
+                                            className={cn(
+                                                "group cursor-pointer rounded-2xl border border-gray-200/60 dark:border-gray-800/60 shadow-sm bg-gray-50/50 dark:bg-gray-900/50 hover:bg-white dark:hover:bg-gray-900 hover:shadow-xl hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 p-6 flex flex-col sm:flex-row items-center gap-6",
+                                                isImporting && "opacity-60"
+                                            )}
                                         >
-                                            <FilePlus className="w-10 h-10 text-gray-400 group-hover:text-primary transition-colors" />
+                                            {/* Small visual icon area */}
+                                            <motion.div
+                                                layoutId={`card-image-blank`}
+                                                className="h-24 w-24 sm:h-28 sm:w-28 flex-shrink-0 rounded-2xl bg-white dark:bg-gray-800 shadow-inner flex items-center justify-center border border-gray-100 dark:border-gray-700"
+                                            >
+                                                <FilePlus className="w-9 h-9 text-gray-400 group-hover:text-primary transition-colors" />
+                                            </motion.div>
+
+                                            <div className="flex-1 text-center sm:text-left">
+                                                <motion.div layoutId={`card-title-blank`} className="inline-block">
+                                                    <h5 className="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-primary transition-colors">
+                                                        {t("dashboard.resumes.createDialog.blankTitle")}
+                                                    </h5>
+                                                </motion.div>
+                                                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-lg leading-relaxed">
+                                                    {t("dashboard.resumes.createDialog.blankCardDescription")}
+                                                </p>
+                                            </div>
+
+                                            <div className="hidden sm:flex text-primary font-medium items-center text-sm duration-300">
+                                                {t("dashboard.resumes.createDialog.createNow")} <ChevronLeft className="w-4 h-4 ml-1 rotate-180" />
+                                            </div>
                                         </motion.div>
 
-                                        <div className="flex-1 text-center sm:text-left">
-                                            <motion.div layoutId={`card-title-blank`} className="inline-block">
-                                                <h5 className="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-primary transition-colors">
-                                                    {t("dashboard.resumes.createDialog.blankTitle")}
-                                                </h5>
-                                            </motion.div>
-                                            <p className="text-gray-500 dark:text-gray-400 text-sm max-w-lg leading-relaxed">
-                                                {t("dashboard.resumes.createDialog.blankCardDescription")}
-                                            </p>
-                                        </div>
+                                        {/* IMPORT PDF CARD */}
+                                        <motion.div
+                                            role="button"
+                                            tabIndex={0}
+                                            aria-disabled={isImporting}
+                                            whileHover={isImporting ? undefined : { y: -4, scale: 1.01 }}
+                                            whileTap={isImporting ? undefined : { scale: 0.99 }}
+                                            onClick={() => pdfFileInputRef.current?.click()}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter" || event.key === " ") {
+                                                    event.preventDefault();
+                                                    pdfFileInputRef.current?.click();
+                                                }
+                                            }}
+                                            className={cn(
+                                                "group cursor-pointer rounded-2xl border border-gray-200/60 dark:border-gray-800/60 shadow-sm bg-gray-50/50 dark:bg-gray-900/50 hover:bg-white dark:hover:bg-gray-900 hover:shadow-xl hover:border-red-500/50 dark:hover:border-red-500/50 transition-all duration-300 p-6 flex flex-col sm:flex-row items-center gap-6",
+                                                isImporting && "opacity-60 cursor-not-allowed"
+                                            )}
+                                        >
+                                            <div className="h-24 w-24 sm:h-28 sm:w-28 flex-shrink-0 rounded-2xl bg-red-500/10 dark:bg-red-500/20 shadow-inner flex items-center justify-center border border-red-500/10 dark:border-red-500/20">
+                                                <PdfIcon className="w-9 h-9 text-red-600 dark:text-red-400" />
+                                            </div>
 
-                                        <div className="hidden sm:flex text-primary font-medium items-center text-sm group-hover:translate-x-0 duration-300">
-                                            {t("dashboard.resumes.createDialog.createNow")} <ChevronLeft className="w-4 h-4 ml-1 rotate-180" />
-                                        </div>
-                                    </motion.div>
+                                            <div className="flex-1 text-center sm:text-left">
+                                                <h5 className="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                                                    {t("dashboard.resumes.createDialog.importTitle")}
+                                                </h5>
+                                                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-lg leading-relaxed">
+                                                    {t("dashboard.resumes.createDialog.importDescription")}
+                                                </p>
+                                            </div>
+
+                                            <div className="hidden sm:flex items-center text-sm font-medium whitespace-nowrap text-red-600 dark:text-red-400">
+                                                {isImporting ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    <>
+                                                        {t("dashboard.resumes.createDialog.importCta")}
+                                                        <ChevronLeft className="w-4 h-4 ml-1 rotate-180" />
+                                                    </>
+                                                )}
+                                            </div>
+                                        </motion.div>
+                                    </div>
                                 </section>
 
                                 {/* SECTION 2: NORMAL TEMPLATES */}

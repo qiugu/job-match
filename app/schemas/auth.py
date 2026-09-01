@@ -46,3 +46,25 @@ class AuthResponse(BaseModel):
 
 class LogoutResponse(BaseModel):
     ok: bool = Field(default=True)
+
+
+class RegistrationCodeStatusOut(BaseModel):
+    """自助领取注册码的状态：今日剩余名额与下次重置时间（弹框顶部展示）。"""
+
+    dailyLimit: int
+    # 全站口径：今日全网还可发放的注册码数量 = 剩余可注册的账号数
+    remaining: int
+    grantMatches: int
+    validityDays: int
+    # ISO8601（UTC），前端转本地时区渲染
+    nextResetAt: str
+
+
+class RegistrationCodeOut(BaseModel):
+    """成功领取的一枚注册码及领取后的剩余名额。"""
+
+    code: str
+    grantMatches: int
+    expiresAt: str
+    remaining: int
+    nextResetAt: str

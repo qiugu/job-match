@@ -7,7 +7,9 @@ api_key，匿名可调用等同于把额度公开。
 """
 from __future__ import annotations
 
+import asyncio
 import re
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select
@@ -32,7 +34,14 @@ from app.schemas.auth import (
     LoginRequest,
     LogoutResponse,
     RegisterRequest,
+    RegistrationCodeOut,
+    RegistrationCodeStatusOut,
     UserOut,
+)
+from app.services.registration_code import (
+    create_code,
+    issue_day_window,
+    issued_count,
 )
 
 logger = get_logger("auth")
@@ -52,6 +61,15 @@ _LOGIN_MAX_FAIL = 5
 _LOGIN_LOCK_SECONDS = 15 * 60
 _REGISTER_WINDOW_SECONDS = 60 * 60
 _REGISTER_IP_MAX = 10
+
+# 自助领取注册码的每 IP 每日限领（进程内实现，重启清零，与登录限流同一取舍）：
+# 防止单一来源把当日全网名额一次性领空。窗口与每日发放窗口一致（0 点重置）。
+_CODE_IP: dict[str, list[datetime]] = {}
+_CODE_IP_DAILY_MAX = 3
+
+# 「查剩余名额 → 发码 → 提交」需原子，进程内锁保证并发下不超发
+# （单实例够用，与上方限流器同一取舍；多实例需换 Redis）
+_ISSUE_LOCK = asyncio.Lock()
 
 
 def _client_ip(request: Request) -> str:
@@ -91,6 +109,22 @@ def _check_register_ratelimit(ip: str) -> None:
         )
     hits.append(now)
     _REGISTER_IP[ip] = hits
+
+
+def _check_code_ip_limit(ip: str, window_start: datetime) -> None:
+    hits = [t for t in _CODE_IP.get(ip, []) if t >= window_start]
+    if len(hits) >= _CODE_IP_DAILY_MAX:
+        raise HTTPException(
+            status_code=429,
+            detail=f"当前网络今日领取已达上限（{_CODE_IP_DAILY_MAX} 个），请明天再试",
+        )
+    hits.append(utcnow())
+    _CODE_IP[ip] = hits
+
+
+def _iso_utc(value: datetime) -> str:
+    """naive UTC → 带 UTC 时区的 ISO8601，前端可直接转本地时区渲染。"""
+    return value.replace(tzinfo=timezone.utc).isoformat()
 
 
 def _set_auth_cookie(response: Response, token: str, expires_in: int) -> None:
@@ -288,3 +322,78 @@ async def change_password(
     await db.commit()
     await db.refresh(user)
     return _issue(user, response)
+
+
+# ---------- 自助领取注册码（官网 FAQ 入口，匿名可用） ----------
+# 访客注册前还没有账号，因此与 register 一样匿名。官网自助是注册码唯一的
+# 发放渠道（管理脚本已移除），每日限量（settings.registration_daily_limit）
+# 统计窗口内全部注册码。
+
+
+@router.get(
+    "/registration-code/status",
+    response_model=RegistrationCodeStatusOut,
+    summary="自助领取注册码：全站今日剩余可注册账号数与下次重置时间",
+)
+async def registration_code_status(db: AsyncSession = Depends(get_db)):
+    if not settings.auth_allow_registration:
+        raise HTTPException(status_code=403, detail="当前站点未开放注册")
+    window_start, next_reset = issue_day_window()
+    issued = await issued_count(db, window_start)
+    return RegistrationCodeStatusOut(
+        dailyLimit=settings.registration_daily_limit,
+        remaining=max(settings.registration_daily_limit - issued, 0),
+        grantMatches=settings.registration_default_matches,
+        validityDays=settings.registration_code_validity_days,
+        nextResetAt=_iso_utc(next_reset),
+    )
+
+
+@router.post(
+    "/registration-code",
+    response_model=RegistrationCodeOut,
+    summary="自助领取一枚注册码（全站每日限量，先到先得）",
+)
+async def issue_registration_code(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    if not settings.auth_allow_registration:
+        raise HTTPException(status_code=403, detail="当前站点未开放注册")
+    window_start, next_reset = issue_day_window()
+    _check_code_ip_limit(_client_ip(request), window_start)
+
+    limit = settings.registration_daily_limit
+    # 锁内「查剩余 → 发码 → 提交」，并发下不超发；唯一索引碰撞兜底重试。
+    # registration_codes.code 是唯一键，码空间极大（23^12）碰撞极罕见，重试 3 次足够。
+    async with _ISSUE_LOCK:
+        issued = await issued_count(db, window_start)
+        if issued >= limit:
+            raise HTTPException(
+                status_code=429,
+                detail=f"今日名额已发完（每日上限 {limit} 个），名额每天 0:00 更新，请明天再来",
+            )
+        record = None
+        for _ in range(3):
+            record = await create_code(
+                db,
+                days=settings.registration_code_validity_days,
+            )
+            try:
+                await db.commit()
+                break
+            except IntegrityError:
+                await db.rollback()
+                record = None
+        if record is None:
+            raise HTTPException(status_code=503, detail="注册码生成失败，请稍后重试")
+
+    remaining = max(limit - issued - 1, 0)
+    logger.info("自助发放注册码：%s（今日剩余 %s/%s）", record.code, remaining, limit)
+    return RegistrationCodeOut(
+        code=record.code,
+        grantMatches=record.grant_matches,
+        expiresAt=_iso_utc(record.expires_at),
+        remaining=remaining,
+        nextResetAt=_iso_utc(next_reset),
+    )

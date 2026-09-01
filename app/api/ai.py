@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -96,29 +96,5 @@ async def resume_import(
         return {"error": str(e)}
     except Exception as e:  # noqa: BLE001
         logger.exception("简历导入调用失败: %s", e)
-        return {"error": f"AI 解析失败：{e}"}
-    return {"resume": parsed}
-
-
-@router.post("/resume-import-pdf")
-async def resume_import_pdf(
-    file: UploadFile = File(...),
-    locale: str = "zh",
-    user: User = Depends(get_current_user),
-):
-    """从上传的 PDF 中提取纯文本并结构化解析，返回 { resume: {...} }。
-
-    走文本提取路径，兼容不支持图片输入的纯文本大模型。
-    """
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        return {"error": "仅支持 PDF 格式"}
-    try:
-        data = await file.read()
-        parsed = await ai_proxy.resume_import_from_pdf(data, locale)
-    except RuntimeError as e:
-        logger.warning("PDF 简历导入失败（可预期）: %s", e)
-        return {"error": str(e)}
-    except Exception as e:  # noqa: BLE001
-        logger.exception("PDF 简历导入调用失败: %s", e)
         return {"error": f"AI 解析失败：{e}"}
     return {"resume": parsed}

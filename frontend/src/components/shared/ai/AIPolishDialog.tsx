@@ -72,6 +72,7 @@ export default function AIPolishDialog({
         const data = JSON.parse(rawText) as {
           error?: string | { message?: string };
           message?: string;
+          detail?: string;
         };
 
         if (typeof data.error === "string" && data.error.trim()) {
@@ -82,6 +83,9 @@ export default function AIPolishDialog({
         }
         if (data.message?.trim()) {
           return data.message.trim();
+        }
+        if (data.detail?.trim()) {
+          return data.detail.trim();
         }
       } else if (rawText.trim()) {
         return rawText.trim();
@@ -109,7 +113,7 @@ export default function AIPolishDialog({
         return;
       }
 
-      const response = await fetch("/api/polish", {
+      const response = await fetch("/api/ai/polish", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

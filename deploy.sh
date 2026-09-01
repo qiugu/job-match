@@ -5,7 +5,7 @@
 # 流程：
 #   1. 校验本地前置条件（docker / docker compose / rsync / ssh 可用）
 #   2. 检查本地 .env 必填项（只读解析，绝不 source 不可信文件）
-#   3. 上传代码到目标服务器（rsync，排除本地产物与 .env）
+#   3. 上传代码到目标服务器（rsync，排除本地产物、依赖、.env；.env 仅首次部署单独播种）
 #   4. 在服务器上检查/准备 .env（权限收敛为 600），迁移前先备份数据库，再执行 Alembic 迁移（幂等）
 #   5. 在服务器上执行 docker compose up -d [--build]
 #
@@ -34,14 +34,12 @@ NO_UPLOAD=0
 NO_BUILD=0
 IDENTITY="${SSH_IDENTITY:-}"   # 支持环境变量 SSH_IDENTITY 预设私钥
 
+# 说明：REMOTE 必须先于分支解析出来（首参），-i 的伴随值统一在下方单独循环解析，
+#       避免「-i 在前」时把私钥路径错当成 REMOTE。
 for arg in "$@"; do
   case "$arg" in
     --no-upload) NO_UPLOAD=1 ;;
     --no-build)  NO_BUILD=1 ;;
-    -i|--identity)
-      # 选项值在下一个位置参数
-      shift_args=1
-      ;;
     -i=*|--identity=*)
       IDENTITY="${arg#*=}"
       ;;
@@ -63,8 +61,6 @@ for ((i=0; i<${#args[@]}; i++)); do
     if [[ -n "${args[i+1]:-}" && "${args[i+1]}" != -* ]]; then
       IDENTITY="${args[i+1]}"
     fi
-  elif [[ "$a" == -i=* || "$a" == --identity=* ]]; then
-    IDENTITY="${a#*=}"
   fi
 done
 
@@ -85,7 +81,7 @@ REMOTE_HOST="${REMOTE%%:*}"
 REMOTE_PATH="${REMOTE#*:}"
 
 # 远程命令统一的安全选项
-SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -T)
+SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T)
 # 若指定了私钥，加入 IdentityFile（并强制密钥认证，禁用密码交互）
 if [[ -n "$IDENTITY" ]]; then
   if [[ ! -f "$IDENTITY" ]]; then
@@ -167,12 +163,14 @@ echo
 # ---------- 第 3 步：上传代码 ----------
 if [[ $NO_UPLOAD -eq 0 ]]; then
   echo "==> [3/5] 上传代码到 $REMOTE"
-  # 排除本地产物、依赖、数据库；
-  # 注意：本地 .env 会一并上传（首次部署即把本地配置带到服务器），
-  #       但第 4.1 步保证「服务器已存在 .env 时不覆盖」，避免冲掉线上改动。
+  # 排除本地产物、依赖、数据库、本地 .env（见下方播种逻辑）；
+  # 注意：.env「不」随 rsync 上传，服务器侧的 .env 才是生产配置的唯一真相，
+  #       避免本地 .env 覆盖掉线上已改动/已轮换的密钥（AUTH_SECRET_KEY 变更会让所有登录态失效）。
   # 先确保服务器目标目录存在（兼容旧版 rsync，不依赖 --mkpath）
   # 目标可能位于 /opt 等需 root 的目录，使用 sudo 创建（依赖服务器免密 sudo）
-  ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "sudo mkdir -p '$REMOTE_PATH' && sudo chown \$(id -u):\$(id -g) '$REMOTE_PATH'"
+  # 用 printf %q 转义 REMOTE_PATH，避免路径含单引号时破坏远程命令（自伤型注入）
+  REMOTE_PATH_Q="$(printf '%q' "$REMOTE_PATH")"
+  ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "sudo mkdir -p ${REMOTE_PATH_Q} && sudo chown \$(id -u):\$(id -g) ${REMOTE_PATH_Q}"
   # 构造 rsync 远程 shell：复用 SSH_OPTS（含私钥、BatchMode、超时等）
   RSYNC_SSH=(ssh -o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new)
   if [[ -n "$IDENTITY" ]]; then
@@ -188,9 +186,20 @@ if [[ $NO_UPLOAD -eq 0 ]]; then
     --exclude '__pycache__/' \
     --exclude '*.pyc' \
     --exclude '*.db' \
+    --exclude '.env' \
+    --exclude '.env.*' \
     --exclude '.DS_Store' \
     "$LOCAL_DIR/" "$REMOTE/"
   echo "    上传完成"
+  # 首次部署播种：仅当服务器尚不存在 .env 且本地 .env 存在时，单独把本地 .env 传过去一次。
+  # 此后再部署不会触碰服务器 .env（上面的 --exclude '.env' 已保证）。
+  if [[ -f "$LOCAL_DIR/.env" ]]; then
+    if ! ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "test -f ${REMOTE_PATH_Q}/.env"; then
+      echo "    服务器首次部署：播种本地 .env 到服务器（仅此一次，后续以服务器 .env 为准）"
+      rsync -az -e "$RSYNC_RSH" "$LOCAL_DIR/.env" "$REMOTE/.env"
+      ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "chmod 600 ${REMOTE_PATH_Q}/.env" 2>/dev/null || true
+    fi
+  fi
 else
   echo "==> [3/5] 跳过上传（--no-upload）"
 fi
@@ -211,19 +220,20 @@ mkdir -p "$BACKUP_DIR"
 TS="$(date +%Y%m%d_%H%M%S)"
 BAK="$BACKUP_DIR/jobmatch-$TS.db"
 # SQLite 官方 backup() API：在线热备，保证一致性快照，无需停机
+# 备份前先确认数据库文件真实存在且非空，避免「sqlite3.connect 自动创建空库」导致假备份
 if "${DC[@]}" --project-directory "$REMOTE_PATH" ps -q backend 2>/dev/null | grep -q .; then
   # 容器在运行：在线备份到 /tmp 后拷出容器
   if "${DC[@]}" --project-directory "$REMOTE_PATH" exec -T backend \
-       python -c "import sqlite3; s=sqlite3.connect('/app/data/jobmatch.db'); d=sqlite3.connect('/tmp/jobmatch_bak.db'); s.backup(d); d.close(); s.close()" && \
+       python -c "import os,sqlite3; p='/app/data/jobmatch.db'; assert os.path.getsize(p)>0, 'db empty'; s=sqlite3.connect(p); d=sqlite3.connect('/tmp/jobmatch_bak.db'); s.backup(d); d.close(); s.close()" && \
      "${DC[@]}" --project-directory "$REMOTE_PATH" cp backend:/tmp/jobmatch_bak.db "$BAK"; then
     echo "    已备份: $BAK"
   else
-    echo "    ⚠ 在线备份失败，请手动确认数据库状态后再继续" >&2
+    echo "    ⚠ 在线备份失败（或数据库为空，首次部署属正常），请手动确认数据库状态后再继续" >&2
   fi
 else
   # 容器未运行：用临时容器直接把备份写到挂载的备份目录（数据来自卷，无需旧容器）
   if "${DC[@]}" --project-directory "$REMOTE_PATH" run --rm -v "$BACKUP_DIR:/backup" backend \
-       python -c "import sqlite3; s=sqlite3.connect('/app/data/jobmatch.db'); d=sqlite3.connect('/backup/jobmatch-$TS.db'); s.backup(d); d.close(); s.close()" 2>/dev/null; then
+       python -c "import os,sqlite3; p='/app/data/jobmatch.db'; assert os.path.getsize(p)>0, 'db empty'; s=sqlite3.connect(p); d=sqlite3.connect('/backup/jobmatch-$TS.db'); s.backup(d); d.close(); s.close()" 2>/dev/null; then
     echo "    已备份: $BAK"
   else
     echo "    ℹ 未能备份（卷中尚无数据库，首次部署属正常）"
@@ -253,26 +263,28 @@ if [[ -f .env && "$(stat -c '%a' .env 2>/dev/null)" != "600" ]]; then
 fi
 
 echo "  [4.2] 校验 .env 必填项"
+# 正向遍历必填项：同时检查「键存在」与「值非空」。
+# 旧实现只 grep 已有行，若整行缺失则漏检（AUTH_SECRET_KEY 缺失会让所有登录态失效）。
 missing=0
-while IFS= read -r line; do
-  key="${line%%=*}"
-  val="${line#*=}"
-  case "$key" in
-    LLM_API_KEY|AUTH_SECRET_KEY|AUTH_BOOTSTRAP_PASSWORD)
-      if [[ -z "$val" ]]; then
-        echo "    ✗ .env 必填项 $key 为空" >&2
-        missing=1
-      fi
-      ;;
-  esac
-done < <(grep -E '^(LLM_API_KEY|AUTH_SECRET_KEY|AUTH_BOOTSTRAP_PASSWORD)=' .env || true)
+REQUIRED_VARS=(LLM_API_KEY AUTH_SECRET_KEY AUTH_BOOTSTRAP_PASSWORD)
+for v in "${REQUIRED_VARS[@]}"; do
+  # 取该 key 最后出现的一行；无匹配则 val 为空
+  val="$(grep -E "^${v}=" .env | tail -n1 | sed -E 's/^[^=]*=//; s/^["'\''"]|["'\''"]$//g')"
+  if [[ -z "$val" ]]; then
+    echo "    ✗ .env 必填项 $v 缺失或为空" >&2
+    missing=1
+  fi
+done
 if [[ $missing -eq 1 ]]; then
   echo "    请先在服务器 $REMOTE_PATH/.env 中填写上述必填项，再重新运行部署。" >&2
   exit 1
 fi
 echo "    服务器 .env 必填项均已填写"
 
-echo "  [4.3] 执行数据库迁移 (alembic upgrade head)"
+echo "  [4.3] 停止后端写入，再执行数据库迁移 (alembic upgrade head)"
+# 迁移期间若旧 backend 容器仍在写同一个 SQLite，会出现 database is locked 或 schema 漂移。
+# 先停掉 backend（首次部署容器不存在时 || true 兜底），迁移完成后再由第 5 步重建。
+"${DC[@]}" --project-directory "$REMOTE_PATH" stop backend 2>/dev/null || true
 # 直接在 backend 服务容器内运行迁移；若镜像不存在，compose 会按配置自动构建后再运行。
 # 不使用 || true 吞错，确保迁移失败能暴露。
 "${DC[@]}" --project-directory "$REMOTE_PATH" run --rm backend python -m alembic upgrade head
@@ -286,13 +298,31 @@ UP_ARGS=(up -d)
 if [[ $NO_BUILD -eq 0 ]]; then
   UP_ARGS=(up -d --build)
 fi
-ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
-  "${DOCKER_COMPOSE[@]}" --project-directory "$REMOTE_PATH" "${UP_ARGS[@]}"
+# 第 5 步：docker compose 启动（--wait 等待 healthcheck 通过再返回，避免容器起来即崩却显示成功）
+if [[ $NO_BUILD -eq 0 ]]; then
+  ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+    "${DOCKER_COMPOSE[@]}" --project-directory "$REMOTE_PATH" up -d --build --wait 2>/dev/null \
+    || ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+    "${DOCKER_COMPOSE[@]}" --project-directory "$REMOTE_PATH" up -d --build
+else
+  ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+    "${DOCKER_COMPOSE[@]}" --project-directory "$REMOTE_PATH" up -d --wait 2>/dev/null \
+    || ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+    "${DOCKER_COMPOSE[@]}" --project-directory "$REMOTE_PATH" up -d
+fi
+
+# 部署后健康验证：经 Nginx 探 /health（compose 仅暴露 80/443，backend 不映射宿主端口）
+echo "==> 部署后健康验证"
+if ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "curl -fsS http://localhost/health" >/dev/null 2>&1; then
+  echo "    后端健康检查通过 (http://localhost/health)"
+else
+  echo "    ⚠ 后端健康检查未通过，请查看日志排查：" >&2
+  echo "      ssh ${SSH_OPTS[*]} $REMOTE_HOST '${DOCKER_COMPOSE[*]} --project-directory $REMOTE_PATH logs -f backend'" >&2
+fi
 
 echo
 echo "==> 部署完成 ✓"
-echo "    前端: http://<服务器IP>:3005   (或经 Nginx: http://<服务器IP>)"
-echo "    后端: http://<服务器IP>:8005/health"
+echo "    访问入口: http://<服务器IP>/   (Nginx 唯一对外入口，前端 SSR + 后端 /api + /health 同源代理)"
 echo "    查看状态: ssh ${SSH_OPTS[*]} $REMOTE_HOST '${DOCKER_COMPOSE[*]} --project-directory $REMOTE_PATH ps'"
 echo "    查看日志: ssh ${SSH_OPTS[*]} $REMOTE_HOST '${DOCKER_COMPOSE[*]} --project-directory $REMOTE_PATH logs -f'"
 echo "    数据库备份: $REMOTE_PATH/backups/ （迁移前自动生成，保留最近 10 份）"
