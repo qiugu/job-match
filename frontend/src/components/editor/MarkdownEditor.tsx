@@ -67,7 +67,7 @@ const ToolbarButton = ({ onClick, active, disabled, title, children }: ToolbarBu
       "disabled:opacity-40 disabled:pointer-events-none",
       // 唯一用 bold 的地方：被选中 = 实色填充，让当前块类型「亮起来」
       active &&
-        "bg-primary text-primary-foreground shadow-sm shadow-primary/25 hover:bg-primary hover:text-primary-foreground"
+      "bg-primary text-primary-foreground shadow-sm shadow-primary/25 hover:bg-primary hover:text-primary-foreground"
     )}
   >
     {children}

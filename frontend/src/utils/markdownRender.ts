@@ -157,6 +157,10 @@ export const alignContainerPlugin = (mdInstance: typeof MarkdownIt.prototype) =>
 
     if (segments.length > 0) {
       const tokenOpen = state.push("paragraph_open", "p", 1);
+      // 直接使用类名包裹，避免依赖 CSS :has() 选择器（旧实现依赖
+      // `p:has(> .md-align-left):has(> .md-align-right)` 做 flex 布局，
+      // 在部分浏览器/环境下不生效，导致居左居右失效）。
+      tokenOpen.attrSet("class", "md-align-inline-pair");
       tokenOpen.map = [startLine, startLine + 1];
 
       const inlineToken = state.push("inline", "", 0);
