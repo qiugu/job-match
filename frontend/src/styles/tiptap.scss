@@ -220,7 +220,7 @@
   margin-bottom: 0.25rem;
 }
 
-.tiptap a,
+/* 预览/导出态链接保留蓝色，与正文区分（产出物排版惯例） */
 #resume-preview a.rich-text-link,
 .resume-preview a.rich-text-link {
   color: #2563eb;
@@ -231,10 +231,23 @@
   word-break: break-word;
 }
 
-.tiptap a:hover,
 #resume-preview a.rich-text-link:hover,
 .resume-preview a.rich-text-link:hover {
   color: #1d4ed8;
+}
+
+/* 编辑器内链接：颜色继承正文，仅保留下划线提示，避免与简历正文色不一致 */
+.tiptap a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.12em;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.tiptap a:hover {
+  color: inherit;
 }
 
 .control-group {

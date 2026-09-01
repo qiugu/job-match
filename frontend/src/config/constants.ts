@@ -18,10 +18,3 @@ export const DEFAULT_FIELD_ORDER: BasicFieldType[] = [
 ];
 
 export const GITHUB_REPO_URL = "https://github.com/JOYCEQL/magic-resume";
-
-export const PDF_EXPORT_CONFIG = {
-  SERVER_URL: "http://api.jdmatch.site/generate-pdf",
-  TIMEOUT: 45000,
-  MAX_RETRY: 2,
-  MAX_CONTENT_SIZE: 5 * 1024 * 1024
-} as const;

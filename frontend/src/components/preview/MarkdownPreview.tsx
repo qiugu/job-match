@@ -114,10 +114,13 @@ function enhanceTemplateSections(srcHtml: string): string {
   if (!srcHtml) return srcHtml;
   let out = srcHtml;
 
-  // A. 简历头部：第一个 h1 + 紧随的个人信息段落（中间可能隔着副标题 h2/strong），
+  // A. 简历头部：第一个 h1 + 紧随的个人信息段落（中间允许隔着副标题 h2、<br> 或纯文本），
   //    包进 .resume-header，便于按模板定义顶部样式。
+  //    注意：中间段用排除法（[^<] | <br> | 单个 <h2>），绝不能吞入 <ul>/<section>/第二个 <p>
+  //    等块级模块，否则会把头部下方的模块内容误包进 .resume-header，使其 margin-bottom
+  //    错误地隔断本应连续的文本。
   out = out.replace(
-    /^(<h1[^>]*>[\s\S]*?<\/h1>[\s\S]{0,300}?<p[^>]*>[\s\S]*?<\/p>)/,
+    /^(<h1[^>]*>[\s\S]*?<\/h1>(?:<h2[^>]*>[\s\S]*?<\/h2>|<strong>[^<]*<\/strong>|<em>[^<]*<\/em>|<br\s*\/?>|[^<])*?<p[^>]*>[\s\S]*?<\/p>)/,
     '<div class="resume-header">$1</div>'
   );
 
@@ -475,10 +478,6 @@ ${variantCss}
           }
           .resume-markdown-preview li > p {
             margin: 0;
-          }
-          .resume-markdown-preview a {
-            color: var(--resume-theme);
-            text-decoration: none;
           }
           .resume-markdown-preview strong {
             font-weight: 700;

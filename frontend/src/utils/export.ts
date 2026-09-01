@@ -1,16 +1,21 @@
 import { toast } from "sonner";
-import { PDF_EXPORT_CONFIG } from "@/config";
 import { normalizeFontFamily } from "@/utils/fonts";
 import { ResumeData } from "@/types/resume";
 import { generateResumeMarkdown, ResumeMarkdownOptions } from "@/utils/markdown";
 
 const INVALID_FILE_NAME_CHAR_REGEX = /[\\/:*?"<>|]/g;
 
+// A4 纸张尺寸（px @ 96dpi），与 MarkdownPreview 的预览容器一致
+const A4_WIDTH_PX = 794;
+const A4_HEIGHT_PX = 1123;
+
 const getSafeFileName = (title?: string) => {
   const normalized = (title || "resume")
     .trim()
     .replace(INVALID_FILE_NAME_CHAR_REGEX, "_")
-    .replace(/\s+/g, " ");
+    .replace(/\s+/g, " ")
+    // 剥掉尾部已知的导出扩展名，避免导出时拼上扩展名后出现 *.pdf.pdf 双后缀
+    .replace(/\.(pdf|json|md)$/i, "");
 
   return normalized || "resume";
 };
@@ -197,74 +202,77 @@ export const exportToPdf = async ({
     const selectedFontFamily = normalizeFontFamily(fontFamily);
     const transformValue = clonedElement.style.transform || "";
     const scaleMatch = transformValue.match(/scale\(([\d.]+)\)/);
-    
+
     if (scaleMatch) {
       const scale = Number(scaleMatch[1]);
       if (Number.isFinite(scale) && scale > 0 && scale < 1) {
-        // 服务端导出前将 transform 缩放转为 zoom，避免分页计算偏差
+        // 导出前将 transform 缩放转为 zoom，避免页面宽高计算偏差
         clonedElement.style.removeProperty("transform");
         clonedElement.style.removeProperty("transform-origin");
-        clonedElement.style.setProperty("width", "100%", "important");
         clonedElement.style.setProperty("zoom", String(scale));
       }
     }
 
-    // 采用 PdfExport.tsx 中的逻辑，统一宽度和 padding 处理
-    clonedElement.style.setProperty("width", "100%", "important");
+    // 统一宽度与字体：导出容器固定为 A4 内容宽度，padding 交给 html2pdf 的 margin 控制
+    clonedElement.style.setProperty("width", `${A4_WIDTH_PX}px`, "important");
     clonedElement.style.setProperty("padding", "0", "important");
+    clonedElement.style.setProperty("margin", "0", "important");
     clonedElement.style.setProperty("box-sizing", "border-box");
     clonedElement.style.setProperty("font-family", selectedFontFamily, "important");
+    clonedElement.style.setProperty("background", "white", "important");
 
-    const pageBreakLines = clonedElement.querySelectorAll<HTMLElement>(".page-break-line");
-    pageBreakLines.forEach((line) => {
-      line.style.display = "none";
-    });
+    // 预览专用装饰（页码容器 / 分页占位线）在真实 PDF 中隐藏
+    clonedElement
+      .querySelectorAll<HTMLElement>("[data-pdf-export-ignore]")
+      .forEach((el) => {
+        el.style.margin = "0";
+        el.style.boxShadow = "none";
+        el.style.overflow = "visible";
+        el.style.height = "auto";
+        el.style.width = "100%";
+      });
+    clonedElement
+      .querySelectorAll<HTMLElement>(".page-break-line")
+      .forEach((line) => {
+        line.style.display = "none";
+      });
 
-    const [capturedStyles] = await Promise.all([
-      getOptimizedStyles(),
-      optimizeImages(clonedElement)
-    ]);
+    const capturedStyles = await getOptimizedStyles();
+    await optimizeImages(clonedElement);
 
-    // 注入 PdfExport.tsx 中的样式增强
-    const styles = `
+    // 把样式注入克隆节点，保证 html2pdf 用 canvas 截图时样式完整
+    const styleEl = document.createElement("style");
+    styleEl.textContent = `
       ${capturedStyles}
-      html, body { background: white !important; background-color: white !important; }
-      html, body, #${elementId} {
-        background: white !important;
-        background-color: white !important;
-        font-family: ${selectedFontFamily} !important;
-      }
-      /* 防御性：即使预览包装层进入导出 DOM，也拍平为单页长文档，不留白、不显页码 */
-      [data-pdf-export-ignore] {
-        margin: 0 !important;
-        box-shadow: none !important;
-        overflow: visible !important;
-        height: auto !important;
-        width: 100% !important;
-      }
+      html, body { background: white !important; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      [data-pdf-export-ignore] { display: none !important; }
     `;
+    clonedElement.prepend(styleEl);
 
-    const response = await fetch(PDF_EXPORT_CONFIG.SERVER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        content: clonedElement.outerHTML,
-        styles,
-        margin: pagePadding
-      }),
-      mode: "cors",
-      signal: AbortSignal.timeout(PDF_EXPORT_CONFIG.TIMEOUT)
-    });
-
-    if (!response.ok) {
-      throw new Error(`PDF generation failed: ${response.status}`);
-    }
-
-    const blob = await response.blob();
-    const fileName = `${getSafeFileName(title)}.pdf`;
-    downloadBlob(blob, fileName);
+    // 纯前端生成 PDF：使用已安装的 html2pdf.js（无跨域请求，彻底规避 CORS error）
+    const html2pdf = (await import("html2pdf.js")).default;
+    await html2pdf()
+      .set({
+        margin: pagePadding,
+        filename: `${getSafeFileName(title)}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          width: A4_WIDTH_PX,
+          windowWidth: A4_WIDTH_PX
+        },
+        jsPDF: {
+          unit: "px",
+          format: [A4_WIDTH_PX, A4_HEIGHT_PX],
+          orientation: "portrait"
+        },
+        pagebreak: { mode: ["css", "legacy"] }
+      })
+      .from(clonedElement)
+      .save();
 
     if (successMessage) toast.success(successMessage);
     console.log(`Total export took ${performance.now() - exportStartTime}ms`);

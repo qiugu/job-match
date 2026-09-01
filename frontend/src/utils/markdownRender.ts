@@ -7,7 +7,10 @@ const md = new MarkdownIt({
   // html:false 会把它们转义成 &lt;ul&gt;，导致列表丢失、字面渲染 "<ul>" 文本。
   // 简历 markdown 不接受用户上传内容（仅服务端 LLM 与 PDF 提取），XSS 面极小。
   html: true,
-  linkify: true,
+  // 不自动识别裸 URL 为链接：简历正文里的网址应作为纯文本渲染，
+  // 除非用户显式用 [文字](url) 语法写链接（markdown-it 的 link 规则仍会渲染）。
+  // 与 AIPolishDialog 的 linkify:false 保持一致，避免渲染层主动套 <a> 标签。
+  linkify: false,
   typographer: true,
   // 渲染语义：单 \n = 软换行（空格连接），\n\n = 硬换行/段落分隔（CommonMark 标准）。
   // 早期曾开启 breaks:true（单 \n 即渲染为 <br> 硬换行），但 PDF 提取会把超长句子按
@@ -96,7 +99,9 @@ const parseInlineAlignSegment = (
   };
 };
 
-const alignContainerPlugin = (mdInstance: typeof MarkdownIt.prototype) => {
+// 导出以便编辑器（Tiptap）复用同一套 :::left/center/right 解析规则，
+// 保证预览与编辑器对容器语法的理解完全一致。
+export const alignContainerPlugin = (mdInstance: typeof MarkdownIt.prototype) => {
   // 注册自定义 token 渲染器
   mdInstance.renderer.rules.align_container_open = (tokens: any, idx: number, options: any, env: any, self: any) =>
     self.renderToken(tokens, idx, options);

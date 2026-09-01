@@ -1,7 +1,6 @@
 import React, { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { FileText, Eye, Palette, Save, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { FileText, Eye, Palette } from "lucide-react";
 import { useResumeStore } from "@/store/useResumeStore";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/i18n/compat/client";
@@ -14,12 +13,6 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 // Markdown 编辑模式主布局：左为 Markdown 编辑器，右为实时预览。
 // 数据流：Markdown 源 -> 编辑器 -> store.markdownContent
@@ -30,41 +23,6 @@ const MarkdownWorkbench = () => {
   const t = useTranslations("markdownEditor");
   const tTheme = useTranslations("workbench.sidePanel.theme");
   const previewRef = useRef<HTMLDivElement>(null);
-  const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
-  // 已保存快照：用于与当前简历做深比较，判断是否有未保存的修改
-  const savedSnapshotRef = useRef<string | null>(null);
-
-  // 初始化：若简历此前已存过库（id 已在后端 master_resumes），则以其当前内容作为基准，
-  // 按钮初始置灰；否则视为新简历，需要用户主动保存。
-  if (savedSnapshotRef.current === null) {
-    if (activeResume && syncedIds.has(activeResume.id)) {
-      savedSnapshotRef.current = JSON.stringify(activeResume);
-    } else {
-      savedSnapshotRef.current = ""; // 空基准 -> 与任何内容都不等 -> 初始可保存
-    }
-  }
-
-  // 是否有未保存的修改：当前内容与已保存快照不一致时即为脏数据
-  const isDirty =
-    activeResume != null &&
-    JSON.stringify(activeResume) !== savedSnapshotRef.current;
-
-  const handleSave = async () => {
-    if (!activeResume || saving) return;
-    setSaving(true);
-    try {
-      const { created } = await saveActiveResumeToBackend();
-      // 保存成功后，以最新内容刷新基准快照，按钮随即置灰直到下次编辑
-      savedSnapshotRef.current = JSON.stringify(activeResume);
-      setSavedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
-      toast.success(created ? "简历已上传到数据库" : "简历已更新到数据库");
-    } catch (err) {
-      toast.error(`保存失败：${(err as Error).message}`);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // 主题色改动后自动落库（防抖），避免「在编辑器选了不同主题色、没点保存就回列表页，
   // 列表页从后端重载把未保存的改动覆盖掉」导致缩略图显示的还是旧色、不同简历同色。
@@ -190,7 +148,7 @@ const MarkdownWorkbench = () => {
                 </div>
 
                 {/* 行高 / 字号 / 边距 调节（分页按内容真实块边界切分，文字不会被页边界截断） */}
-                <div className="flex items-center gap-3 ml-auto shrink-0">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 ml-auto">
                   <label className="flex items-center gap-1.5" title="行高">
                     <span>行高</span>
                     <input
@@ -275,38 +233,6 @@ const MarkdownWorkbench = () => {
                       {moduleSpacing}
                     </span>
                   </label>
-
-                  {/* 保存按钮：与主题/排版设置归为一组，置于预览工具栏右端 */}
-                  <div className="flex items-center gap-2 pl-3 ml-1 border-l border-border">
-                    {savedAt && !saving && (
-                      <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                        已保存 {savedAt}
-                      </span>
-                    )}
-                    <TooltipProvider delayDuration={100}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="h-7"
-                            onClick={handleSave}
-                            disabled={saving || !isDirty}
-                          >
-                            {saving ? (
-                              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                            ) : (
-                              <Save className="w-3.5 h-3.5 mr-1.5" />
-                            )}
-                            {saving ? "保存中…" : "保存"}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom">
-                          {isDirty ? t("saveHint") : "内容未改动，无需保存"}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
                 </div>
               </div>
               <div className="flex-1 min-h-0">
