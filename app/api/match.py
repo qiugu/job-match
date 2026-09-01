@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from datetime import datetime, timezone
 
@@ -269,7 +270,9 @@ async def accept_match(
             accepted_master_id = existing.id
             deduped = True
         else:
-            title = await _unique_master_title(db, r.title or "匹配结果简历", user.id)
+            title = await _unique_master_title(
+                db, os.path.splitext(r.title or "匹配结果简历")[0], user.id
+            )
             master = MasterResume(
                 title=title,
                 user_id=user.id,

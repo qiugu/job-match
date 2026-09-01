@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 import uuid
 from datetime import datetime, timezone
@@ -262,12 +263,15 @@ async def upload_master_resume(
 ):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="仅支持 PDF 格式的简历")
+    # 标题取文件名、但剥掉扩展名：简历名称不应携带 .pdf 等后缀，
+    # 否则导出时文件名会叠加出「xxx.pdf.pdf」双扩展名。
+    base_title = os.path.splitext(file.filename)[0]
     # 标题（文件名）是简历的唯一标识：重名先报错让用户改名，
     # 不静默复用/覆盖已有记录，避免「上传的名字」与「列表里的名字」对不上。
-    if await _is_master_title_taken(db, file.filename, user.id):
+    if await _is_master_title_taken(db, base_title, user.id):
         raise HTTPException(
             status_code=409,
-            detail=f"简历名称「{file.filename}」已存在，请重命名文件后重新上传",
+            detail=f"简历名称「{base_title}」已存在，请重命名文件后重新上传",
         )
     data = await file.read()
     text = await extract_pdf_text(data)
@@ -297,7 +301,7 @@ async def upload_master_resume(
     rid = uuid.uuid4().hex
     # 简历先以原始文本存储；结构化 JSON 由前端 pdfjs 解析后随请求更新，或留空由编辑补全
     resume_data = ResumeData(
-        id=rid, title=file.filename, createdAt=_now_iso(), updatedAt=_now_iso()
+        id=rid, title=base_title, createdAt=_now_iso(), updatedAt=_now_iso()
     )
     resume_dump = resume_data.model_dump()
     # globalSettings 是版式还原结果（dict），直接注入 JSON 避免经 Pydantic
@@ -307,7 +311,7 @@ async def upload_master_resume(
     master = MasterResume(
         id=rid,
         user_id=user.id,
-        title=file.filename,
+        title=base_title,
         original_filename=file.filename,
         raw_text=text,
         markdown_content=markdown_structure,
@@ -315,7 +319,7 @@ async def upload_master_resume(
     )
     db.add(master)
     await _commit_or_409(
-        db, f"简历名称「{file.filename}」已存在，请重命名文件后重新上传"
+        db, f"简历名称「{base_title}」已存在，请重命名文件后重新上传"
     )
     await db.refresh(master)
     return _summary(master)
@@ -332,7 +336,7 @@ async def create_master_resume_json(
     标题即唯一键：重名返回 409 由用户改名，不复用/覆盖已有记录。
     （曾按正文指纹复用同内容记录，会把新建的简历错绑到另一条已有记录上，已废弃。）
     """
-    title = payload.title or "我的简历"
+    title = os.path.splitext(payload.title or "我的简历")[0]
     if await _is_master_title_taken(db, title, user.id):
         raise HTTPException(
             status_code=409,

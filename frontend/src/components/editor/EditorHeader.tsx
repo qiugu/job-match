@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "@/i18n/compat/client";
 import { toast } from "sonner";
 import {
@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/input";
 import PdfExport from "../shared/PdfExport";
 import ThemeToggle from "../shared/ThemeToggle";
 import { useResumeStore } from "@/store/useResumeStore";
-import { useMatchEditingStore } from "@/store/useMatchEditingStore";
 import { useGrammarCheck } from "@/hooks/useGrammarCheck";
 import {
   Tooltip,
@@ -41,8 +40,9 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
     redo,
     canUndo,
     canRedo,
+    saveActiveResumeToBackend,
+    syncedIds,
   } = useResumeStore();
-  const { activeDerivedResumeId, setActiveDerivedResume } = useMatchEditingStore();
   const { errors } = useGrammarCheck();
   const router = useRouter();
   const t = useTranslations();
@@ -106,15 +106,34 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
 
   const [savingMatch, setSavingMatch] = useState(false);
 
+  // 脏检查：以「最近一次成功保存（或刚从后端加载）的内容」为基准快照，
+  // 当前激活简历与其不一致即为未保存修改，保存按钮才可点击。
+  const savedSnapshotRef = useRef<string | null>(null);
+  if (savedSnapshotRef.current === null) {
+    // 已在后端落库的简历以当前内容作基准（初始不脏）；未落库的临时简历
+    // 以空字符串作基准，与任何内容都不等 -> 初始即可保存。
+    savedSnapshotRef.current =
+      activeResume && syncedIds.has(activeResume.id)
+        ? JSON.stringify(activeResume)
+        : "";
+  }
+  // 切换简历时重置基准，下个 render 以上一份简历的已存内容为干净起点。
+  useEffect(() => {
+    savedSnapshotRef.current = null;
+  }, [activeResume?.id]);
+  const isDirty =
+    activeResume != null &&
+    JSON.stringify(activeResume) !== savedSnapshotRef.current;
+
   const handleSaveMatch = async () => {
-    if (!activeDerivedResumeId || !activeResume) return;
+    if (!activeResume || !isDirty) return;
     setSavingMatch(true);
     try {
-      const { updateDerivedResume } = await import("@/lib/jobmatch");
-      await updateDerivedResume(activeDerivedResumeId, {
-        markdownContent: activeResume.markdownContent || "",
-        title: activeResume.title,
-      });
+      await saveActiveResumeToBackend();
+      // 保存成功后，用 store 里的最新内容（落库会刷新 updatedAt）刷新基准，
+      // 否则会拿保存前的旧快照对比、导致按钮仍判定为脏、无法置灰。
+      const latest = useResumeStore.getState().activeResume;
+      savedSnapshotRef.current = latest ? JSON.stringify(latest) : "";
       toast.success(t("jobmatch.saveMatchSuccess"));
     } catch (err) {
       toast.error((err as Error).message || t("jobmatch.saveMatchError"));
@@ -122,6 +141,18 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
       setSavingMatch(false);
     }
   };
+
+  // 快捷键保存：Ctrl+S（Win/Linux）与 Cmd+S（Mac）均触发，阻止浏览器默认「保存网页」。
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        void handleSaveMatch();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleSaveMatch]);
 
   return (
     <motion.header
@@ -214,7 +245,7 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
           )}
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center flex-wrap gap-x-3 gap-y-2">
           <div className="hidden md:flex items-center gap-1">
             <TooltipProvider delayDuration={100}>
               <Tooltip>
@@ -265,30 +296,30 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
           )}
 
           <ThemeToggle></ThemeToggle>
-          {activeDerivedResumeId && (
-            <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8"
-                    onClick={handleSaveMatch}
-                    disabled={savingMatch}
-                  >
-                    {savingMatch ? (
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-1" />
-                    )}
-                    {t("jobmatch.saveMatch")}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">{t("jobmatch.saveMatchHint")}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-          <div className="md:flex items-center ">
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 shrink-0"
+                  onClick={handleSaveMatch}
+                  disabled={savingMatch || !isDirty}
+                >
+                  {savingMatch ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-1" />
+                  )}
+                  {t("jobmatch.saveMatch")}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {isDirty ? t("jobmatch.saveMatchHint") : "内容未改动，无需保存"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <div className="shrink-0">
             <PdfExport />
           </div>
         </div>

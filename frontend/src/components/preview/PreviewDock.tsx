@@ -27,7 +27,7 @@ import {
   TooltipTrigger
 } from "@/components/ui/tooltip";
 import TemplateSheet from "@/components/shared/TemplateSheet";
-import { GITHUB_REPO_URL, PDF_EXPORT_CONFIG } from "@/config";
+import { GITHUB_REPO_URL } from "@/config";
 import { cn } from "@/lib/utils";
 import { useGrammarCheck } from "@/hooks/useGrammarCheck";
 import { useResumeStore } from "@/store/useResumeStore";
