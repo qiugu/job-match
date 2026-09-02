@@ -13,3 +13,9 @@ __pycache__
 .git
 .gitignore
 migrations/versions/__pycache__
+# 前端/测试/本地数据不参与后端镜像构建；
+# 不排除 frontend 的话，每次后端构建都会把整个 frontend 目录（含 node_modules）传给 daemon
+frontend
+tests
+.codebuddy
+backups

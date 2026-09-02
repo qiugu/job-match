@@ -224,6 +224,13 @@ jobs:
           EOF
 
       # ---------- 第 5 步：docker compose 启动（对应 deploy.sh [5/5]） ----------
+      #
+      # 2G 小内存服务器构建约束（已实测：依赖下载/前端 build 时卡死的根因）：
+      #   1. 构建前先停掉全部常驻容器（nginx/backend/frontend），回收它们占用的 RAM，
+      #      否则留给 docker build 的余量过小。
+      #   2. 强制「串行」构建 backend、frontend（docker compose 默认并行构建多 service，
+      #      会同时拉满内存：uv sync 下载编译 + vite build 编译并发 → 逼近/超出 2G）。
+      #   3. 后端镜像已关闭 UV_COMPILE_BYTECODE（见 Dockerfile 注释），避免字节码编译峰值 OOM。
       - name: Start services (docker compose up -d)
         run: |
           set -euo pipefail
@@ -234,16 +241,27 @@ jobs:
           RP=$(printf '%q' "$REMOTE_PATH")
 
           NO_BUILD="${{ github.event.inputs.no_build }}"
+
+          # 构建前回收内存：停掉所有常驻容器（含 frontend/nginx），仅保留数据卷
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+            docker compose --project-directory "$RP" down --remove-orphans 2>/dev/null || true
+
           if [[ "$NO_BUILD" == "true" ]]; then
             ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
               docker compose --project-directory "$RP" up -d --wait 2>/dev/null \
               || ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
               docker compose --project-directory "$RP" up -d
           else
+            # 串行构建：先 backend（uv 依赖下载），再 frontend（vite build），
+            # 避免两者同时编译把 2G 内存打满导致卡死
             ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
-              docker compose --project-directory "$RP" up -d --build --wait 2>/dev/null \
+              docker compose --project-directory "$RP" build backend
+            ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+              docker compose --project-directory "$RP" build frontend
+            ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+              docker compose --project-directory "$RP" up -d --wait 2>/dev/null \
               || ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
-              docker compose --project-directory "$RP" up -d --build
+              docker compose --project-directory "$RP" up -d
           fi
 
       # ---------- 部署后健康验证 ----------
