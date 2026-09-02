@@ -3,7 +3,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { chromium } from "playwright";
-import { DEFAULT_TEMPLATES } from "../src/config";
+import { DEFAULT_TEMPLATES } from "../src/components/templates/registry";
 import {
   TEMPLATE_PREVIEW_HEIGHT_PX,
   TEMPLATE_PREVIEW_LOCALES,

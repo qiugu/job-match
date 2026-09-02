@@ -1,0 +1,261 @@
+# deploy.yml — 使用 GitHub Actions 替代本地 deploy.sh 把代码部署到服务器
+#
+# 触发方式：
+#   - 推送到 main 分支时自动部署（默认）。
+#   - 也可在 Actions 页面手动触发（workflow_dispatch），手动时可覆盖以下参数：
+#       no_upload : true 时跳过上传（仅迁移 + 部署）
+#       no_build  : true 时不重建镜像（docker compose up -d，不做 --build）
+#
+# 必需的 GitHub Secrets / Variables（在仓库 Settings → Secrets and variables → Actions 配置）：
+#   REMOTE_DEPLOY_TARGET : user@host:/absolute/path  部署目标（host:/abs/path 形式）
+#   SSH_PRIVATE_KEY       : 服务器登录私钥（PEM 内容，注意 *.pem 已被 .gitignore 忽略，需手动在 Secrets 配置）
+#   KNOWN_HOSTS           : （可选）ssh-keyscan 输出，留空则自动 accept-new
+#   DEPLOY_REQUIRED_VARS  : （可选）覆盖 .env 必填项检查，逗号分隔，默认 LLM_API_KEY,AUTH_SECRET_KEY,AUTH_BOOTSTRAP_PASSWORD
+#
+# 设计说明（与 deploy.sh 对齐）：
+#   - .env 不随代码上传：服务器侧的 .env 才是生产配置唯一真相（避免本地 .env 覆盖线上已轮换密钥）。
+#     仅当服务器尚未存在 .env 且 Secrets 中提供了 DEPLOY_ENV_FILE 时，才首次播种 .env（权限 600）。
+#   - 迁移前自动在线备份 SQLite（保留最近 10 份），迁移失败不影响数据。
+#   - 迁移期间先停 backend 容器，避免 database is locked / schema 漂移。
+#   - 启动使用 --wait 等待 healthcheck；最终探 /health 做健康验证。
+
+name: Deploy to Server
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      no_upload:
+        description: "跳过上传（仅迁移 + 部署）"
+        type: boolean
+        default: false
+      no_build:
+        description: "不重建镜像（docker compose up -d 不做 --build）"
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REMOTE_DEPLOY_TARGET: ${{ secrets.REMOTE_DEPLOY_TARGET }}
+  DEPLOY_REQUIRED_VARS: ${{ secrets.DEPLOY_REQUIRED_VARS || 'LLM_API_KEY,AUTH_SECRET_KEY,AUTH_BOOTSTRAP_PASSWORD' }}
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    # 避免因密钥缺失导致静默成功
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sanity check inputs
+        run: |
+          set -euo pipefail
+          if [[ -z "${REMOTE_DEPLOY_TARGET:-}" ]]; then
+            echo "::error::缺少 Secret REMOTE_DEPLOY_TARGET（格式 user@host:/absolute/path）" >&2
+            exit 1
+          fi
+          if [[ "${REMOTE_DEPLOY_TARGET}" != *:* || "${REMOTE_DEPLOY_TARGET}" != */?* ]]; then
+            echo "::error::REMOTE_DEPLOY_TARGET 格式应为 user@host:/absolute/path（路径需为绝对路径）" >&2
+            exit 1
+          fi
+          if [[ -z "${SSH_PRIVATE_KEY:-}" ]]; then
+            echo "::error::缺少 Secret SSH_PRIVATE_KEY" >&2
+            exit 1
+          fi
+          echo "target=${REMOTE_DEPLOY_TARGET}"
+
+      - name: Install ssh / rsync
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends openssh-client rsync
+          # docker / docker compose 仅用于本地前置校验一致性提示；实际部署在远端执行
+
+      - name: Configure SSH
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          # 写入私钥并收敛权限（ssh 要求私钥 600）
+          printf '%s\n' "${SSH_PRIVATE_KEY}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          # 已知主机：提供 KNOWN_HOSTS 则用，否则 accept-new（首次连接自动信任）
+          if [[ -n "${KNOWN_HOSTS:-}" ]]; then
+            printf '%s\n' "${KNOWN_HOSTS}" > ~/.ssh/known_hosts
+            chmod 600 ~/.ssh/known_hosts
+          else
+            touch ~/.ssh/known_hosts
+            chmod 600 ~/.ssh/known_hosts
+            ssh-keyscan -H "${REMOTE_DEPLOY_TARGET%%:*}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          fi
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.KNOWN_HOSTS }}
+
+      # ---------- 第 3 步：上传代码（对应 deploy.sh [3/5]） ----------
+      - name: Upload code via rsync
+        if: ${{ github.event.inputs.no_upload != 'true' }}
+        run: |
+          set -euo pipefail
+          REMOTE="${REMOTE_DEPLOY_TARGET}"
+          REMOTE_HOST="${REMOTE%%:*}"
+          REMOTE_PATH="${REMOTE#*:}"
+          SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
+          RSYNC_SSH="ssh -o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_deploy -o PreferredAuthentications=publickey -o PasswordAuthentication=no"
+
+          echo "==> 上传代码到 ${REMOTE}"
+          # 确保远端目标目录存在（兼容需 root 的场景，用 sudo 创建并改属主）
+          RP=$(printf '%q' "$REMOTE_PATH")
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "sudo mkdir -p ${RP} && sudo chown \$(id -u):\$(id -g) ${RP}"
+
+          # 排除：git、依赖、构建产物、数据库、本地 .env（服务器 .env 为唯一真相）
+          rsync -az -e "$RSYNC_SSH" \
+            --exclude '.git/' \
+            --exclude '.venv/' \
+            --exclude 'node_modules/' \
+            --exclude 'frontend/node_modules/' \
+            --exclude 'frontend/dist/' \
+            --exclude '__pycache__/' \
+            --exclude '*.pyc' \
+            --exclude '*.db' \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            --exclude '.DS_Store' \
+            ./ "$REMOTE/"
+
+          # 首次播种 .env：仅当服务器不存在 .env 且 Secrets 中提供了 DEPLOY_ENV_FILE
+          if [[ -n "${DEPLOY_ENV_FILE:-}" ]]; then
+            if ! ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "test -f ${RP}/.env"; then
+              echo "==> 首次部署：播种 .env 到服务器（仅此一次）"
+              printf '%s\n' "${DEPLOY_ENV_FILE}" > /tmp/deploy.env
+              rsync -az -e "$RSYNC_SSH" /tmp/deploy.env "$REMOTE/.env"
+              ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "chmod 600 ${RP}/.env"
+            fi
+          fi
+          echo "    上传完成"
+        env:
+          DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
+
+      # ---------- 第 4 步：服务器端 .env 与数据库迁移（对应 deploy.sh [4/5]） ----------
+      - name: Server env check & database migration
+        run: |
+          set -euo pipefail
+          REMOTE="${REMOTE_DEPLOY_TARGET}"
+          REMOTE_HOST="${REMOTE%%:*}"
+          REMOTE_PATH="${REMOTE#*:}"
+          SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
+          RP=$(printf '%q' "$REMOTE_PATH")
+          REQ_VARS="${DEPLOY_REQUIRED_VARS}"
+
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" bash -s "$REMOTE_PATH" "$REQ_VARS" <<'EOF'
+          set -euo pipefail
+          REMOTE_PATH="$1"; shift
+          REQ_VARS="$1"; shift
+          IFS=',' read -ra REQUIRED_VARS <<< "$REQ_VARS"
+
+          echo "  [4.0] 备份数据库（迁移前，防止迁移/重建损坏数据）"
+          BACKUP_DIR="$REMOTE_PATH/backups"
+          mkdir -p "$BACKUP_DIR"
+          TS="$(date +%Y%m%d_%H%M%S)"
+          BAK="$BACKUP_DIR/jobmatch-$TS.db"
+          if docker compose --project-directory "$REMOTE_PATH" ps -q backend 2>/dev/null | grep -q .; then
+            if docker compose --project-directory "$REMOTE_PATH" exec -T backend \
+                 python -c "import os,sqlite3; p='/app/data/jobmatch.db'; assert os.path.getsize(p)>0, 'db empty'; s=sqlite3.connect(p); d=sqlite3.connect('/tmp/jobmatch_bak.db'); s.backup(d); d.close(); s.close()" && \
+               docker compose --project-directory "$REMOTE_PATH" cp backend:/tmp/jobmatch_bak.db "$BAK"; then
+              echo "    已备份: $BAK"
+            else
+              echo "    ⚠ 在线备份失败（或数据库为空，首次部署属正常），请手动确认数据库状态后再继续" >&2
+            fi
+          else
+            if docker compose --project-directory "$REMOTE_PATH" run --rm -v "$BACKUP_DIR:/backup" backend \
+                 python -c "import os,sqlite3; p='/app/data/jobmatch.db'; assert os.path.getsize(p)>0, 'db empty'; s=sqlite3.connect(p); d=sqlite3.connect('/backup/jobmatch-$TS.db'); s.backup(d); d.close(); s.close()" 2>/dev/null; then
+              echo "    已备份: $BAK"
+            else
+              echo "    ℹ 未能备份（卷中尚无数据库，首次部署属正常）"
+            fi
+          fi
+          ls -1t "$BACKUP_DIR"/jobmatch-*.db 2>/dev/null | tail -n +11 | xargs -r rm -f
+
+          echo "  [4.1] 检查服务器目录与 .env"
+          mkdir -p "$REMOTE_PATH"
+          cd "$REMOTE_PATH"
+          if [[ -f .env ]]; then
+            echo "    服务器已存在 .env，保留不覆盖"
+          else
+            if [[ -f .env.example ]]; then
+              cp .env.example .env
+              chmod 600 .env
+              echo "    ⚠ 服务器无 .env，已用 .env.example 创建（权限 600），请补全必填项后再继续"
+            else
+              echo "    ✗ 服务器上既无 .env 也无 .env.example，无法继续" >&2
+              exit 1
+            fi
+          fi
+          if [[ -f .env && "$(stat -c '%a' .env 2>/dev/null)" != "600" ]]; then
+            chmod 600 .env
+          fi
+
+          echo "  [4.2] 校验 .env 必填项"
+          missing=0
+          for v in "${REQUIRED_VARS[@]}"; do
+            val="$(grep -E "^${v}=" .env | tail -n1 | sed -E 's/^[^=]*=//; s/^["'\''"]|["'\''"]$//g')"
+            if [[ -z "$val" ]]; then
+              echo "    ✗ .env 必填项 $v 缺失或为空" >&2
+              missing=1
+            fi
+          done
+          if [[ $missing -eq 1 ]]; then
+            echo "    请先在服务器 $REMOTE_PATH/.env 中填写上述必填项，再重新运行部署。" >&2
+            exit 1
+          fi
+          echo "    服务器 .env 必填项均已填写"
+
+          echo "  [4.3] 停止 backend 写入，再执行迁移"
+          docker compose --project-directory "$REMOTE_PATH" stop backend 2>/dev/null || true
+          docker compose --project-directory "$REMOTE_PATH" run --rm backend python -m alembic upgrade head
+          echo "    迁移完成"
+          EOF
+
+      # ---------- 第 5 步：docker compose 启动（对应 deploy.sh [5/5]） ----------
+      - name: Start services (docker compose up -d)
+        run: |
+          set -euo pipefail
+          REMOTE="${REMOTE_DEPLOY_TARGET}"
+          REMOTE_HOST="${REMOTE%%:*}"
+          REMOTE_PATH="${REMOTE#*:}"
+          SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
+          RP=$(printf '%q' "$REMOTE_PATH")
+
+          NO_BUILD="${{ github.event.inputs.no_build }}"
+          if [[ "$NO_BUILD" == "true" ]]; then
+            ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+              docker compose --project-directory "$RP" up -d --wait 2>/dev/null \
+              || ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+              docker compose --project-directory "$RP" up -d
+          else
+            ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+              docker compose --project-directory "$RP" up -d --build --wait 2>/dev/null \
+              || ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+              docker compose --project-directory "$RP" up -d --build
+          fi
+
+      # ---------- 部署后健康验证 ----------
+      - name: Health check
+        run: |
+          set -euo pipefail
+          REMOTE="${REMOTE_DEPLOY_TARGET}"
+          REMOTE_HOST="${REMOTE%%:*}"
+          SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
+          if ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "curl -fsS http://localhost/health" >/dev/null 2>&1; then
+            echo "::notice::后端健康检查通过 (http://localhost/health)"
+          else
+            echo "::warning::后端健康检查未通过，请查看日志排查"
+            exit 1
+          fi
