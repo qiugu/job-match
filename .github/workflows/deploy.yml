@@ -41,6 +41,7 @@ concurrency:
 
 env:
   REMOTE_DEPLOY_TARGET: ${{ secrets.REMOTE_DEPLOY_TARGET }}
+  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
   DEPLOY_REQUIRED_VARS: ${{ secrets.DEPLOY_REQUIRED_VARS || 'LLM_API_KEY,AUTH_SECRET_KEY,AUTH_BOOTSTRAP_PASSWORD' }}
 
 jobs:
@@ -96,7 +97,6 @@ jobs:
             ssh-keyscan -H "${REMOTE_DEPLOY_TARGET%%:*}" >> ~/.ssh/known_hosts 2>/dev/null || true
           fi
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           KNOWN_HOSTS: ${{ secrets.KNOWN_HOSTS }}
 
       # ---------- 第 3 步：上传代码（对应 deploy.sh [3/5]） ----------
