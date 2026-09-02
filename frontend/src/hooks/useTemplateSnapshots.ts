@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { DEFAULT_TEMPLATES } from "@/config";
+import { DEFAULT_TEMPLATES } from "@/components/templates/registry";
 import { TEMPLATE_SNAPSHOT_MANIFEST } from "@/generated/templateSnapshotManifest";
 import {
   getTemplateSnapshotSrc,

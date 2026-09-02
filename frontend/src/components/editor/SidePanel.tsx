@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/popover";
 import { Plus } from "lucide-react";
 import { STANDARD_MODULES } from "@/config/modules";
-import { DEFAULT_TEMPLATES } from "@/config";
+import { DEFAULT_TEMPLATES } from "@/components/templates/registry";
 import { getFontOptions, normalizeFontFamily } from "@/utils/fonts";
 
 const lineHeightOptions = [
