@@ -83,6 +83,68 @@ async def test_create_match_consumes_quota(client, session, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_create_match_timeout_503_refunds_quota(client, session, monkeypatch):
+    """超时（可重试类错误）返回 503 且退回额度：超时重试不消耗匹配次数，仍算一次。"""
+    from app.services.agent import MatchTimeoutError
+
+    token = await _login(client, session, "toq1", "TQ1")
+    h = auth_headers(token)
+    monkeypatch.setattr(
+        "app.api.match.run_match",
+        lambda *a, **k: (_ for _ in ()).throw(
+            MatchTimeoutError("匹配请求超时（LLM 接口未在规定时间内响应），请稍后重试")
+        ),
+    )
+
+    r = await client.post(
+        "/api/derived-resumes",
+        json={
+            "resumeText": "# resume",
+            "jdText": "# jd",
+            "withCoverLetter": False,
+            "title": "match-timeout",
+        },
+        headers=h,
+    )
+    assert r.status_code == 503, r.text
+    assert "请稍后重试" in r.json()["detail"]
+    # 额度未被消耗：初始 3，超时退回后仍为 3
+    body = await client.get("/api/auth/me", headers=h)
+    assert body.status_code == 200
+    assert body.json()["matchQuota"] == 3
+
+
+@pytest.mark.asyncio
+async def test_create_match_permanent_error_503_refunds_quota(client, session, monkeypatch):
+    """不可重试类错误（4xx 等）返回 503 并立即停止、退回额度，不浪费次数。"""
+    from app.services.agent import MatchPermanentError
+
+    token = await _login(client, session, "perm1", "PM1")
+    h = auth_headers(token)
+    monkeypatch.setattr(
+        "app.api.match.run_match",
+        lambda *a, **k: (_ for _ in ()).throw(
+            MatchPermanentError("匹配请求处理失败：内容策略拒绝")
+        ),
+    )
+
+    r = await client.post(
+        "/api/derived-resumes",
+        json={
+            "resumeText": "# resume",
+            "jdText": "# jd",
+            "withCoverLetter": False,
+            "title": "match-perm",
+        },
+        headers=h,
+    )
+    assert r.status_code == 503, r.text
+    # 额度同样不被消耗
+    body = await client.get("/api/auth/me", headers=h)
+    assert body.json()["matchQuota"] == 3
+
+
+@pytest.mark.asyncio
 async def test_create_match_with_cover_letter(client, session, monkeypatch):
     token = await _login(client, session, "covl", "CL1")
     h = auth_headers(token)

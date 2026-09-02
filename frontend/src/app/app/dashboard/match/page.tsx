@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Mail,
   Crosshair,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -135,6 +136,9 @@ export default function JobMatchPage() {
   const [elapsedMs, setElapsedMs] = useState<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [result, setResult] = useState<MatchResult | null>(null);
+  // 匹配失败的持久状态：toast 仅几秒即消失，失败信息须常驻结果区直到用户重试/重试成功。
+  // status 透传后端 HTTP 状态码（403=额度耗尽 不可重试 / 503=超时或不可重试），用于区分处置与文案。
+  const [matchError, setMatchError] = useState<{ status?: number; message: string } | null>(null);
   const [accepted, setAccepted] = useState<boolean>(false);
   const [accepting, setAccepting] = useState<boolean>(false);
   // 接受后询问「是否立刻编辑简历」的弹窗；pendingMasterId 为落库的 master resume id
@@ -215,6 +219,7 @@ export default function JobMatchPage() {
     if (!jdText.trim()) return;
     setLoading(true);
     setResult(null);
+    setMatchError(null);
     setElapsedMs(0);
     const startedAt = Date.now();
     if (timerRef.current) clearInterval(timerRef.current);
@@ -236,9 +241,14 @@ export default function JobMatchPage() {
       }
     } catch (err) {
       console.error("Match failed:", err);
-      // 403=匹配次数已用完：直接展示后端提示，其余错误走通用文案
+      // 403=匹配次数已用完、503=匹配超时（后端已含「请稍后重试」等可操作文案）：
+      // 这两种情况都直接展示后端返回的明确提示，其余错误走通用文案。
       const status = (err as Error & { status?: number }).status;
-      toast.error(status === 403 ? (err as Error).message : t("matchError"));
+      const message =
+        status === 403 || status === 503 ? (err as Error).message : t("matchError");
+      // 失败信息常驻结果区（toast 仅作即时提示，几秒后消失，不能作为唯一反馈）。
+      setMatchError({ status, message });
+      toast.error(message);
     } finally {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -538,6 +548,43 @@ export default function JobMatchPage() {
                   </div>
                   <Skeleton className="h-4 w-3/4" />
                   <Skeleton className="h-4 w-1/2" />
+                </div>
+              </div>
+            ) : matchError ? (
+              // 失败常驻结果区：toast 仅即时提示、几秒即逝，失败原因须稳定可见直至重试。
+              // 区分两类：403=额度耗尽（不可重试，引导领取次数）；其余=可重试（超时/网络/未知），
+              // 提供内联「重试匹配」入口，避免用户回到表单重新操作。
+              <div className="flex flex-1 items-center justify-center px-6 py-10">
+                <div className="w-full max-w-md rounded-xl border border-border bg-background p-6 text-center shadow-sm">
+                  <div
+                    className="mx-auto flex h-14 w-14 items-center justify-center rounded-full"
+                    style={{ backgroundColor: `hsl(${BRAND_VIOLET} / 0.1)` }}
+                  >
+                    <AlertTriangle
+                      className="h-7 w-7"
+                      style={{ color: `hsl(${BRAND_VIOLET})` }}
+                    />
+                  </div>
+                  <h3 className="mt-5 text-base font-semibold">
+                    {t("matchFailedTitle")}
+                  </h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {matchError.message}
+                  </p>
+                  {matchError.status === 403 ? (
+                    <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+                      {t("quotaExhaustedHint")}
+                    </p>
+                  ) : (
+                    <Button
+                      className="mt-5 w-full"
+                      onClick={handleCreate}
+                      disabled={loading || !selected}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      {t("retryMatch")}
+                    </Button>
+                  )}
                 </div>
               </div>
             ) : !result ? (

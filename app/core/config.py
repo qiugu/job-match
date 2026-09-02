@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     llm_model: str = "deepseek-v4-flash"
     llm_temperature: float = 0.3
     llm_timeout: int = 300  # LLM 单次请求超时（秒），匹配工作流节点/整体统一沿用此配置
+    # 整体匹配工作流（jd_extract→resume_match→keyword_optimize）在「超时」时的最大重试次数。
+    # 仅当失败属于「可重试」类（超时 / 5xx / 429 / 连接错误）才触发重试；
+    # 4xx 类（鉴权、余额、内容策略、入参错误）属于「不可重试」类，立即停止并透传错误，不浪费额度。
+    # 总尝试次数 = 1（首跑）+ llm_timeout_retries（重试）。
+    llm_timeout_retries: int = 2
 
     # ---------- 登录鉴权 ----------
     # JWT 签名密钥。生产必须显式配置 AUTH_SECRET_KEY：留空时进程会生成随机密钥，

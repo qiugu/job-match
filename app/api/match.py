@@ -20,7 +20,7 @@ from app.models.derived_resume import DerivedResume
 from app.models.master_resume import MasterResume
 from app.models.user import UNLIMITED_QUOTA, User
 from app.schemas.resume import ResumeData
-from app.services.agent import run_match
+from app.services.agent import MatchPermanentError, MatchTimeoutError, run_match
 from app.services.quota import refund_match_quota, reserve_match_quota
 
 logger = get_logger("match")
@@ -95,8 +95,23 @@ async def create_match(
             jd_text=req.jdText,
             with_cover_letter=req.withCoverLetter,
         )
+    except MatchTimeoutError as e:
+        # 可重试类错误（超时 / 5xx / 429 / 连接）在耗尽重试次数后仍未成功：
+        # 返回 503 + 「请稍后重试」文案。本次匹配未产生结果，退回预扣额度，
+        # 即超时重试不消耗匹配次数（用户视角仍只算一次尝试）。
+        if reserved:
+            await refund_match_quota(user.id)
+        logger.warning("创建匹配失败（503 超时，已重试仍失败）: %s", e)
+        raise HTTPException(status_code=503, detail=str(e))
+    except MatchPermanentError as e:
+        # 不可重试类错误（4xx：鉴权 / 余额 / 内容策略 / 入参 / 结构解析）：
+        # 立即停止响应、不再重试，退回额度并透传明确错误文案。
+        if reserved:
+            await refund_match_quota(user.id)
+        logger.warning("创建匹配失败（503 不可重试）: %s", e)
+        raise HTTPException(status_code=503, detail=str(e))
     except RuntimeError as e:
-        # LLM 未配置、超时、LLM 调用失败等可预期错误，返回 503 而非 500
+        # 其它可预期业务错误（如 LLM 未配置），返回 503 而非 500。
         # 完整 traceback 已在 agent.run_match 内记录，此处仅记录简要原因便于检索
         if reserved:
             await refund_match_quota(user.id)

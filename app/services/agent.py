@@ -33,6 +33,56 @@ from app.schemas.agent import AgentState, JDAnalysis, MatchResult
 logger = get_logger("agent")
 
 
+class MatchTimeoutError(RuntimeError):
+    """整体匹配工作流因「超时 / 可重试类错误」在耗尽重试次数后仍失败。
+
+    调用方（app/api/match.py）据此返回 503 + 「请稍后重试」文案，并退回本次额度
+    （超时重试不消耗匹配次数）。
+    """
+
+
+class MatchPermanentError(RuntimeError):
+    """匹配因「不可重试类错误」（4xx：鉴权/余额/内容策略/入参错误等）失败。
+
+    这类错误重试无意义，调用方应立即停止响应、退回额度并透传明确错误，不再重试。
+    """
+
+
+def _error_status_code(exc: BaseException) -> int | None:
+    """尽可能从底层异常中还原 HTTP 状态码（langchain/openai 异常会携带）。"""
+    # openai / langchain 异常通常把原始状态码放在这些属性上
+    for attr in ("status_code", "code"):
+        val = getattr(exc, attr, None)
+        if isinstance(val, int):
+            return val
+    # 嵌套原因（如 httpx 包装）
+    cause = getattr(exc, "__cause__", None) or getattr(exc, "__context__", None)
+    if cause is not None and cause is not exc:
+        code = _error_status_code(cause)
+        if code is not None:
+            return code
+    return None
+
+
+def _is_retryable_error(exc: BaseException) -> bool:
+    """判断失败是否属于「可重试」类。
+
+    可重试：超时、连接/网络错误、5xx、429（限流）。
+    不可重试（立即停止）：4xx（鉴权 401/403、余额 402、内容策略 400、入参 422 等）。
+    """
+    if isinstance(exc, asyncio.TimeoutError):
+        return True
+    # 连接 / 网络类异常（无状态码，通常瞬时）
+    for cls_name in ("ConnectionError", "ConnectError", "Timeout", "TransportError"):
+        if type(exc).__name__ in (cls_name, f"httpx.{cls_name}"):
+            return True
+    code = _error_status_code(exc)
+    if code is not None:
+        return code >= 500 or code == 429
+    # 无法判断状态码时，默认为「超时类」按可重试处理，避免误杀瞬时故障
+    return True
+
+
 def _flatten_keywords(analysis: JDAnalysis) -> list[str]:
     """把 JD 分析结果打平为关键词列表（去重、上限 20）。
 
@@ -351,28 +401,57 @@ async def run_match(
         )
 
     t0 = time.perf_counter()
-    try:
-        return await _run_once()
-    except ValidationError as e:
-        # LLM 输出不稳定导致结构无法验证：重试一次工作流
-        logger.warning("LLM 结构化输出解析失败，重试一次: %s", e)
+    last_exc: BaseException | None = None
+    attempts = 1 + max(0, settings.llm_timeout_retries)
+    for attempt in range(1, attempts + 1):
         try:
+            # 重置机制：每次尝试都基于全新的 AgentState 启动工作流，
+            # 避免上一次失败（超时/异常）残留的半成品状态污染下一次尝试。
             return await _run_once()
-        except ValidationError:
-            logger.exception("LLM 结构化输出重试后仍无法解析")
-            raise RuntimeError(f"LLM 输出的简历结构无法解析，请重试：{str(e)[:120]}") from e
-    except asyncio.TimeoutError:
-        # LLM 接口无响应导致整体超时：返回 503 而非让事件循环永久 pending
-        logger.exception("匹配工作流整体超时")
-        raise RuntimeError("匹配请求超时（LLM 接口未在规定时间内响应），请稍后重试")
-    except RuntimeError:
-        # 业务上抛出的可预期错误（LLM 未配置 / 匹配流程失败）已在上游记录，
-        # 直接向上传播给 match.py 转 503。
-        raise
-    except Exception as e:
-        # 节点内未捕获的 LLM 网络/厂商异常会在此冒泡：记录完整 traceback，
-        # 转成 RuntimeError 让 match.py 返回 503 而非默认 500。
-        logger.exception("匹配工作流执行失败: %s", e)
-        raise RuntimeError(f"匹配请求处理失败：{e}") from e
-    finally:
-        logger.info("匹配工作流总耗时 %.1fs", time.perf_counter() - t0)
+        except ValidationError as e:
+            # LLM 输出不稳定导致结构无法验证：工作流内部已重试一次，
+            # 此处仍失败视为「不可重试」——错误来自模型输出格式而非瞬时故障，
+            # 继续重试只会重复同样的解析失败，立即停止并透传明确错误。
+            logger.exception("LLM 结构化输出无法解析（不可重试），停止匹配")
+            raise MatchPermanentError(
+                f"LLM 输出的简历结构无法解析，请调整后重试：{str(e)[:120]}"
+            ) from e
+        except asyncio.TimeoutError as e:
+            # 整体超时：属于「可重试」类，记一次重试；若还有重试次数则重置状态后重跑。
+            last_exc = e
+            logger.warning(
+                "匹配工作流整体超时（第 %d/%d 次尝试），将重置状态后重试",
+                attempt, attempts,
+            )
+            # 直接进入下一次循环（_run_once 内会重建全新 state）
+            continue
+        except MatchPermanentError:
+            # 节点内已明确判定为不可重试错误（如内容策略/鉴权），立即上抛，不重试。
+            raise
+        except RuntimeError as e:
+            # 业务上抛出的可预期错误（LLM 未配置等）。LLM 未配置属永久不可用，
+            # 重试无意义；其它 RuntimeError 按「不可重试」处理并透传。
+            logger.warning("匹配流程可预期错误（不可重试），停止匹配: %s", e)
+            raise
+        except Exception as e:  # noqa: BLE001
+            # 节点内未捕获的 LLM 网络/厂商异常在此冒泡：按状态码区分可重试/不可重试。
+            if _is_retryable_error(e):
+                last_exc = e
+                logger.warning(
+                    "匹配工作流异常（可重试，第 %d/%d 次尝试）: %s",
+                    attempt, attempts, e,
+                )
+                continue
+            code = _error_status_code(e)
+            logger.warning(
+                "匹配工作流异常（不可重试，状态码=%s），停止匹配: %s",
+                code, e,
+            )
+            raise MatchPermanentError(f"匹配请求处理失败：{e}") from e
+
+    # 抵达此处说明所有尝试均因「可重试」类错误（超时/5xx/429/连接）失败。
+    logger.error(
+        "匹配工作流在 %d 次尝试后仍因可重试错误失败，最后一次: %s",
+        attempts, last_exc,
+    )
+    raise MatchTimeoutError("匹配请求超时（LLM 接口未在规定时间内响应），请稍后重试")
