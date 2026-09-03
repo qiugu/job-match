@@ -35,6 +35,31 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
+/**
+ * 后端 4xx/5xx 的统一错误类型。
+ *
+ * 除状态码外还带 retryAfter（来自 429 的 Retry-After 响应头，单位秒）——限流
+ * 提示需要告诉用户「还要等多久」，而不是让他反复点击碰运气。
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  /** 还需等待的秒数；非 429 或服务端未给出时为 null */
+  readonly retryAfter: number | null;
+
+  constructor(message: string, status: number, retryAfter: number | null = null) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.retryAfter = retryAfter;
+  }
+}
+
+function parseRetryAfter(value: string | null): number | null {
+  if (!value) return null;
+  const seconds = Number(value);
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : null;
+}
+
 /** 令牌统一存 sessionStorage（见顶部注释），取用统一走 getToken，清理时不会漏。 */
 export function getToken(): string | null {
   return _store()?.getItem(TOKEN_STORAGE_KEY) ?? null;
@@ -72,16 +97,22 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!res.ok) {
-    let detail = `请求失败 (${res.status})`;
+    // 优先用后端 detail。中间层（网关 / 代理 / CDN）返回的限流响应常是 HTML，
+    // 解析不出 JSON 时会丢掉全部信息，因此 429 必须有中文兜底文案。
+    let detail = "";
     try {
       const body = await res.json();
-      detail = body.detail || detail;
+      if (typeof body?.detail === "string") detail = body.detail;
     } catch {
-      /* ignore */
+      /* 非 JSON 响应，走下方兜底 */
     }
-    const error = new Error(detail) as Error & { status?: number };
-    error.status = res.status;
-    throw error;
+    if (!detail) {
+      detail =
+        res.status === 429
+          ? "操作过于频繁，请稍后再试"
+          : `请求失败 (${res.status})`;
+    }
+    throw new ApiError(detail, res.status, parseRetryAfter(res.headers.get("Retry-After")));
   }
   return res.json() as Promise<T>;
 }

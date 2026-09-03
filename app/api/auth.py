@@ -8,6 +8,7 @@ api_key，匿名可调用等同于把额度公开。
 from __future__ import annotations
 
 import asyncio
+import math
 import re
 from datetime import datetime, timezone
 
@@ -76,13 +77,33 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _too_many_requests(detail: str, retry_after: float) -> HTTPException:
+    """429 + Retry-After 头。
+
+    后端是「是否限流」的唯一权威，把剩余等待秒数回传给前端，前端才能给出
+    倒计时而不是让用户盲等；detail 里同样写明时长，保证任何调用方（含
+    直接看响应的场景）都能拿到可读提示。
+    """
+    return HTTPException(
+        status_code=429,
+        detail=detail,
+        headers={"Retry-After": str(max(int(math.ceil(retry_after)), 1))},
+    )
+
+
+def _minutes_left(seconds: float) -> int:
+    """剩余等待秒数 → 向上取整的分钟数（至少 1 分钟）。"""
+    return max(int(math.ceil(seconds / 60)), 1)
+
+
 def _check_login_ratelimit(username: str, ip: str) -> None:
     key = (username, ip)
     until = _LOGIN_LOCK_UNTIL.get(key, 0.0)
     if until and utcnow().timestamp() < until:
-        raise HTTPException(
-            status_code=429,
-            detail="登录失败次数过多，请 15 分钟后再试",
+        left = until - utcnow().timestamp()
+        raise _too_many_requests(
+            f"登录失败次数过多，请 {_minutes_left(left)} 分钟后再试",
+            left,
         )
 
 
@@ -103,20 +124,25 @@ def _check_register_ratelimit(ip: str) -> None:
     now = utcnow().timestamp()
     hits = [t for t in _REGISTER_IP.get(ip, []) if now - t < _REGISTER_WINDOW_SECONDS]
     if len(hits) >= _REGISTER_IP_MAX:
-        raise HTTPException(
-            status_code=429,
-            detail="注册过于频繁，请稍后再试",
+        # 滑动窗口：最早一次请求出窗后即可再试
+        left = hits[0] + _REGISTER_WINDOW_SECONDS - now
+        raise _too_many_requests(
+            f"注册过于频繁，请 {_minutes_left(left)} 分钟后再试",
+            left,
         )
     hits.append(now)
     _REGISTER_IP[ip] = hits
 
 
-def _check_code_ip_limit(ip: str, window_start: datetime) -> None:
+def _check_code_ip_limit(
+    ip: str, window_start: datetime, next_reset: datetime
+) -> None:
     hits = [t for t in _CODE_IP.get(ip, []) if t >= window_start]
     if len(hits) >= _CODE_IP_DAILY_MAX:
-        raise HTTPException(
-            status_code=429,
-            detail=f"当前网络今日领取已达上限（{_CODE_IP_DAILY_MAX} 个），请明天再试",
+        left = (next_reset - utcnow()).total_seconds()
+        raise _too_many_requests(
+            f"当前网络今日领取已达上限（{_CODE_IP_DAILY_MAX} 个），请明天再试",
+            left,
         )
     hits.append(utcnow())
     _CODE_IP[ip] = hits
@@ -361,7 +387,7 @@ async def issue_registration_code(
     if not settings.auth_allow_registration:
         raise HTTPException(status_code=403, detail="当前站点未开放注册")
     window_start, next_reset = issue_day_window()
-    _check_code_ip_limit(_client_ip(request), window_start)
+    _check_code_ip_limit(_client_ip(request), window_start, next_reset)
 
     limit = settings.registration_daily_limit
     # 锁内「查剩余 → 发码 → 提交」，并发下不超发；唯一索引碰撞兜底重试。
@@ -369,9 +395,9 @@ async def issue_registration_code(
     async with _ISSUE_LOCK:
         issued = await issued_count(db, window_start)
         if issued >= limit:
-            raise HTTPException(
-                status_code=429,
-                detail=f"今日名额已发完（每日上限 {limit} 个），名额每天 0:00 更新，请明天再来",
+            raise _too_many_requests(
+                f"今日名额已发完（每日上限 {limit} 个），名额每天 0:00 更新，请明天再来",
+                (next_reset - utcnow()).total_seconds(),
             )
         record = None
         for _ in range(3):

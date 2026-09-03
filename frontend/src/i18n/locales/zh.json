@@ -19,7 +19,10 @@
     "registerSuccess": "注册成功",
     "logout": "退出登录",
     "logoutSuccess": "已退出登录",
-    "sessionExpired": "登录状态已失效，请重新登录"
+    "sessionExpired": "登录状态已失效，请重新登录",
+    "loginFailed": "登录失败",
+    "registerFailed": "注册失败",
+    "retryIn": "请 {time} 后再试"
   },
   "common": {
     "title": "JDMatch",
@@ -144,7 +147,8 @@
       "goRegisterHint": "拿到注册码后，",
       "goRegister": "前往登录页完成注册",
       "loadFailed": "查询失败",
-      "issueFailed": "领取失败"
+      "issueFailed": "领取失败",
+      "retryIn": "请 {time} 后再试"
     }
   },
   "dashboard": {
@@ -158,6 +162,7 @@
     },
     "resumes": {
       "created": "创建于",
+      "updated": "更新于",
       "synced": "已备份文件夹",
       "view": "去查看",
       "myResume": "我的简历",
