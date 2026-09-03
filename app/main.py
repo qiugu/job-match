@@ -66,6 +66,9 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # 跨域直连后端时（VITE_JOBMATCH_API 指向独立域名），前端 JS 需能读取
+        # Retry-After 才能渲染限流倒计时；同源（Nginx 代理）下该头本就可读。
+        expose_headers=["Retry-After"],
     )
 
     # 注册全局异常兜底：未处理异常 → 500 + request_id + 完整 traceback 日志

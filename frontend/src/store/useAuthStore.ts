@@ -5,6 +5,7 @@
 import { create } from "zustand";
 
 import {
+  ApiError,
   AuthUser,
   clearToken,
   fetchMe,
@@ -22,6 +23,11 @@ interface AuthStore {
   user: AuthUser | null;
   submitting: boolean;
   error: string | null;
+  /**
+   * 被限流（429）时的冷却截止时刻，Date.now() 毫秒；null 表示未限流。
+   * 由页面据此禁用提交按钮并倒计时，避免用户在明知会被拒时反复点击。
+   */
+  cooldownUntil: number | null;
   initialize: () => Promise<void>;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, password: string, code: string) => Promise<void>;
@@ -29,6 +35,14 @@ interface AuthStore {
   /** 匹配成功后用后端返回的剩余次数刷新本地显示 */
   applyQuota: (remaining: number) => void;
   clearError: () => void;
+  clearCooldown: () => void;
+}
+
+/** 429 时把 Retry-After 换算成冷却截止时刻；其它错误不进入冷却。 */
+function cooldownFrom(error: unknown): number | null {
+  if (!(error instanceof ApiError) || error.status !== 429) return null;
+  if (!error.retryAfter) return null;
+  return Date.now() + error.retryAfter * 1000;
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -36,6 +50,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   submitting: false,
   error: null,
+  cooldownUntil: null,
 
   initialize: async () => {
     if (!getToken()) {
@@ -57,11 +72,18 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       const res = await loginApi(username, password);
       setToken(res.token);
-      set({ status: "authenticated", user: res.user, submitting: false });
+      set({
+        status: "authenticated",
+        user: res.user,
+        submitting: false,
+        error: null,
+        cooldownUntil: null,
+      });
     } catch (error) {
       set({
         submitting: false,
         error: error instanceof Error ? error.message : "登录失败",
+        cooldownUntil: cooldownFrom(error),
       });
       throw error;
     }
@@ -72,11 +94,18 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       const res = await registerApi(username, password, code);
       setToken(res.token);
-      set({ status: "authenticated", user: res.user, submitting: false });
+      set({
+        status: "authenticated",
+        user: res.user,
+        submitting: false,
+        error: null,
+        cooldownUntil: null,
+      });
     } catch (error) {
       set({
         submitting: false,
         error: error instanceof Error ? error.message : "注册失败",
+        cooldownUntil: cooldownFrom(error),
       });
       throw error;
     }
@@ -84,7 +113,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   logout: async () => {
     await logoutApi();
-    set({ status: "anonymous", user: null, error: null });
+    set({ status: "anonymous", user: null, error: null, cooldownUntil: null });
   },
 
   applyQuota: (remaining) =>
@@ -93,4 +122,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
     ),
 
   clearError: () => set({ error: null }),
+
+  clearCooldown: () => set({ cooldownUntil: null, error: null }),
 }));

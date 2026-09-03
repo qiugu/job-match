@@ -8,6 +8,8 @@ import {
   Ticket,
 } from "lucide-react";
 
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,11 +21,13 @@ import {
 import { useTranslations } from "@/i18n/compat/client";
 import type { Translator } from "@/i18n/compat/utils";
 import {
+  ApiError,
   fetchRegistrationCodeStatus,
   issueRegistrationCode,
   type RegistrationCodeIssue,
   type RegistrationCodeStatus,
 } from "@/lib/auth";
+import { formatCountdown } from "@/utils/countdown";
 
 /** 墙钟时间 HH:mm（跟随浏览器的时区与语言习惯） */
 function formatWallTime(value: Date): string {
@@ -130,6 +134,25 @@ export default function RegistrationCodeCTA() {
   const [issued, setIssued] = useState<RegistrationCodeIssue | null>(null);
   const [issuing, setIssuing] = useState(false);
   const [error, setError] = useState("");
+  // 触发限流后的冷却截止时刻（429 Retry-After），非空期间禁止再次领取
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+  const [cooldownLeft, setCooldownLeft] = useState(0);
+
+  // 冷却倒计时；归零后自动恢复可领取
+  useEffect(() => {
+    if (!cooldownUntil) {
+      setCooldownLeft(0);
+      return;
+    }
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
+      setCooldownLeft(left);
+      if (left === 0) setCooldownUntil(null);
+    };
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [cooldownUntil]);
 
   // 打开弹框时拉取名额状态；关闭后清空，下次打开重新查询
   useEffect(() => {
@@ -164,7 +187,13 @@ export default function RegistrationCodeCTA() {
         setStatus({ ...status, remaining: data.remaining, nextResetAt: data.nextResetAt });
       }
     } catch (err) {
-      setError((err as Error).message || t("issueFailed"));
+      const message = (err as Error).message || t("issueFailed");
+      setError(message);
+      // 弹框内的红字同样容易被忽略，领取失败（尤其是 429 限流）必须弹 toast
+      toast.error(message);
+      if (err instanceof ApiError && err.status === 429 && err.retryAfter) {
+        setCooldownUntil(Date.now() + err.retryAfter * 1000);
+      }
     } finally {
       setIssuing(false);
     }
@@ -216,10 +245,12 @@ export default function RegistrationCodeCTA() {
                   <Button
                     className="h-11 w-full rounded-full text-base"
                     onClick={handleIssue}
-                    disabled={issuing || exhausted}
+                    disabled={issuing || exhausted || cooldownLeft > 0}
                   >
                     {issuing ? <Loader2 className="animate-spin" /> : <Ticket />}
-                    {t("getCta")}
+                    {cooldownLeft > 0
+                      ? t("retryIn", { time: formatCountdown(cooldownLeft) })
+                      : t("getCta")}
                   </Button>
                   {exhausted && status ? (
                     // 名额发完是状态而非错误，用中性提示并说明恢复时间

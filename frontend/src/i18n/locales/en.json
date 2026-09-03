@@ -19,7 +19,10 @@
     "registerSuccess": "Account created",
     "logout": "Sign out",
     "logoutSuccess": "Signed out",
-    "sessionExpired": "Session expired, please sign in again"
+    "sessionExpired": "Session expired, please sign in again",
+    "loginFailed": "Sign-in failed",
+    "registerFailed": "Sign-up failed",
+    "retryIn": "Retry in {time}"
   },
   "common": {
     "title": "JDMatch",
@@ -143,7 +146,8 @@
       "goRegisterHint": "Got your code? ",
       "goRegister": "Finish registration on the login page",
       "loadFailed": "Failed to load",
-      "issueFailed": "Failed to claim"
+      "issueFailed": "Failed to claim",
+      "retryIn": "Retry in {time}"
     }
   },
   "dashboard": {
@@ -157,6 +161,7 @@
     },
     "resumes": {
       "created": "Created At",
+      "updated": "Updated",
       "synced": "Synced Files",
       "view": "View",
       "myResume": "My Resumes",

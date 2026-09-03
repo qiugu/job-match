@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+
+import { formatCountdown } from "@/utils/countdown";
 
 import Logo from "@/components/shared/Logo";
 import { Button } from "@/components/ui/button";
@@ -32,11 +34,31 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
   const login = useAuthStore((state) => state.login);
   const register = useAuthStore((state) => state.register);
   const clearError = useAuthStore((state) => state.clearError);
+  // 触发限流后的冷却截止时刻（429 Retry-After），非空期间禁止重复提交
+  const cooldownUntil = useAuthStore((state) => state.cooldownUntil);
+  const clearCooldown = useAuthStore((state) => state.clearCooldown);
 
   const [mode, setMode] = useState<Mode>("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
+  const [cooldownLeft, setCooldownLeft] = useState(0);
+
+  // 冷却倒计时：归零时自动解除，用户无需刷新页面
+  useEffect(() => {
+    if (!cooldownUntil) {
+      setCooldownLeft(0);
+      return;
+    }
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
+      setCooldownLeft(left);
+      if (left === 0) clearCooldown();
+    };
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [cooldownUntil, clearCooldown]);
 
   const switchMode = (next: Mode) => {
     setMode(next);
@@ -45,7 +67,7 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (submitting) return;
+    if (submitting || cooldownLeft > 0) return;
     try {
       if (mode === "login") {
         await login(username.trim(), password);
@@ -55,8 +77,16 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
         toast.success(t("registerSuccess"));
       }
       router.push(redirectTo || "/app/dashboard");
-    } catch {
-      // 失败原因已写入 store.error，表单内直接展示
+    } catch (err) {
+      // 失败一律弹 toast：表单内的红字容易被忽略，用户会以为「点了没反应」，
+      // 限流（429）尤其如此——它往往需要等待，必须给出明确反馈。
+      const message =
+        err instanceof Error
+          ? err.message
+          : mode === "login"
+            ? t("loginFailed")
+            : t("registerFailed");
+      toast.error(message);
     }
   };
 
@@ -124,9 +154,17 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
               </p>
             )}
 
-            <Button type="submit" className="w-full" disabled={submitting}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={submitting || cooldownLeft > 0}
+            >
               {submitting && <Loader2 className="animate-spin" />}
-              {mode === "login" ? t("submitLogin") : t("submitRegister")}
+              {cooldownLeft > 0
+                ? t("retryIn", { time: formatCountdown(cooldownLeft) })
+                : mode === "login"
+                  ? t("submitLogin")
+                  : t("submitRegister")}
             </Button>
           </form>
 
