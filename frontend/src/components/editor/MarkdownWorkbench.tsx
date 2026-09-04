@@ -113,8 +113,7 @@ const MarkdownWorkbench = () => {
                   "border-b bg-background border-border text-muted-foreground"
                 )}
               >
-                <FileText className="w-3.5 h-3.5" />
-                {t("editorTitle")}
+                <p className="xai-eyebrow">{t("editorTitle")}</p>
               </div>
               <div className="flex-1 min-h-0">
                 <MarkdownEditor
@@ -144,11 +143,38 @@ const MarkdownWorkbench = () => {
               >
                 <div className="flex items-center gap-2">
                   <Eye className="w-3.5 h-3.5" />
-                  {t("previewTitle")}
+                  <p className="xai-eyebrow">{t("previewTitle")}</p>
                 </div>
 
                 {/* 行高 / 字号 / 边距 调节（分页按内容真实块边界切分，文字不会被页边界截断） */}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2 ml-auto">
+                  {/* 一页纸开关 chip：开启后超出单页的内容自动缩放至一页 */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateGlobalSettings({
+                        autoOnePage: !activeResume.globalSettings?.autoOnePage,
+                      })
+                    }
+                    className={cn(
+                      "inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-[10px] transition-colors",
+                      activeResume.globalSettings?.autoOnePage
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                        : "border-border text-muted-foreground hover:text-foreground"
+                    )}
+                    title="超出单页的内容自动缩放至一页"
+                  >
+                    <span
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full",
+                        activeResume.globalSettings?.autoOnePage
+                          ? "bg-emerald-400"
+                          : "bg-muted-foreground/40"
+                      )}
+                    />
+                    一页纸已开启
+                  </button>
+
                   <label className="flex items-center gap-1.5" title="行高">
                     <span>行高</span>
                     <input
