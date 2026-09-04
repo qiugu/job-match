@@ -3,10 +3,10 @@ import type { Config } from "tailwindcss";
 const { heroui } = require("@heroui/react");
 
 const config = {
-  // dark: 变体在 html.dark 之外，还需在 .theme-xai 作用域内生效：
-  // 作用域外壳（dashboard / workbench）永远渲染深色表面，
-  // 若 light 模式下 dark: 不生效，会出现"深底深字"不可读问题。
-  darkMode: ["selector", ".dark, .theme-xai"],
+  // dark: 变体跟随 html 层 class（next-themes attribute="class"）。
+  // .theme-xai 作用域内通过 globals.css 的 html.light/.dark 变量翻转，
+  // 组件应优先用语义 token 与 xai-* 变量色，而非依赖 dark:。
+  darkMode: ["class"],
   content: [
     "./pages/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
@@ -38,6 +38,7 @@ const config = {
           "surface-2": "var(--xai-surface-2)",
           hairline: "var(--xai-hairline)",
           "hairline-soft": "var(--xai-hairline-soft)",
+          "hairline-strong": "var(--xai-hairline-strong)",
           text: "var(--xai-text)",
           "text-mid": "var(--xai-text-mid)",
           mute: "var(--xai-mute)",

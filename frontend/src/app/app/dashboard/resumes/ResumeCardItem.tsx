@@ -88,7 +88,7 @@ export const ResumeCardItem = ({
             <Card
                 className={cn(
                     "group flex aspect-[210/297] flex-col overflow-hidden rounded-[10px] border-xai-hairline bg-xai-surface shadow-none transition-colors duration-200",
-                    "hover:border-[#3d4048]"
+                    "hover:border-xai-hairline-strong"
                 )}
             >
                 <CardContent
@@ -137,7 +137,7 @@ export const ResumeCardItem = ({
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[60%] z-0 bg-gradient-to-t from-xai-surface via-xai-surface/90 to-transparent"></div>
                     <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between px-4 pb-3 pt-12 transition-colors group-hover:bg-xai-surface/60">
                         <div className="flex w-full flex-col">
-                            <span className="w-[90%] truncate text-[15px] font-medium text-white drop-shadow-sm">
+                            <span className="w-[90%] truncate text-[15px] font-medium text-xai-text drop-shadow-sm">
                                 {resume.title || t("dashboard.resumes.untitled")}
                             </span>
                             <span className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-wide text-xai-mute">
@@ -169,7 +169,7 @@ export const ResumeCardItem = ({
                                 e.stopPropagation();
                                 router.push({ to: "/app/workbench/$id", params: { id } });
                             }}
-                            className="group flex flex-1 items-center justify-center gap-1.5 text-[13px] font-medium text-xai-mute transition-colors duration-200 hover:bg-xai-surface-2 hover:text-white"
+                            className="group flex flex-1 items-center justify-center gap-1.5 text-[13px] font-medium text-xai-mute transition-colors duration-200 hover:bg-xai-surface-2 hover:text-xai-text"
                         >
                             <IconPen size={14} className="transition-transform duration-200 group-hover:scale-110" />
                             <span>{t("common.edit")}</span>
@@ -180,7 +180,7 @@ export const ResumeCardItem = ({
                                 e.stopPropagation();
                                 duplicateResume(resume);
                             }}
-                            className="group flex flex-1 items-center justify-center gap-1.5 text-[13px] font-medium text-xai-mute transition-colors duration-200 hover:bg-xai-surface-2 hover:text-white"
+                            className="group flex flex-1 items-center justify-center gap-1.5 text-[13px] font-medium text-xai-mute transition-colors duration-200 hover:bg-xai-surface-2 hover:text-xai-text"
                         >
                             <IconCopy size={14} className="transition-transform duration-200 group-hover:scale-110" />
                             <span>{t("common.copy")}</span>
@@ -191,7 +191,7 @@ export const ResumeCardItem = ({
                                 e.stopPropagation();
                                 setShowDeleteDialog(true);
                             }}
-                            className="group flex flex-1 items-center justify-center gap-1.5 text-[13px] font-medium text-[#8a8f98] transition-colors duration-200 hover:bg-[#221312] hover:text-xai-del"
+                            className="group flex flex-1 items-center justify-center gap-1.5 text-[13px] font-medium text-xai-mute transition-colors duration-200 hover:bg-xai-del-bg hover:text-xai-del"
                         >
                             <IconTrash size={14} className="transition-transform duration-200 group-hover:scale-110" />
                             <span>{t("common.delete")}</span>

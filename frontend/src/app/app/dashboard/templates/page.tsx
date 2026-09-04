@@ -122,7 +122,7 @@ const TemplateCardItem = ({
 
         {/* 模板名与说明放在白纸之外，深色卡壳上一目了然 */}
         <div className="flex flex-col gap-1 px-1.5 pb-1 pt-3">
-          <span className="truncate text-[14px] font-medium text-white">
+          <span className="truncate text-[14px] font-medium text-xai-text">
             {templateName}
           </span>
           <span className="truncate text-[11px] text-xai-mute">
@@ -139,7 +139,7 @@ const TemplateCardItem = ({
             >
               <Button
                 variant="outline"
-                className="h-9 w-full rounded-full border-xai-hairline bg-transparent text-[12.5px] text-xai-text-mid hover:border-[#3d4048] hover:bg-xai-surface-2 hover:text-white"
+                className="h-9 w-full rounded-full border-xai-hairline bg-transparent text-[12.5px] text-xai-text-mid hover:border-xai-hairline-strong hover:bg-xai-surface-2 hover:text-xai-text"
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -156,7 +156,7 @@ const TemplateCardItem = ({
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
             >
               <Button
-                className="h-9 w-full rounded-full bg-white text-[12.5px] font-medium text-xai-canvas hover:bg-white/90"
+                className="h-9 w-full rounded-full bg-xai-text text-[12.5px] font-medium text-xai-canvas hover:bg-xai-text/90"
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -220,7 +220,7 @@ const TemplatesPage = () => {
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex flex-col gap-2.5">
               <p className="xai-eyebrow">RESUME TEMPLATES — MARKDOWN</p>
-              <h2 className="text-[32px] font-medium leading-none tracking-tight text-white">
+              <h2 className="text-[32px] font-medium leading-none tracking-tight text-xai-text">
                 {t("title")}
               </h2>
               <p className="text-[13px] text-xai-mute">{t("subtitle")}</p>
@@ -298,7 +298,7 @@ const TemplatesPage = () => {
                 <div className="flex flex-col">
                   <div className="flex flex-col gap-1.5 border-b border-xai-hairline px-5 py-4">
                     <p className="xai-eyebrow text-[10px]">TEMPLATE PREVIEW</p>
-                    <DialogTitle className="text-[18px] font-medium text-white">
+                    <DialogTitle className="text-[18px] font-medium text-xai-text">
                       {t(`${activePreviewTemplate.nameKey}.name`)}
                     </DialogTitle>
                   </div>
@@ -333,7 +333,7 @@ const TemplatesPage = () => {
                   </div>
                   <div className="flex justify-center border-t border-xai-hairline p-4">
                     <Button
-                      className="h-10 w-full rounded-full bg-white text-[13px] font-medium text-xai-canvas hover:bg-white/90"
+                      className="h-10 w-full rounded-full bg-xai-text text-[13px] font-medium text-xai-canvas hover:bg-xai-text/90"
                       onClick={() => {
                         const templateId = activePreviewTemplate.id;
                         setPreviewTemplateId(null);

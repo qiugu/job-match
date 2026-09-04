@@ -116,13 +116,13 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                 size={26}
               />
               {open && (
-                <span className="truncate text-[15px] font-medium tracking-tight text-white">
+                <span className="truncate text-[15px] font-medium tracking-tight text-xai-text">
                   {t("sidebar.appName")}
                 </span>
               )}
             </div>
             {open && (
-              <SidebarTrigger className="size-7 shrink-0 text-xai-eyebrow transition-colors hover:text-white" />
+              <SidebarTrigger className="size-7 shrink-0 text-xai-eyebrow transition-colors hover:text-xai-text" />
             )}
           </SidebarHeader>
 
@@ -149,8 +149,8 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                                 className={cn(
                                   "h-10 w-full rounded-full px-3.5 transition-colors duration-150",
                                   active
-                                    ? "bg-white text-xai-canvas hover:bg-white hover:text-xai-canvas"
-                                    : "text-xai-mute hover:bg-xai-surface-2 hover:text-white"
+                                    ? "bg-xai-text text-xai-canvas hover:bg-xai-text hover:text-xai-canvas"
+                                    : "text-xai-mute hover:bg-xai-surface-2 hover:text-xai-text"
                                 )}
                               >
                                 <div
@@ -181,8 +181,8 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                                       className={cn(
                                         "cursor-pointer rounded-full px-3 py-2 text-[13px] transition-colors",
                                         pathname === subItem.href
-                                          ? "bg-xai-surface-2 font-medium text-white"
-                                          : "text-xai-mute hover:text-white"
+                                          ? "bg-xai-surface-2 font-medium text-xai-text"
+                                          : "text-xai-mute hover:text-xai-text"
                                       )}
                                       onClick={() => router.push(subItem.href)}
                                     >
@@ -209,7 +209,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
 
           <SidebarFooter className="border-t border-xai-hairline-soft p-0">
             <div className="flex h-[62px] items-center gap-2.5 px-5">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-xai-hairline bg-xai-surface-2 text-[13px] font-medium text-white">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-xai-hairline bg-xai-surface-2 text-[13px] font-medium text-xai-text">
                 {displayName?.[0]?.toUpperCase() || "U"}
               </div>
               {open && (
@@ -229,7 +229,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                     type="button"
                     onClick={handleLogout}
                     aria-label={tAuth("auth.logout")}
-                    className="shrink-0 text-xai-eyebrow transition-colors hover:text-white"
+                    className="shrink-0 text-xai-eyebrow transition-colors hover:text-xai-text"
                   >
                     <IconLogout size={18} />
                   </button>

@@ -85,24 +85,24 @@ function ScoreRing({ pct, size = 132 }: { pct: number; size?: number }) {
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="#26282E"
           strokeWidth={stroke}
+          style={{ stroke: "var(--xai-hairline)" }}
         />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="#6FD79E"
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={offset}
           className="transition-[stroke-dashoffset] duration-700 ease-out"
+          style={{ stroke: "var(--xai-success)" }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-mono text-[28px] leading-none text-white">
+        <span className="font-mono text-[28px] leading-none text-xai-text">
           {clamped}%
         </span>
       </div>
@@ -654,7 +654,7 @@ export default function JobMatchPage() {
                       return (
                         <div className="mb-4 flex flex-wrap items-center gap-x-8 gap-y-4 rounded-[10px] border border-border bg-card px-6 py-4">
                           <div className="shrink-0">
-                            <div className="font-mono text-[24px] leading-none text-white">
+                            <div className="font-mono text-[24px] leading-none text-xai-text">
                               {scorePct ?? "—"}
                               {scorePct !== null && <span className="text-sm">%</span>}
                             </div>
@@ -664,7 +664,7 @@ export default function JobMatchPage() {
                           </div>
                           <div className="h-9 w-px shrink-0 bg-border" />
                           <div className="shrink-0">
-                            <div className="font-mono text-[24px] leading-none text-[#7BE0A5]">
+                            <div className="font-mono text-[24px] leading-none text-xai-add">
                               {kwHit}/{kwTotal}
                             </div>
                             <div className="mt-1.5 text-[11px] text-muted-foreground">
@@ -673,7 +673,7 @@ export default function JobMatchPage() {
                           </div>
                           <div className="h-9 w-px shrink-0 bg-border" />
                           <div className="shrink-0">
-                            <div className="text-[20px] font-medium leading-none text-white">
+                            <div className="text-[20px] font-medium leading-none text-xai-text">
                               {reqs.length} 项
                             </div>
                             <div className="mt-1.5 text-[11px] text-muted-foreground">
@@ -977,7 +977,7 @@ export default function JobMatchPage() {
                                     </h3>
                                     <button
                                       type="button"
-                                      className="inline-flex h-7 items-center gap-1 rounded-full border border-border px-3 text-xs text-muted-foreground transition-colors hover:border-[#3d4048] hover:text-white"
+                                      className="inline-flex h-7 items-center gap-1 rounded-full border border-border px-3 text-xs text-muted-foreground transition-colors hover:border-xai-hairline-strong hover:text-xai-text"
                                       onClick={async () => {
                                         try {
                                           await navigator.clipboard.writeText(letter);

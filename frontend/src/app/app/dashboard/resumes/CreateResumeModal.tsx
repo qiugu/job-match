@@ -46,10 +46,10 @@ const NORMAL_TEMPLATES: NormalTemplate[] = MARKDOWN_TEMPLATES.map((template) => 
 
 const BlankTemplateThumbnail = ({ t }: { t: Translator }) => (
     <div className="flex h-full w-full flex-col items-center justify-center bg-xai-surface-2">
-        <div className="mb-6 flex size-20 items-center justify-center rounded-full border border-xai-hairline bg-xai-surface text-xai-mute transition-colors group-hover:text-white">
+        <div className="mb-6 flex size-20 items-center justify-center rounded-full border border-xai-hairline bg-xai-surface text-xai-mute transition-colors group-hover:text-xai-text">
             <IconPlus size={32} />
         </div>
-        <span className="text-[17px] font-medium text-xai-text-mid transition-colors group-hover:text-white">
+        <span className="text-[17px] font-medium text-xai-text-mid transition-colors group-hover:text-xai-text">
             {t("dashboard.resumes.createDialog.blankTitle")}
         </span>
         <p className="mt-2.5 px-8 text-center text-[12px] leading-relaxed text-xai-mute">
@@ -194,7 +194,7 @@ export const CreateResumeModal = ({
                     <div className="z-10 flex flex-none items-center justify-between border-b border-xai-hairline px-7 py-5">
                         <div className="flex flex-col gap-1.5">
                             <p className="xai-eyebrow">NEW RESUME</p>
-                            <div className="text-[22px] font-medium tracking-tight text-white">
+                            <div className="text-[22px] font-medium tracking-tight text-xai-text">
                                 {t("dashboard.resumes.createDialog.title")}
                             </div>
                         </div>
@@ -203,7 +203,7 @@ export const CreateResumeModal = ({
                             onClick={() => onOpenChange(false)}
                             disabled={isImporting}
                             aria-label={t("common.cancel")}
-                            className="-mr-1.5 rounded-full p-2 text-xai-mute transition-colors hover:bg-xai-surface-2 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                            className="-mr-1.5 rounded-full p-2 text-xai-mute transition-colors hover:bg-xai-surface-2 hover:text-xai-text disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <IconX size={20} />
                         </button>
@@ -244,14 +244,14 @@ export const CreateResumeModal = ({
                                             {/* Small visual icon area */}
                                             <motion.div
                                                 layoutId={`card-image-blank`}
-                                                className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-[10px] border border-xai-hairline bg-xai-surface text-xai-mute transition-colors group-hover:text-white"
+                                                className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-[10px] border border-xai-hairline bg-xai-surface text-xai-mute transition-colors group-hover:text-xai-text"
                                             >
                                                 <IconPlus size={26} />
                                             </motion.div>
 
                                             <div className="flex-1 text-center sm:text-left">
                                                 <motion.div layoutId={`card-title-blank`} className="inline-block">
-                                                    <h5 className="mb-1.5 text-[16px] font-medium text-white">
+                                                    <h5 className="mb-1.5 text-[16px] font-medium text-xai-text">
                                                         {t("dashboard.resumes.createDialog.blankTitle")}
                                                     </h5>
                                                 </motion.div>
@@ -289,7 +289,7 @@ export const CreateResumeModal = ({
                                             </div>
 
                                             <div className="flex-1 text-center sm:text-left">
-                                                <h5 className="mb-1.5 text-[16px] font-medium text-white">
+                                                <h5 className="mb-1.5 text-[16px] font-medium text-xai-text">
                                                     {t("dashboard.resumes.createDialog.importTitle")}
                                                 </h5>
                                                 <p className="max-w-lg text-[12.5px] leading-relaxed text-xai-mute">
@@ -335,7 +335,7 @@ export const CreateResumeModal = ({
                                                     {/* The Thumbnail Card */}
                                                     <motion.div
                                                         layoutId={`card-image-${template.id}`}
-                                                        className="relative aspect-[210/297] overflow-hidden rounded-[10px] border border-xai-hairline bg-white shadow-none transition-colors duration-300 group-hover:border-white/60"
+                                                        className="relative aspect-[210/297] overflow-hidden rounded-[10px] border border-xai-hairline bg-white shadow-none transition-colors duration-300 group-hover:border-xai-text/60"
                                                     >
                                                         <TemplateCardThumbnail
                                                             template={template}
@@ -350,7 +350,7 @@ export const CreateResumeModal = ({
                                                         layoutId={`card-title-${template.id}`}
                                                         className="mt-4 flex items-center justify-center"
                                                     >
-                                                        <span className="text-[13px] font-medium text-xai-mute transition-colors group-hover:text-white">
+                                                        <span className="text-[13px] font-medium text-xai-mute transition-colors group-hover:text-xai-text">
                                                             {templateName}
                                                         </span>
                                                     </motion.div>
@@ -379,7 +379,7 @@ export const CreateResumeModal = ({
                                         <button
                                             type="button"
                                             onClick={() => setPreviewTarget(null)}
-                                            className="rounded-full p-2 text-xai-mute transition-colors hover:bg-xai-surface-2 hover:text-white"
+                                            className="rounded-full p-2 text-xai-mute transition-colors hover:bg-xai-surface-2 hover:text-xai-text"
                                             aria-label={t("dashboard.resumes.createDialog.backToGrid")}
                                         >
                                             <IconChevronRight size={20} className="rotate-180" />
@@ -416,7 +416,7 @@ export const CreateResumeModal = ({
                                             layoutId={`card-title-${previewTarget.id || 'blank'}`}
                                             className="inline-block"
                                         >
-                                            <h3 className="mb-4 text-[30px] font-medium tracking-tight text-white">
+                                            <h3 className="mb-4 text-[30px] font-medium tracking-tight text-xai-text">
                                                 {previewTarget.isBlank
                                                     ? t("dashboard.resumes.createDialog.blankTitle")
                                                     : t(`dashboard.templates.${previewTarget.nameKey}.name`)}

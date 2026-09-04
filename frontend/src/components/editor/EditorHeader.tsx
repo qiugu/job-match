@@ -195,7 +195,7 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
               onBlur={(e) => {
                 updateResumeTitle(e.target.value || "未命名简历");
               }}
-              className="h-9 w-56 rounded-full border-border bg-transparent px-4 pr-9 text-sm shadow-none transition-colors placeholder:text-muted-foreground/60 hover:border-[#3d4048] focus-visible:border-border focus-visible:ring-1 focus-visible:ring-ring font-medium text-foreground/90 hover:text-foreground"
+              className="h-9 w-56 rounded-full border-border bg-transparent px-4 pr-9 text-sm shadow-none transition-colors placeholder:text-muted-foreground/60 hover:border-xai-hairline-strong focus-visible:border-border focus-visible:ring-1 focus-visible:ring-ring font-medium text-foreground/90 hover:text-foreground"
               placeholder="简历名称"
             />
             <Edit2 className="w-3.5 h-3.5 absolute right-3.5 text-muted-foreground/40 pointer-events-none transition-colors group-hover:text-muted-foreground/80" />
@@ -314,7 +314,7 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-4 text-[13px] font-medium text-[#0A0A0A] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-xai-text px-4 text-[13px] font-medium text-xai-canvas transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                   onClick={handleSaveMatch}
                   disabled={savingMatch || !isDirty}
                 >
@@ -335,7 +335,7 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
             <PdfExport>
               <button
                 type="button"
-                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#292B33] px-4 text-[13px] text-[#E7E9EC] transition-colors hover:border-[#3d4048] hover:text-white"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-xai-hairline px-4 text-[13px] text-xai-text-mid transition-colors hover:border-xai-hairline-strong hover:text-xai-text"
               >
                 <Download className="h-4 w-4" />
                 {t("pdfExport.button.export")}

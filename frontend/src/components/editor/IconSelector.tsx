@@ -555,7 +555,7 @@ const IconSelector: React.FC<IconSelectorProps> = ({ value, onChange }) => {
                 className={cn(
                   "relative p-2 h-10  group",
                   "hover:bg-muted text-muted-foreground hover:text-foreground",
-                  value === iconValue && "bg-primary text-white  "
+                  value === iconValue && "bg-primary text-primary-foreground"
                 )}
               >
                 <Icon className={cn("w-4 h-4")} />

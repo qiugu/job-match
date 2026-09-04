@@ -59,11 +59,13 @@
     --xai-font-sans: Inter, "Noto Sans SC", system-ui, sans-serif;
     --xai-font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
 
+    /* dark（默认）：作用域 .theme-xai 默认即深色 */
     --xai-canvas: #0a0a0a;
     --xai-surface: #131418;
     --xai-surface-2: #1a1c21;
     --xai-hairline: #292b33;
     --xai-hairline-soft: #1f2126;
+    --xai-hairline-strong: #3d4048;
     --xai-text: #ffffff;
     --xai-text-mid: #e7e9ec;
     --xai-mute: #8a8f98;
@@ -206,6 +208,76 @@
 
   .theme-xai ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.24);
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     xAI light 变体：应用主题为 light 时，作用域跟随切换为浅色。
+     结构（hairline 分层 / pill 按钮 / mono eyebrow）不变，
+     仅反转中性色：近白画布 + 白卡片 + 黑 pill 主按钮。
+     ───────────────────────────────────────────────────────────── */
+  html.light .theme-xai {
+    --background: 0 0% 98%; /* #FAFAFA canvas */
+    --foreground: 0 0% 4%;
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 240 4% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 4% 10%;
+    --primary: 0 0% 4%; /* 黑 pill 主按钮 */
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 5% 96%; /* #F4F4F5 */
+    --secondary-foreground: 240 4% 14%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 45%; /* #71717A */
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 4% 14%;
+    --border: 240 6% 90%; /* #E4E4E7 hairline */
+    --input: 240 6% 90%;
+    --ring: 0 0% 9%;
+
+    --sidebar-background: 240 5% 97%; /* #F6F6F7 */
+    --sidebar-foreground: 240 4% 40%;
+    --sidebar-primary: 0 0% 4%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 5% 94%;
+    --sidebar-accent-foreground: 0 0% 4%;
+    --sidebar-border: 240 6% 91%;
+    --sidebar-ring: 0 0% 9%;
+
+    /* xAI 固定色板 light 映射 */
+    --xai-canvas: #fafafa;
+    --xai-surface: #ffffff;
+    --xai-surface-2: #f4f4f5;
+    --xai-hairline: #e4e4e7;
+    --xai-hairline-soft: #eeeeef;
+    --xai-hairline-strong: #cfcfd4;
+    --xai-text: #0a0a0a;
+    --xai-text-mid: #3f4249;
+    --xai-mute: #71757e;
+    --xai-eyebrow: #757a83;
+    --xai-success: #1f9d61;
+    --xai-add: #16a34a;
+    --xai-add-bg: #e8f8ee;
+    --xai-del: #dc2626;
+    --xai-del-bg: #fdeceb;
+  }
+
+  /* light 作用域下的组件类与滚动条 */
+  html.light .theme-xai .xai-pill-primary {
+    background: #0a0a0a;
+    color: #fafafa;
+  }
+
+  html.light .theme-xai .xai-pill-outline:hover {
+    border-color: var(--xai-hairline-strong);
+    color: var(--xai-text);
+  }
+
+  html.light .theme-xai ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+  }
+
+  html.light .theme-xai ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.28);
   }
 }
 

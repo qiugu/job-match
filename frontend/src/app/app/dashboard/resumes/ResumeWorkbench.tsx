@@ -216,7 +216,7 @@ export const ResumeWorkbench = () => {
                 >
                     <div className="flex flex-col gap-2.5">
                         <p className="xai-eyebrow">MY RESUMES — MARKDOWN</p>
-                        <h1 className="text-[32px] font-medium leading-none tracking-tight text-white">
+                        <h1 className="text-[32px] font-medium leading-none tracking-tight text-xai-text">
                             {t("dashboard.resumes.myResume")}
                         </h1>
                         <p className="text-[13px] text-xai-mute">
@@ -273,7 +273,7 @@ export const ResumeWorkbench = () => {
                                     >
                                         <IconPlus size={24} />
                                     </motion.div>
-                                    <CardTitle className="px-4 text-[17px] font-medium text-white">
+                                    <CardTitle className="px-4 text-[17px] font-medium text-xai-text">
                                         {t("dashboard.resumes.newResume")}
                                     </CardTitle>
                                     <CardDescription className="mt-2 px-6 text-[12px] text-xai-mute">
