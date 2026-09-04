@@ -3,7 +3,10 @@ import type { Config } from "tailwindcss";
 const { heroui } = require("@heroui/react");
 
 const config = {
-  darkMode: ["class"],
+  // dark: 变体在 html.dark 之外，还需在 .theme-xai 作用域内生效：
+  // 作用域外壳（dashboard / workbench）永远渲染深色表面，
+  // 若 light 模式下 dark: 不生效，会出现"深底深字"不可读问题。
+  darkMode: ["selector", ".dark, .theme-xai"],
   content: [
     "./pages/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",

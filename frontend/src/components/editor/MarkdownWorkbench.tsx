@@ -141,7 +141,7 @@ const MarkdownWorkbench = () => {
                   "flex items-center gap-3 px-4 py-2 text-xs font-medium border-b bg-background border-border text-muted-foreground overflow-x-auto"
                 )}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
                   <Eye className="w-3.5 h-3.5" />
                   <p className="xai-eyebrow">{t("previewTitle")}</p>
                 </div>
