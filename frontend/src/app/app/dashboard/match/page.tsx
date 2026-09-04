@@ -119,7 +119,7 @@ function stripMarkdownPreamble(md: string): string {
 }
 
 /** 品牌强调紫（与侧边栏 primary 一致的 accent，用于环形靶签名元素） */
-const BRAND_VIOLET = "260 45% 52%";
+const BRAND_VIOLET = "271 72% 47%"; /* xAI accent-dusk #7C3AED */
 
 export default function JobMatchPage() {
   const t = useTranslations("jobmatch");
@@ -456,8 +456,7 @@ export default function JobMatchPage() {
                   type="button"
                   onClick={handleCreate}
                   disabled={loading || !selected}
-                  className="group flex h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold text-primary-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{ backgroundColor: `hsl(${BRAND_VIOLET})` }}
+                  className="group flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

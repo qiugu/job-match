@@ -6,7 +6,6 @@ import {
     DialogContent,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
     MARKDOWN_TEMPLATES,
@@ -17,7 +16,12 @@ import {
 import { useResumeStore } from "@/store/useResumeStore";
 import MarkdownPreview from "@/components/preview/MarkdownPreview";
 import type { Translator } from "@/i18n/compat/utils";
-import { ChevronLeft, FilePlus, Loader2, Sparkles, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import {
+    IconChevronRight,
+    IconPlus,
+    IconX,
+} from "@/components/shared/icons/XaiIcons";
 import { PdfIcon } from "@/components/shared/icons/PdfIcon";
 import { cn } from "@/lib/utils";
 
@@ -41,14 +45,14 @@ const NORMAL_TEMPLATES: NormalTemplate[] = MARKDOWN_TEMPLATES.map((template) => 
 }));
 
 const BlankTemplateThumbnail = ({ t }: { t: Translator }) => (
-    <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800/50">
-        <div className="w-24 h-24 rounded-full bg-white dark:bg-gray-800 shadow-sm flex items-center justify-center mb-6 text-gray-400 group-hover:text-primary transition-colors">
-            <FilePlus className="w-12 h-12" />
+    <div className="flex h-full w-full flex-col items-center justify-center bg-xai-surface-2">
+        <div className="mb-6 flex size-20 items-center justify-center rounded-full border border-xai-hairline bg-xai-surface text-xai-mute transition-colors group-hover:text-white">
+            <IconPlus size={32} />
         </div>
-        <span className="text-2xl font-bold text-gray-700 dark:text-gray-200 group-hover:text-primary transition-colors">
+        <span className="text-[17px] font-medium text-xai-text-mid transition-colors group-hover:text-white">
             {t("dashboard.resumes.createDialog.blankTitle")}
         </span>
-        <p className="text-gray-500 mt-4 text-base px-8 text-center leading-relaxed">
+        <p className="mt-2.5 px-8 text-center text-[12px] leading-relaxed text-xai-mute">
             {t("dashboard.resumes.createDialog.blankThumbnailDescription")}
         </p>
     </div>
@@ -172,7 +176,7 @@ export const CreateResumeModal = ({
                 onOpenChange(nextOpen);
             }}
         >
-            <DialogContent hideClose className="max-w-[1100px] w-[95vw] h-[90vh] sm:h-[85vh] p-0 overflow-hidden bg-white/95 dark:bg-gray-950/95 backdrop-blur-2xl border-white/20 dark:border-white/10 shadow-2xl rounded-[2rem] flex flex-col">
+            <DialogContent hideClose className="flex h-[88vh] max-w-[1050px] w-[95vw] flex-col overflow-hidden rounded-2xl border border-xai-hairline bg-xai-surface p-0 shadow-none">
                 {/* We keep an empty DialogTitle to satisfy accessibility requirements without taking up space */}
                 <DialogTitle className="sr-only">{t("dashboard.resumes.createDialog.title")}</DialogTitle>
 
@@ -187,18 +191,21 @@ export const CreateResumeModal = ({
                         onChange={handlePdfFileChange}
                     />
                     {/* HEADER BAR */}
-                    <div className="flex-none px-8 py-6 flex items-center justify-between z-10">
-                        <div className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-gray-400 flex items-center">
-                            {t("dashboard.resumes.createDialog.title")}
+                    <div className="z-10 flex flex-none items-center justify-between border-b border-xai-hairline px-7 py-5">
+                        <div className="flex flex-col gap-1.5">
+                            <p className="xai-eyebrow">NEW RESUME</p>
+                            <div className="text-[22px] font-medium tracking-tight text-white">
+                                {t("dashboard.resumes.createDialog.title")}
+                            </div>
                         </div>
                         <button
                             type="button"
                             onClick={() => onOpenChange(false)}
                             disabled={isImporting}
                             aria-label={t("common.cancel")}
-                            className="p-2 -mr-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="-mr-1.5 rounded-full p-2 text-xai-mute transition-colors hover:bg-xai-surface-2 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            <X className="w-6 h-6 text-gray-400" />
+                            <IconX size={20} />
                         </button>
                     </div>
 
@@ -207,11 +214,11 @@ export const CreateResumeModal = ({
                             <div className="px-8 pb-12 max-w-7xl mx-auto space-y-12">
                                 {/* SECTION 1: CREATE ENTRY — BLANK OR IMPORT PDF */}
                                 <section>
-                                    <div className="flex items-center mb-6">
-                                        <h4 className="text-xl font-bold text-gray-900 dark:text-white">
+                                    <div className="mb-5 flex items-center">
+                                        <h4 className="font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-xai-eyebrow">
                                             {t("dashboard.resumes.createDialog.startCreate")}
                                         </h4>
-                                        <div className="h-px bg-gray-200 dark:bg-gray-800 flex-1 ml-6" />
+                                        <div className="ml-5 h-px flex-1 bg-xai-hairline" />
                                     </div>
                                     <div className={cn("grid gap-6 lg:grid-cols-2", isImporting && "pointer-events-none")}>
                                         {/* BLANK RESUME CARD */}
@@ -230,31 +237,31 @@ export const CreateResumeModal = ({
                                                 }
                                             }}
                                             className={cn(
-                                                "group cursor-pointer rounded-2xl border border-gray-200/60 dark:border-gray-800/60 shadow-sm bg-gray-50/50 dark:bg-gray-900/50 hover:bg-white dark:hover:bg-gray-900 hover:shadow-xl hover:border-primary/50 dark:hover:border-primary/50 transition-all duration-300 p-6 flex flex-col sm:flex-row items-center gap-6",
+                                                "group flex cursor-pointer flex-col items-center gap-6 rounded-[10px] border border-xai-hairline bg-xai-surface-2 p-6 transition-colors duration-200 hover:border-white/50 sm:flex-row",
                                                 isImporting && "opacity-60"
                                             )}
                                         >
                                             {/* Small visual icon area */}
                                             <motion.div
                                                 layoutId={`card-image-blank`}
-                                                className="h-24 w-24 sm:h-28 sm:w-28 flex-shrink-0 rounded-2xl bg-white dark:bg-gray-800 shadow-inner flex items-center justify-center border border-gray-100 dark:border-gray-700"
+                                                className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-[10px] border border-xai-hairline bg-xai-surface text-xai-mute transition-colors group-hover:text-white"
                                             >
-                                                <FilePlus className="w-9 h-9 text-gray-400 group-hover:text-primary transition-colors" />
+                                                <IconPlus size={26} />
                                             </motion.div>
 
                                             <div className="flex-1 text-center sm:text-left">
                                                 <motion.div layoutId={`card-title-blank`} className="inline-block">
-                                                    <h5 className="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-primary transition-colors">
+                                                    <h5 className="mb-1.5 text-[16px] font-medium text-white">
                                                         {t("dashboard.resumes.createDialog.blankTitle")}
                                                     </h5>
                                                 </motion.div>
-                                                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-lg leading-relaxed">
+                                                <p className="max-w-lg text-[12.5px] leading-relaxed text-xai-mute">
                                                     {t("dashboard.resumes.createDialog.blankCardDescription")}
                                                 </p>
                                             </div>
 
-                                            <div className="hidden sm:flex text-primary font-medium items-center text-sm duration-300">
-                                                {t("dashboard.resumes.createDialog.createNow")} <ChevronLeft className="w-4 h-4 ml-1 rotate-180" />
+                                            <div className="hidden items-center gap-1 text-[12px] text-xai-mute sm:flex">
+                                                {t("dashboard.resumes.createDialog.createNow")} <IconChevronRight size={14} />
                                             </div>
                                         </motion.div>
 
@@ -273,30 +280,30 @@ export const CreateResumeModal = ({
                                                 }
                                             }}
                                             className={cn(
-                                                "group cursor-pointer rounded-2xl border border-gray-200/60 dark:border-gray-800/60 shadow-sm bg-gray-50/50 dark:bg-gray-900/50 hover:bg-white dark:hover:bg-gray-900 hover:shadow-xl hover:border-red-500/50 dark:hover:border-red-500/50 transition-all duration-300 p-6 flex flex-col sm:flex-row items-center gap-6",
-                                                isImporting && "opacity-60 cursor-not-allowed"
+                                                "group flex cursor-pointer flex-col items-center gap-6 rounded-[10px] border border-xai-hairline bg-xai-surface-2 p-6 transition-colors duration-200 hover:border-white/50 sm:flex-row",
+                                                isImporting && "cursor-not-allowed opacity-60"
                                             )}
                                         >
-                                            <div className="h-24 w-24 sm:h-28 sm:w-28 flex-shrink-0 rounded-2xl bg-red-500/10 dark:bg-red-500/20 shadow-inner flex items-center justify-center border border-red-500/10 dark:border-red-500/20">
-                                                <PdfIcon className="w-9 h-9 text-red-600 dark:text-red-400" />
+                                            <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-[10px] border border-xai-hairline bg-xai-surface">
+                                                <PdfIcon className="h-9 w-9" />
                                             </div>
 
                                             <div className="flex-1 text-center sm:text-left">
-                                                <h5 className="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                                                <h5 className="mb-1.5 text-[16px] font-medium text-white">
                                                     {t("dashboard.resumes.createDialog.importTitle")}
                                                 </h5>
-                                                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-lg leading-relaxed">
+                                                <p className="max-w-lg text-[12.5px] leading-relaxed text-xai-mute">
                                                     {t("dashboard.resumes.createDialog.importDescription")}
                                                 </p>
                                             </div>
 
-                                            <div className="hidden sm:flex items-center text-sm font-medium whitespace-nowrap text-red-600 dark:text-red-400">
+                                            <div className="hidden items-center gap-1 whitespace-nowrap text-[12px] text-xai-mute sm:flex">
                                                 {isImporting ? (
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
                                                 ) : (
                                                     <>
                                                         {t("dashboard.resumes.createDialog.importCta")}
-                                                        <ChevronLeft className="w-4 h-4 ml-1 rotate-180" />
+                                                        <IconChevronRight size={14} />
                                                     </>
                                                 )}
                                             </div>
@@ -306,11 +313,11 @@ export const CreateResumeModal = ({
 
                                 {/* SECTION 2: NORMAL TEMPLATES */}
                                 <section>
-                                    <div className="flex items-center mb-6">
-                                        <h4 className="text-xl font-bold text-gray-900 dark:text-white">
+                                    <div className="mb-5 flex items-center">
+                                        <h4 className="font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-xai-eyebrow">
                                             {t("dashboard.resumes.createDialog.startFromTemplate")}
                                         </h4>
-                                        <div className="h-px bg-gray-200 dark:bg-gray-800 flex-1 ml-6" />
+                                        <div className="ml-5 h-px flex-1 bg-xai-hairline" />
                                     </div>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 sm:gap-8 hover:!shadow-none">
                                         {NORMAL_TEMPLATES.map((template) => {
@@ -328,14 +335,14 @@ export const CreateResumeModal = ({
                                                     {/* The Thumbnail Card */}
                                                     <motion.div
                                                         layoutId={`card-image-${template.id}`}
-                                                        className="aspect-[210/297] rounded-2xl overflow-hidden border border-gray-200/60 dark:border-gray-800/60 shadow-sm transition-all duration-300 group-hover:shadow-xl group-hover:border-primary/50 dark:group-hover:border-primary/50 bg-white dark:bg-gray-900 relative"
+                                                        className="relative aspect-[210/297] overflow-hidden rounded-[10px] border border-xai-hairline bg-white shadow-none transition-colors duration-300 group-hover:border-white/60"
                                                     >
                                                         <TemplateCardThumbnail
                                                             template={template}
                                                             t={t}
                                                         />
-                                                        <div className="absolute inset-0 ring-1 ring-inset ring-black/5 dark:ring-white/5 rounded-2xl pointer-events-none" />
-                                                        <div className="absolute inset-0 bg-gradient-to-t from-gray-900/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                                        <div className="pointer-events-none absolute inset-0 rounded-[10px] ring-1 ring-inset ring-black/10" />
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                                                     </motion.div>
 
                                                     {/* Minimalist Title below */}
@@ -343,7 +350,7 @@ export const CreateResumeModal = ({
                                                         layoutId={`card-title-${template.id}`}
                                                         className="mt-4 flex items-center justify-center"
                                                     >
-                                                        <span className="text-[15px] font-semibold text-gray-700 dark:text-gray-200 group-hover:text-primary transition-colors">
+                                                        <span className="text-[13px] font-medium text-xai-mute transition-colors group-hover:text-white">
                                                             {templateName}
                                                         </span>
                                                     </motion.div>
@@ -364,18 +371,18 @@ export const CreateResumeModal = ({
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                                className="fixed inset-0 z-50 bg-white dark:bg-gray-950 flex flex-col sm:flex-row overflow-hidden rounded-[2rem]"
+                                className="fixed inset-0 z-50 flex flex-col overflow-hidden rounded-2xl bg-xai-canvas sm:flex-row"
                             >
                                 {/* Left: Huge Preview Area */}
-                                <div className="flex-1 relative bg-gray-50 dark:bg-gray-900/50 flex flex-col items-center justify-center p-8 sm:p-12 h-full overflow-hidden">
-                                    <div className="p-6 flex justify-start w-full absolute top-0 left-0 z-20">
+                                <div className="relative flex h-full flex-1 flex-col items-center justify-center overflow-hidden bg-xai-canvas p-8 sm:p-12">
+                                    <div className="absolute left-0 top-0 z-20 flex w-full justify-start p-6">
                                         <button
                                             type="button"
                                             onClick={() => setPreviewTarget(null)}
-                                            className="rounded-full p-2 hover:bg-white/80 dark:hover:bg-gray-800/80 transition-colors"
+                                            className="rounded-full p-2 text-xai-mute transition-colors hover:bg-xai-surface-2 hover:text-white"
                                             aria-label={t("dashboard.resumes.createDialog.backToGrid")}
                                         >
-                                            <ChevronLeft className="w-5 h-5 text-gray-500 hover:text-primary dark:text-gray-400" />
+                                            <IconChevronRight size={20} className="rotate-180" />
                                         </button>
                                     </div>
 
@@ -385,7 +392,7 @@ export const CreateResumeModal = ({
                                     >
                                         <motion.div
                                             layoutId={`card-image-${previewTarget.id || 'blank'}`}
-                                            className="aspect-[210/297] rounded-xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-black/40 ring-1 ring-black/5 dark:ring-white/10 bg-white"
+                                            className="aspect-[210/297] overflow-hidden rounded-[10px] bg-white ring-1 ring-black/10"
                                             style={{
                                                 maxHeight: "100%",
                                                 maxWidth: "100%",
@@ -403,37 +410,34 @@ export const CreateResumeModal = ({
                                 </div>
 
                                 {/* Right: Info Sidebar */}
-                                <div className="w-full sm:w-[400px] bg-white dark:bg-gray-950 border-l border-gray-100 dark:border-gray-800 flex flex-col h-full shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.05)] relative z-10">
-                                    <div className="flex-1 p-10 flex flex-col justify-center">
+                                <div className="relative z-10 flex h-full w-full flex-col border-l border-xai-hairline bg-xai-surface sm:w-[380px]">
+                                    <div className="flex flex-1 flex-col justify-center p-10">
                                         <motion.div
                                             layoutId={`card-title-${previewTarget.id || 'blank'}`}
                                             className="inline-block"
                                         >
-                                            <h3 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white mb-4">
+                                            <h3 className="mb-4 text-[30px] font-medium tracking-tight text-white">
                                                 {previewTarget.isBlank
                                                     ? t("dashboard.resumes.createDialog.blankTitle")
                                                     : t(`dashboard.templates.${previewTarget.nameKey}.name`)}
                                             </h3>
                                         </motion.div>
 
-                                        <div className="w-12 h-1.5 bg-primary rounded-full mb-6" />
+                                        <div className="mb-6 h-px w-12 bg-xai-hairline" />
 
-                                        <p className="text-gray-600 dark:text-gray-400 text-lg leading-relaxed mb-10 font-medium">
+                                        <p className="mb-10 text-[14px] leading-relaxed text-xai-mute">
                                             {previewTarget.isBlank
                                                 ? t("dashboard.resumes.createDialog.blankPreviewDescription")
                                                 : t(`dashboard.templates.${previewTarget.nameKey}.description`)}
                                         </p>
 
-                                        <div className="space-y-4">
-                                            <Button
-                                                size="lg"
-                                                className="w-full h-14 text-lg font-bold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                                                onClick={() => handleCreate(previewTarget)}
-                                            >
-                                                {t("dashboard.resumes.createDialog.useThisTemplate")}
-                                                <Sparkles className="w-5 h-5 ml-2 opacity-70" />
-                                            </Button>
-                                        </div>
+                                        <button
+                                            type="button"
+                                            className="xai-pill-primary w-full"
+                                            onClick={() => handleCreate(previewTarget)}
+                                        >
+                                            {t("dashboard.resumes.createDialog.useThisTemplate")}
+                                        </button>
                                     </div>
                                 </div>
                             </motion.div>

@@ -134,7 +134,7 @@ const MarkdownWorkbench = () => {
             order={2}
             defaultSize={50}
             minSize={30}
-            className="bg-gray-100 min-h-0"
+            className="bg-muted min-h-0"
           >
             <div className="h-full min-h-0 flex flex-col">
               <div

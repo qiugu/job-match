@@ -87,13 +87,12 @@ const TemplateCardItem = ({
     >
       <Card
         className={cn(
-          "group border transition-all duration-200 aspect-[210/297] flex flex-col overflow-hidden",
-          "hover:border-primary/40 hover:shadow-lg",
-          "dark:hover:border-primary/40"
+          "group flex flex-col overflow-hidden rounded-[10px] border border-xai-hairline bg-xai-surface p-2.5 shadow-none transition-colors duration-200",
+          "hover:border-white/60"
         )}
       >
         <CardContent
-          className="p-0 flex-1 relative bg-gray-50 dark:bg-gray-900 overflow-hidden cursor-pointer"
+          className="relative aspect-[210/297] cursor-pointer overflow-hidden rounded-[6px] bg-white p-0"
           onClick={onPreview}
         >
           <div
@@ -119,20 +118,19 @@ const TemplateCardItem = ({
             </div>
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 top-[60%] pointer-events-none bg-gradient-to-t from-white via-white/90 to-transparent dark:from-gray-950 dark:via-gray-950/90 z-0" />
-          <div className="absolute inset-x-0 bottom-0 pt-12 pb-3 px-4 flex items-end border-t border-transparent z-10 transition-colors group-hover:bg-white/50 dark:group-hover:bg-gray-950/50">
-            <div className="flex flex-col w-full">
-              <span className="text-[15px] font-semibold truncate text-gray-900 dark:text-gray-100 drop-shadow-sm">
-                {templateName}
-              </span>
-              <span className="text-[11px] text-gray-600 dark:text-gray-300 mt-0.5 font-medium truncate">
-                {templateDescription}
-              </span>
-            </div>
-          </div>
         </CardContent>
 
-        <CardFooter className="pt-2 pb-2 px-2 bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800 z-10">
+        {/* 模板名与说明放在白纸之外，深色卡壳上一目了然 */}
+        <div className="flex flex-col gap-1 px-1.5 pb-1 pt-3">
+          <span className="truncate text-[14px] font-medium text-white">
+            {templateName}
+          </span>
+          <span className="truncate text-[11px] text-xai-mute">
+            {templateDescription}
+          </span>
+        </div>
+
+        <CardFooter className="z-10 px-1.5 pb-1 pt-3">
           <div className="grid grid-cols-2 gap-2 w-full">
             <motion.div
               whileHover={{ scale: 1.05 }}
@@ -141,7 +139,7 @@ const TemplateCardItem = ({
             >
               <Button
                 variant="outline"
-                className="w-full text-sm hover:bg-gray-100 dark:border-primary/50 dark:hover:bg-primary/10"
+                className="h-9 w-full rounded-full border-xai-hairline bg-transparent text-[12.5px] text-xai-text-mid hover:border-[#3d4048] hover:bg-xai-surface-2 hover:text-white"
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -158,7 +156,7 @@ const TemplateCardItem = ({
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
             >
               <Button
-                className="w-full text-sm"
+                className="h-9 w-full rounded-full bg-white text-[12.5px] font-medium text-xai-canvas hover:bg-white/90"
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -217,12 +215,25 @@ const TemplatesPage = () => {
 
   return (
     <ScrollArea className="h-[calc(100vh-2rem)] w-full">
-      <div className="w-full max-w-[1600px] mx-auto py-8 px-4 sm:px-6">
+      <div className="mx-auto w-full max-w-[1600px] px-6 py-9">
         <div className="flex flex-col space-y-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h2 className="text-3xl font-bold tracking-tight">{t("title")}</h2>
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex flex-col gap-2.5">
+              <p className="xai-eyebrow">RESUME TEMPLATES — MARKDOWN</p>
+              <h2 className="text-[32px] font-medium leading-none tracking-tight text-white">
+                {t("title")}
+              </h2>
+              <p className="text-[13px] text-xai-mute">{t("subtitle")}</p>
+            </div>
 
-            <div className="flex items-center space-x-2 bg-gray-50/50 dark:bg-gray-900/50 p-2 rounded-full border border-gray-100 dark:border-gray-800 backdrop-blur-sm self-start sm:self-auto overflow-x-auto">
+            <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+              <div className="flex items-center rounded-full border border-xai-hairline bg-xai-surface px-4 py-3">
+                <span className="xai-eyebrow text-[10px]">
+                  {String(MARKDOWN_TEMPLATES.length).padStart(2, "0")} TEMPLATES
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 rounded-full border border-xai-hairline bg-xai-surface px-3 py-2.5">
               {COLOR_CYCLE.map((color, index) => {
                 const isFollowTemplate = color === FOLLOW_TEMPLATE_COLOR;
                 return (
@@ -231,9 +242,9 @@ const TemplatesPage = () => {
                     type="button"
                     onClick={() => handleColorSelect(color)}
                     className={cn(
-                      "relative w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform hover:scale-110",
+                      "relative flex size-8 shrink-0 items-center justify-center rounded-full transition-transform hover:scale-110",
                       selectedColor === color
-                        ? "ring-2 ring-primary ring-offset-2 dark:ring-offset-gray-950 scale-110"
+                        ? "scale-110 ring-2 ring-white ring-offset-2 ring-offset-xai-surface"
                         : ""
                     )}
                     title={
@@ -241,24 +252,25 @@ const TemplatesPage = () => {
                     }
                   >
                     {isFollowTemplate ? (
-                      <div className="w-full h-full rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 border border-gray-300 dark:border-gray-700 shadow-sm flex items-center justify-center">
-                        <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium tracking-tighter">
+                      <div className="flex h-full w-full items-center justify-center rounded-full border border-xai-hairline bg-xai-surface-2">
+                        <span className="font-mono text-[9px] uppercase tracking-tighter text-xai-mute">
                           Tpl
                         </span>
                       </div>
                     ) : (
                       <div
-                        className="w-full h-full rounded-full border border-black/10 dark:border-white/10 shadow-sm"
+                        className="h-full w-full rounded-full border border-white/15"
                         style={{ backgroundColor: color }}
                       />
                     )}
                   </button>
                 );
               })}
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 gap-5 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {MARKDOWN_TEMPLATES.map((template, index) => (
               <TemplateCardItem
                 key={template.id}
@@ -282,16 +294,17 @@ const TemplatesPage = () => {
             }}
           >
             {activePreviewTemplate && (
-              <DialogContent className="max-w-[680px] p-0 overflow-hidden border-0 shadow-lg rounded-xl bg-white dark:bg-gray-900">
+              <DialogContent className="max-w-[680px] overflow-hidden rounded-2xl border border-xai-hairline bg-xai-surface p-0 shadow-none">
                 <div className="flex flex-col">
-                  <div className="border-b border-gray-100 dark:border-gray-800 px-4 py-4">
-                    <DialogTitle className="text-lg font-medium">
+                  <div className="flex flex-col gap-1.5 border-b border-xai-hairline px-5 py-4">
+                    <p className="xai-eyebrow text-[10px]">TEMPLATE PREVIEW</p>
+                    <DialogTitle className="text-[18px] font-medium text-white">
                       {t(`${activePreviewTemplate.nameKey}.name`)}
                     </DialogTitle>
                   </div>
-                  <div className="overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-gray-950 py-8 pointer-events-none">
+                  <div className="flex items-center justify-center overflow-hidden bg-xai-canvas py-8 pointer-events-none">
                     <div
-                      className="relative bg-white shadow-md ring-1 ring-gray-200/50 overflow-hidden"
+                      className="relative overflow-hidden bg-white ring-1 ring-black/10"
                       style={{ width: "420px", height: "594px" }}
                     >
                       <div
@@ -318,9 +331,9 @@ const TemplatesPage = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="p-3 pt-2 border-t border-gray-100 dark:border-gray-800 flex justify-center">
+                  <div className="flex justify-center border-t border-xai-hairline p-4">
                     <Button
-                      className="w-full"
+                      className="h-10 w-full rounded-full bg-white text-[13px] font-medium text-xai-canvas hover:bg-white/90"
                       onClick={() => {
                         const templateId = activePreviewTemplate.id;
                         setPreviewTemplateId(null);

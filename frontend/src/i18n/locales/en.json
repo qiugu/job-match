@@ -168,6 +168,8 @@
       "create": "Create Resume",
       "newResume": "New Resume",
       "newResumeDescription": "Create a new resume to get started.",
+      "uploadPdf": "Upload PDF Resume",
+      "resumesSubtitle": "Upload an existing resume, start blank, or create from a template",
       "untitled": "Untitled Resume",
       "importSuccess": "Configuration imported successfully",
       "importError": "Import failed, please check the file format",
@@ -237,6 +239,7 @@
     },
     "templates": {
       "title": "Templates",
+      "subtitle": "Pick a layout and theme color, keep tweaking in the editor",
       "useTemplate": "Use Template",
       "preview": "Preview",
       "switchTemplate": "Switch Template",

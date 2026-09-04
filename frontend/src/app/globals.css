@@ -53,6 +53,27 @@
     --sidebar-border: 48 10% 89%;
     --sidebar-ring: 260 45% 52%;
   }
+
+  /* ── xAI 具名语义色板（固定值，全局可用）───────────────────── */
+  :root {
+    --xai-font-sans: Inter, "Noto Sans SC", system-ui, sans-serif;
+    --xai-font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+
+    --xai-canvas: #0a0a0a;
+    --xai-surface: #131418;
+    --xai-surface-2: #1a1c21;
+    --xai-hairline: #292b33;
+    --xai-hairline-soft: #1f2126;
+    --xai-text: #ffffff;
+    --xai-text-mid: #e7e9ec;
+    --xai-mute: #8a8f98;
+    --xai-eyebrow: #6b727b;
+    --xai-success: #6fd79e;
+    --xai-add: #86e0ac;
+    --xai-add-bg: #0f1f17;
+    --xai-del: #f0a091;
+    --xai-del-bg: #221312;
+  }
   /* 通用滚动条样式 */
   ::-webkit-scrollbar {
     width: 8px;
@@ -123,6 +144,128 @@
     --sidebar-accent-foreground: 60 5% 90%;
     --sidebar-border: 60 5% 15%;
     --sidebar-ring: 260 60% 70%;
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     xAI 深色主题（作用域）
+     仅套用于 dashboard / workbench 外壳，首页与落地页保持原有浅色。
+     覆盖 shadcn CSS 变量后，Button / Card / Dialog / Tabs 等组件
+     自动继承新配色，无需逐个组件改写。
+     ───────────────────────────────────────────────────────────── */
+  .theme-xai {
+    --background: 0 0% 4%; /* #0A0A0A canvas */
+    --foreground: 0 0% 100%;
+    --card: 228 12% 8%; /* #131418 */
+    --card-foreground: 220 12% 95%; /* #F1F2F4 */
+    --popover: 228 12% 8%;
+    --popover-foreground: 220 12% 95%;
+    --primary: 0 0% 100%; /* 白 pill 主按钮 */
+    --primary-foreground: 0 0% 4%;
+    --secondary: 223 12% 12%; /* #1A1C21 */
+    --secondary-foreground: 216 12% 92%; /* #E7E9EC */
+    --muted: 223 12% 12%;
+    --muted-foreground: 219 6% 57%; /* #8A8F98 */
+    --accent: 223 12% 12%;
+    --accent-foreground: 216 12% 92%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 228 11% 18%; /* #292B33 hairline */
+    --input: 228 11% 18%;
+    --ring: 0 0% 100%;
+    --radius: 0.5rem;
+
+    --sidebar-background: 220 11% 5%; /* #0C0D0F */
+    --sidebar-foreground: 215 9% 75%; /* #B9BEC5 */
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 0 0% 4%;
+    --sidebar-accent: 223 12% 12%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 223 10% 14%; /* #1F2126 */
+    --sidebar-ring: 0 0% 100%;
+
+    @apply bg-background text-foreground;
+    font-family: var(--xai-font-sans);
+  }
+
+  /* 作用域内标题回到正体（xAI 风格不用衬线展示字） */
+  .theme-xai h1,
+  .theme-xai h2,
+  .theme-xai h3,
+  .theme-xai h4,
+  .theme-xai h5,
+  .theme-xai h6 {
+    font-family: var(--xai-font-sans);
+    letter-spacing: -0.02em;
+  }
+
+  /* 深色作用域下的滚动条 */
+  .theme-xai ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 4px;
+  }
+
+  .theme-xai ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.24);
+  }
+}
+
+@layer components {
+  /* 等宽大写小标签 —— xAI 风格的 eyebrow */
+  .xai-eyebrow {
+    font-family: var(--xai-font-mono);
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--xai-eyebrow);
+  }
+
+  /* 统一的 hairline 卡片：无阴影，靠 1px 描边分层 */
+  .xai-card {
+    background: var(--xai-surface);
+    border: 1px solid var(--xai-hairline);
+    border-radius: 10px;
+  }
+
+  /* 主操作：白底 pill */
+  .xai-pill-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 18px;
+    border-radius: 9999px;
+    background: #ffffff;
+    color: #0a0a0a;
+    font-size: 13px;
+    font-weight: 500;
+    transition: opacity 0.15s ease;
+  }
+
+  .xai-pill-primary:hover {
+    opacity: 0.88;
+  }
+
+  /* 次操作：描边 pill */
+  .xai-pill-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 18px;
+    border-radius: 9999px;
+    border: 1px solid var(--xai-hairline);
+    background: transparent;
+    color: var(--xai-text-mid);
+    font-size: 13px;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .xai-pill-outline:hover {
+    border-color: #3d4048;
+    color: #ffffff;
   }
 }
 

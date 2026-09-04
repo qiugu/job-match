@@ -77,3 +77,12 @@
   font-style: normal;
   font-display: swap;
 }
+
+/* Geist Mono —— xAI 风格 eyebrow / 数字 / 代码专用等宽字体 */
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/GeistMonoVF.woff") format("woff");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
