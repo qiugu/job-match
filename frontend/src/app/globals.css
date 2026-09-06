@@ -360,19 +360,27 @@
     @apply font-serif;
   }
 
-  /* Reset headings in resume preview to inherit or use sans */
-  #resume-preview h1, 
-  #resume-preview h2, 
-  #resume-preview h3, 
-  #resume-preview h4, 
-  #resume-preview h5, 
-  #resume-preview h6,
+  /* Reset headings in resume preview to inherit or use sans.
+     注意：这里只能用 .resume-preview（class）作用域，绝不能加 #resume-preview（id）：
+     简历预览会把同一份内容渲染成「隐藏测量副本 + 每页显示副本」，而
+     id="resume-preview" 只存在于第一页显示副本上。任何按 id 生效的样式都会让
+     测量副本与各页显示副本的排版不一致 —— 分页切点按测量坐标计算、却要套用到
+     另一套坐标上，结果就是分页处的内容凭空消失（块被上一页挤出、下一页又接不上）。
+     id 只作为导出/打印/语法检查的 DOM 句柄，不作为样式钩子。 */
   .resume-preview h1,
   .resume-preview h2,
   .resume-preview h3,
   .resume-preview h4,
   .resume-preview h5,
-  .resume-preview h6 {
+  .resume-preview h6,
+  /* markdown 简历预览（.resume-markdown-preview）：测量副本与每一页显示副本都带这个
+     class，因此这条重置对所有副本一致生效，不会破坏分页所依赖的「测量=显示」前提。 */
+  .resume-markdown-preview h1,
+  .resume-markdown-preview h2,
+  .resume-markdown-preview h3,
+  .resume-markdown-preview h4,
+  .resume-markdown-preview h5,
+  .resume-markdown-preview h6 {
     font-family: inherit;
   }
 

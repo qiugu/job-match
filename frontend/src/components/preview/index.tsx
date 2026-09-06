@@ -229,7 +229,9 @@ const PreviewPanel = React.forwardRef<HTMLDivElement, PreviewPanelProps>(
                   }
                   : {}),
               }}
-              className="relative"
+              // 保留 resume-preview class：排版规则统一按 class 生效（#resume-preview
+              // id 只作为导出/打印的 DOM 句柄，不参与样式匹配）。
+              className="relative resume-preview"
             >
               <style jsx global>{`
               .grammar-error {

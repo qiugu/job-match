@@ -1,4 +1,5 @@
 import { getFontFaceCss, normalizeFontFamily } from "@/utils/fonts";
+import { PAGE_BREAK_CSS } from "@/utils/pageBreakCss";
 
 export const exportResumeToBrowserPrint = async (
   resumeContent: HTMLElement,
@@ -111,6 +112,11 @@ export const exportResumeToBrowserPrint = async (
               height: auto !important;
               width: 100% !important;
             }
+
+            /* 浏览器打印分页：标题/段落/列表项/引用/表格行等整块换页，避免页边界
+               切断文本行。规则与 PDF 导出共用同一份（utils/pageBreakCss.ts），
+               只按语义标签命中，不绑定具体简历版式。 */
+            ${PAGE_BREAK_CSS}
 
             ${Array.from(document.styleSheets)
               .map((sheet) => {
