@@ -4,8 +4,6 @@ import { toast } from "sonner";
 import {
   AlertCircle,
   ArrowLeft,
-  ShieldCheck,
-  ShieldAlert,
   Download,
   Edit2,
   Undo2,
@@ -28,7 +26,6 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { GrammarCheckDrawer } from "./grammar/GrammarCheckDrawer";
-import { getFileHandle, getConfig } from "@/utils/fileSystem";
 
 interface EditorHeaderProps {
   isMobile?: boolean;
@@ -50,23 +47,6 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
   const t = useTranslations();
   const undoLabel = t("richEditor.undo");
   const redoLabel = t("richEditor.redo");
-
-  const [backupConfigured, setBackupConfigured] = useState<boolean | null>(null);
-  const [backupPath, setBackupPath] = useState<string>("");
-
-  useEffect(() => {
-    const checkBackup = async () => {
-      try {
-        const handle = await getFileHandle("syncDirectory");
-        const path = await getConfig("syncDirectoryPath");
-        setBackupConfigured(!!handle);
-        setBackupPath(path || "");
-      } catch {
-        setBackupConfigured(false);
-      }
-    };
-    checkBackup();
-  }, []);
 
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null) => {
@@ -200,62 +180,6 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
             />
             <Edit2 className="w-3.5 h-3.5 absolute right-3.5 text-muted-foreground/40 pointer-events-none transition-colors group-hover:text-muted-foreground/80" />
           </div>
-
-          {/* Backup Status Badge */}
-          {backupConfigured !== null && (
-            <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <motion.div
-                    className={`
-                      hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md cursor-pointer
-                      text-xs font-medium transition-colors ml-2
-                      ${backupConfigured
-                        ? "text-emerald-600/80 hover:bg-emerald-100/50 dark:text-emerald-500/80 dark:hover:bg-emerald-900/30"
-                        : "text-amber-600/80 hover:bg-amber-100/50 dark:text-amber-500/80 dark:hover:bg-amber-900/30"
-                      }
-                    `}
-                    initial={{ opacity: 0, x: -5 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3, duration: 0.3 }}
-                    onClick={() => router.push("/app/dashboard/settings")}
-                  >
-                    {backupConfigured ? (
-                      <>
-                        <ShieldCheck className="w-4 h-4" />
-                        <span>{t("previewDock.backup.configured")}</span>
-                      </>
-                    ) : (
-                      <>
-                        <motion.div
-                          animate={{ scale: [1, 1.15, 1] }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                          className="relative"
-                        >
-                          <ShieldAlert className="w-4 h-4" />
-                          <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500" />
-                        </motion.div>
-                        <span>{t("previewDock.backup.notConfigured")}</span>
-                      </>
-                    )}
-                  </motion.div>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" sideOffset={8} className="max-w-[240px]">
-                  {backupConfigured ? (
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-xs font-medium">{t("previewDock.backup.configured")}</span>
-                      <span className="text-[10px] text-muted-foreground truncate">{backupPath}</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-xs font-medium">{t("previewDock.backup.notConfigured")}</span>
-                      <span className="text-[10px] text-muted-foreground">{t("previewDock.backup.clickToConfigure")}</span>
-                    </div>
-                  )}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
         </div>
 
         <div className="flex items-center flex-wrap gap-x-3 gap-y-2">
