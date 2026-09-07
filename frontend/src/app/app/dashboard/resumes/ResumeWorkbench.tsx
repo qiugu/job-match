@@ -18,8 +18,6 @@ import {
     MARKDOWN_TEMPLATES,
     getMarkdownTemplateContent,
 } from "@/config";
-import { blankResumeState, blankResumeStateEn } from "@/config/initialResumeData";
-import type { ResumeData } from "@/types/resume";
 import { uploadMasterResume } from "@/lib/jobmatch";
 import { CreateResumeModal } from "./CreateResumeModal";
 import { ResumeCardItem } from "./ResumeCardItem";
@@ -138,9 +136,8 @@ export const ResumeWorkbench = () => {
         // 后端用 pypdf/pymupdf 重建层级 Markdown 骨架（无 LLM），直接写入
         // master_resumes 并返回真实记录 id 与 markdownContent。前端以 blank
         // 简历为基底、把 markdownContent 写入编辑器，得到可编辑的 markdown 简历。
-        let summary;
         try {
-            summary = await uploadMasterResume(file);
+            await uploadMasterResume(file);
         } catch (err) {
             // 标题（文件名）重复时后端返回 409，必须让用户看见：否则本地无简历、
             // 数据库已有同名记录，重新进入列表会被后端数据覆盖掉。
@@ -150,30 +147,13 @@ export const ResumeWorkbench = () => {
             return;
         }
 
-        const base = locale === "en" ? blankResumeStateEn : blankResumeState;
-        const resume: ResumeData = {
-            ...base,
-            id: summary.id,
-            title: summary.title,
-            markdownContent: summary.markdownContent || "",
-            // 后端从 PDF 版式反推的 globalSettings：还原原文件字号/间距/版式，
-            // 避免一律套默认 16px 导致字体大小、标题层级视觉偏差。
-            globalSettings: (summary.globalSettings as ResumeData["globalSettings"]) ?? base.globalSettings,
-            templateId: summary.templateId ?? null,
-            createdAt: summary.createdAt,
-            updatedAt: summary.updatedAt,
-            // blankResumeState 缺这两个 ResumeData 必填字段，导入时补齐
-            // （对应「在编辑器打开需补齐 templateId/draggingProjectId」约定）。
-            activeSection: base.menuSections[0]?.id ?? "",
-            draggingProjectId: null,
-        };
-        // 用后端真实 id 作为本地缓存 key，避免编辑器 GET
-        // /api/master-resumes/{临时uuid} -> 404 导致空白（历史坑）。
-        addResume(resume);
-        setActiveResume(summary.id);
+        // 上传成功后回到列表页（而非自动进入编辑器）：关闭弹框并从后端
+        // 重新拉取「我的简历」列表，确保新导入的简历及时出现在列表中。
         setIsCreateModalOpen(false);
         toast.success(t("dashboard.resumes.importDialog.pdfSuccess"));
-        router.push({ to: "/app/workbench/$id", params: { id: summary.id } });
+        loadResumesFromBackend().catch((err: unknown) =>
+            console.error("从后端刷新简历列表失败:", err)
+        );
     };
 
     const handleImportFile = async (file: File) => {
