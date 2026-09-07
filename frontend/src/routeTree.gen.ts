@@ -19,7 +19,6 @@ import { Route as AppDashboardRouteImport } from './routes/app/dashboard'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
 import { Route as AppDashboardMatchRouteImport } from './routes/app/dashboard/match'
 import { Route as AppDashboardResumesRouteImport } from './routes/app/dashboard/resumes'
-import { Route as AppDashboardSettingsRouteImport } from './routes/app/dashboard/settings'
 import { Route as AppDashboardTemplatesRouteImport } from './routes/app/dashboard/templates'
 import { Route as AppPreviewTemplateIdRouteImport } from './routes/app/preview-template/$id'
 import { Route as AppWorkbenchIdRouteImport } from './routes/app/workbench/$id'
@@ -74,11 +73,6 @@ const AppDashboardResumesRoute = AppDashboardResumesRouteImport.update({
   path: '/resumes',
   getParentRoute: () => AppDashboardRoute,
 } as any)
-const AppDashboardSettingsRoute = AppDashboardSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppDashboardRoute,
-} as any)
 const AppDashboardTemplatesRoute = AppDashboardTemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
@@ -105,7 +99,6 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppIndexRoute
   '/app/dashboard/match': typeof AppDashboardMatchRoute
   '/app/dashboard/resumes': typeof AppDashboardResumesRoute
-  '/app/dashboard/settings': typeof AppDashboardSettingsRoute
   '/app/dashboard/templates': typeof AppDashboardTemplatesRoute
   '/app/preview-template/$id': typeof AppPreviewTemplateIdRoute
   '/app/workbench/$id': typeof AppWorkbenchIdRoute
@@ -119,7 +112,6 @@ export interface FileRoutesByTo {
   '/app': typeof AppIndexRoute
   '/app/dashboard/match': typeof AppDashboardMatchRoute
   '/app/dashboard/resumes': typeof AppDashboardResumesRoute
-  '/app/dashboard/settings': typeof AppDashboardSettingsRoute
   '/app/dashboard/templates': typeof AppDashboardTemplatesRoute
   '/app/preview-template/$id': typeof AppPreviewTemplateIdRoute
   '/app/workbench/$id': typeof AppWorkbenchIdRoute
@@ -136,7 +128,6 @@ export interface FileRoutesById {
   '/app/': typeof AppIndexRoute
   '/app/dashboard/match': typeof AppDashboardMatchRoute
   '/app/dashboard/resumes': typeof AppDashboardResumesRoute
-  '/app/dashboard/settings': typeof AppDashboardSettingsRoute
   '/app/dashboard/templates': typeof AppDashboardTemplatesRoute
   '/app/preview-template/$id': typeof AppPreviewTemplateIdRoute
   '/app/workbench/$id': typeof AppWorkbenchIdRoute
@@ -154,7 +145,6 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/dashboard/match'
     | '/app/dashboard/resumes'
-    | '/app/dashboard/settings'
     | '/app/dashboard/templates'
     | '/app/preview-template/$id'
     | '/app/workbench/$id'
@@ -168,7 +158,6 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/dashboard/match'
     | '/app/dashboard/resumes'
-    | '/app/dashboard/settings'
     | '/app/dashboard/templates'
     | '/app/preview-template/$id'
     | '/app/workbench/$id'
@@ -184,7 +173,6 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/dashboard/match'
     | '/app/dashboard/resumes'
-    | '/app/dashboard/settings'
     | '/app/dashboard/templates'
     | '/app/preview-template/$id'
     | '/app/workbench/$id'
@@ -271,13 +259,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardResumesRouteImport
       parentRoute: typeof AppDashboardRoute
     }
-    '/app/dashboard/settings': {
-      id: '/app/dashboard/settings'
-      path: '/settings'
-      fullPath: '/app/dashboard/settings'
-      preLoaderRoute: typeof AppDashboardSettingsRouteImport
-      parentRoute: typeof AppDashboardRoute
-    }
     '/app/dashboard/templates': {
       id: '/app/dashboard/templates'
       path: '/templates'
@@ -305,7 +286,6 @@ declare module '@tanstack/react-router' {
 interface AppDashboardRouteChildren {
   AppDashboardMatchRoute: typeof AppDashboardMatchRoute
   AppDashboardResumesRoute: typeof AppDashboardResumesRoute
-  AppDashboardSettingsRoute: typeof AppDashboardSettingsRoute
   AppDashboardTemplatesRoute: typeof AppDashboardTemplatesRoute
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
 }
@@ -313,7 +293,6 @@ interface AppDashboardRouteChildren {
 const AppDashboardRouteChildren: AppDashboardRouteChildren = {
   AppDashboardMatchRoute: AppDashboardMatchRoute,
   AppDashboardResumesRoute: AppDashboardResumesRoute,
-  AppDashboardSettingsRoute: AppDashboardSettingsRoute,
   AppDashboardTemplatesRoute: AppDashboardTemplatesRoute,
   AppDashboardIndexRoute: AppDashboardIndexRoute,
 }

@@ -59,10 +59,11 @@ const ToolbarButton = ({ onClick, active, disabled, title, children }: ToolbarBu
     onClick={onClick}
     className={cn(
       // 尺寸与基础：克制、统一，hover 给轻微浮起感而非强背景
-      "inline-flex items-center justify-center w-7 h-7 rounded-[7px]",
-      "text-neutral-500 dark:text-neutral-400",
+      // 语义 token 在 light/dark 下都正确解析（.theme-xai 作用域内变量已覆盖为深色）
+      "inline-flex items-center justify-center w-7 h-7 rounded-[7px] shrink-0",
+      "text-muted-foreground",
       "transition-[background-color,color,box-shadow] duration-150",
-      "hover:bg-neutral-200/70 dark:hover:bg-neutral-700/70 hover:text-neutral-900 dark:hover:text-neutral-100",
+      "hover:bg-muted hover:text-foreground",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
       "disabled:opacity-40 disabled:pointer-events-none",
       // 唯一用 bold 的地方：被选中 = 实色填充，让当前块类型「亮起来」
@@ -77,7 +78,7 @@ const ToolbarButton = ({ onClick, active, disabled, title, children }: ToolbarBu
 // 分组容器：把块级 / 行内 / 列表 / 对齐四类工具做成轻微浮起的圆角 chip，
 // 组间留白，使工具栏读起来像「功能分区」而非一长串散落图标。
 const ToolbarGroup = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-center gap-0.5 rounded-lg bg-neutral-200/40 dark:bg-neutral-800/40 px-1 py-1">
+  <div className="flex items-center gap-0.5 rounded-lg bg-muted/40 px-1 py-1">
     {children}
   </div>
 );

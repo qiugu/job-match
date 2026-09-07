@@ -2,8 +2,11 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations, useLocale } from "@/i18n/compat/client";
 import { useRouter } from "@/lib/navigation";
-import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import {
+    IconPlus,
+    IconUpload,
+} from "@/components/shared/icons/XaiIcons";
 import {
     Card,
     CardContent,
@@ -44,6 +47,8 @@ export const ResumeWorkbench = () => {
     const router = useRouter();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
+    // 页头「上传 PDF 简历」与新建弹窗内的 PDF 导入共用 handleImportFile
+    const pdfInputRef = React.useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const fontFamilies = Array.from(
@@ -181,26 +186,53 @@ export const ResumeWorkbench = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                className="flex-1 space-y-6 py-8"
+                className="flex-1 space-y-7 py-9"
             >
                 <motion.div
-                    className="px-4 sm:px-6 flex items-center justify-between"
+                    className="flex flex-col gap-4 px-6 sm:flex-row sm:items-end sm:justify-between"
                     initial={{ y: -20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ duration: 0.3 }}
                 >
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-                        {t("dashboard.resumes.myResume")}
-                    </h1>
+                    <div className="flex flex-col gap-2.5">
+                        <p className="xai-eyebrow">MY RESUMES — MARKDOWN</p>
+                        <h1 className="text-[32px] font-medium leading-none tracking-tight text-xai-text">
+                            {t("dashboard.resumes.myResume")}
+                        </h1>
+                        <p className="text-[13px] text-xai-mute">
+                            {t("dashboard.resumes.resumesSubtitle")}
+                        </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2.5">
+                        <button
+                            type="button"
+                            className="xai-pill-outline"
+                            disabled={isImporting}
+                            onClick={() => pdfInputRef.current?.click()}
+                        >
+                            <IconUpload size={16} />
+                            {isImporting
+                                ? t("dashboard.resumes.importDialog.importing")
+                                : t("dashboard.resumes.uploadPdf")}
+                        </button>
+                        <button
+                            type="button"
+                            className="xai-pill-primary"
+                            onClick={() => setIsCreateModalOpen(true)}
+                        >
+                            <IconPlus size={16} />
+                            {t("dashboard.resumes.newResume")}
+                        </button>
+                    </div>
                 </motion.div>
 
                 <motion.div
-                    className="flex-1 w-full p-3 sm:p-6"
+                    className="w-full flex-1 px-6"
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ duration: 0.3, delay: 0.2 }}
                 >
-                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
+                    <div className="grid grid-cols-2 gap-5 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                         <motion.div
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
@@ -209,23 +241,22 @@ export const ResumeWorkbench = () => {
                         >
                             <Card
                                 className={cn(
-                                    "relative border border-dashed cursor-pointer transition-all duration-200 aspect-[210/297] flex flex-col",
-                                    "hover:border-gray-400 hover:bg-gray-50",
-                                    "dark:hover:border-primary dark:hover:bg-primary/10"
+                                    "relative flex aspect-[210/297] cursor-pointer flex-col rounded-[10px] border border-dashed border-[#3d4048] bg-transparent shadow-none transition-colors duration-200",
+                                    "hover:border-white/60 hover:bg-xai-surface/60"
                                 )}
                             >
-                                <CardContent className="flex-1 p-0 text-center flex flex-col items-center justify-center">
+                                <CardContent className="flex flex-1 flex-col items-center justify-center p-0 text-center">
                                     <motion.div
-                                        className="mb-4 p-4 rounded-full bg-gray-100 dark:bg-primary/10"
+                                        className="mb-4 flex size-14 items-center justify-center rounded-full border border-xai-hairline bg-xai-surface-2 text-xai-mute"
                                         whileHover={{ rotate: 90 }}
                                         transition={{ duration: 0.2 }}
                                     >
-                                        <Plus className="h-8 w-8 text-gray-600 dark:text-primary" />
+                                        <IconPlus size={24} />
                                     </motion.div>
-                                    <CardTitle className="text-xl text-gray-900 dark:text-gray-100 px-4">
+                                    <CardTitle className="px-4 text-[17px] font-medium text-xai-text">
                                         {t("dashboard.resumes.newResume")}
                                     </CardTitle>
-                                    <CardDescription className="mt-2 text-gray-600 dark:text-gray-400 px-4">
+                                    <CardDescription className="mt-2 px-6 text-[12px] text-xai-mute">
                                         {t("dashboard.resumes.newResumeDescription")}
                                     </CardDescription>
                                 </CardContent>
@@ -262,6 +293,19 @@ export const ResumeWorkbench = () => {
                     onCreate={handleCreateFromModal}
                     onImportPdf={handleImportFile}
                     isImporting={isImporting}
+                />
+
+                {/* 页头「上传 PDF 简历」的隐藏文件选择器，与弹窗内导入共用 handleImportFile */}
+                <input
+                    ref={pdfInputRef}
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (file) void handleImportFile(file);
+                    }}
                 />
             </motion.div>
         </ScrollArea>

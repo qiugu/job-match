@@ -7,7 +7,6 @@ import { motion } from "framer-motion";
 import {
   Target,
   FileText,
-  Sparkles,
   Loader2,
   PanelLeftClose,
   PanelLeftOpen,
@@ -16,6 +15,7 @@ import {
   Check,
   RefreshCw,
   Mail,
+  Copy,
   Crosshair,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,46 @@ function formatElapsed(ms: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+/** 匹配得分环形图（xAI 风格：hairline 轨道 + 单色弧线 + 中心大数字） */
+function ScoreRing({ pct, size = 132 }: { pct: number; size?: number }) {
+  const stroke = 8;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const clamped = Math.max(0, Math.min(100, pct));
+  const offset = c * (1 - clamped / 100);
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={stroke}
+          style={{ stroke: "var(--xai-hairline)" }}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          className="transition-[stroke-dashoffset] duration-700 ease-out"
+          style={{ stroke: "var(--xai-success)" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="font-mono text-[28px] leading-none text-xai-text">
+          {clamped}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
 /** 匹配基准简历：用户已上传的简历（markdown 文本） */
 type ResumeSource = {
   kind: "master";
@@ -119,7 +159,7 @@ function stripMarkdownPreamble(md: string): string {
 }
 
 /** 品牌强调紫（与侧边栏 primary 一致的 accent，用于环形靶签名元素） */
-const BRAND_VIOLET = "260 45% 52%";
+const BRAND_VIOLET = "271 72% 47%"; /* xAI accent-dusk #7C3AED */
 
 export default function JobMatchPage() {
   const t = useTranslations("jobmatch");
@@ -368,14 +408,10 @@ export default function JobMatchPage() {
               drawerOpen ? "translate-x-0" : "-translate-x-full"
             )}
           >
-            {/* 面板头部：品牌紫 accent 条 + 标题 */}
+            {/* 面板头部：等宽 eyebrow + 标题 */}
             <div className="relative overflow-hidden px-5 pb-2 pt-5">
-              <div
-                className="absolute inset-y-0 left-0 w-[3px]"
-                style={{ backgroundColor: `hsl(${BRAND_VIOLET})` }}
-              />
-              <h2 className="flex items-center gap-2 text-sm font-semibold tracking-wide">
-                <Sparkles className="h-4 w-4" style={{ color: `hsl(${BRAND_VIOLET} / 0.9)` }} />
+              <p className="xai-eyebrow">01 · MATCH CONFIG</p>
+              <h2 className="mt-1.5 text-sm font-semibold tracking-wide">
                 {t("createMatch")}
               </h2>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -456,8 +492,7 @@ export default function JobMatchPage() {
                   type="button"
                   onClick={handleCreate}
                   disabled={loading || !selected}
-                  className="group flex h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold text-primary-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{ backgroundColor: `hsl(${BRAND_VIOLET})` }}
+                  className="group flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -578,11 +613,11 @@ export default function JobMatchPage() {
               >
                 {/* Tab 切换条：匹配分析（默认） / 优化简历 */}
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-6 pt-3">
-                  <TabsList className="h-9 bg-muted/50">
+                  <TabsList className="h-10 rounded-full bg-muted/50 p-1">
                     {hasAnalysis && (
                       <TabsTrigger
                         value="analysis"
-                        className="h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                        className="h-8 rounded-full px-4 text-xs data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
                       >
                         <Target className="mr-1.5 h-3.5 w-3.5" />
                         {t("matchAnalysis")}
@@ -590,7 +625,7 @@ export default function JobMatchPage() {
                     )}
                     <TabsTrigger
                       value="resume"
-                      className="h-7 px-3 text-xs data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                      className="h-8 rounded-full px-4 text-xs data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
                     >
                       <FileText className="mr-1.5 h-3.5 w-3.5" />
                       {t("optimizedResume")}
@@ -600,7 +635,92 @@ export default function JobMatchPage() {
 
                 <ScrollArea className="min-h-0 flex-1">
                   <div className="px-6 py-5">
-                    {/* 共享摘要条：基准简历来源 + 关键词 */}
+                    {/* 结果摘要条：得分 / 关键词命中 / 逐条统计 + 主操作（两个 tab 共用） */}
+                    {(() => {
+                      const a = result.matchAnalysis;
+                      const scorePct =
+                        typeof a?.score === "number" ? Math.round(a.score * 100) : null;
+                      const reqs = a?.requirements ?? [];
+                      const met = reqs.filter((r) => r.strength === "matched").length;
+                      const weak = reqs.filter((r) => r.strength === "weak").length;
+                      const missing = reqs.filter((r) => r.strength === "missing").length;
+                      const optimizedText = stripMarkdownPreamble(result.markdownContent);
+                      const kwTotal = result.keywords?.length ?? 0;
+                      const kwHit = kwTotal
+                        ? result.keywords.filter((k) =>
+                            optimizedText.toLowerCase().includes(String(k).toLowerCase())
+                          ).length
+                        : 0;
+                      return (
+                        <div className="mb-4 flex flex-wrap items-center gap-x-8 gap-y-4 rounded-[10px] border border-border bg-card px-6 py-4">
+                          <div className="shrink-0">
+                            <div className="font-mono text-[24px] leading-none text-xai-text">
+                              {scorePct ?? "—"}
+                              {scorePct !== null && <span className="text-sm">%</span>}
+                            </div>
+                            <div className="mt-1.5 text-[11px] text-muted-foreground">
+                              综合匹配得分
+                            </div>
+                          </div>
+                          <div className="h-9 w-px shrink-0 bg-border" />
+                          <div className="shrink-0">
+                            <div className="font-mono text-[24px] leading-none text-xai-add">
+                              {kwHit}/{kwTotal}
+                            </div>
+                            <div className="mt-1.5 text-[11px] text-muted-foreground">
+                              关键词命中
+                            </div>
+                          </div>
+                          <div className="h-9 w-px shrink-0 bg-border" />
+                          <div className="shrink-0">
+                            <div className="text-[20px] font-medium leading-none text-xai-text">
+                              {reqs.length} 项
+                            </div>
+                            <div className="mt-1.5 text-[11px] text-muted-foreground">
+                              满足 {met} · 部分 {weak} · 缺失 {missing}
+                            </div>
+                          </div>
+                          <div className="ml-auto flex flex-wrap items-center gap-2.5">
+                            {accepted ? (
+                              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-500">
+                                <Check className="h-4 w-4" />
+                                {t("acceptedHint")}
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                className="xai-pill-primary"
+                                onClick={handleAccept}
+                                disabled={accepting}
+                              >
+                                {accepting ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Check className="h-4 w-4" />
+                                )}
+                                {t("acceptResult")}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="xai-pill-outline"
+                              onClick={handleCreate}
+                              disabled={loading || accepted}
+                              title={accepted ? "已确认接受，不能重新匹配" : undefined}
+                            >
+                              {loading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-4 w-4" />
+                              )}
+                              {loading ? t("reMatching") : t("reMatch")}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* 基准简历来源 + 关键词 */}
                     <div className="space-y-3">
                       <button
                         type="button"
@@ -692,189 +812,200 @@ export default function JobMatchPage() {
                       )}
                     </TabsContent>
 
-                    {/* Tab: 匹配分析 */}
+                    {/* Tab: 匹配分析 —— 双栏：左（匹配总结 + 逐条分析）/ 右（得分环 + 话术） */}
                     <TabsContent value="analysis" className="mt-4">
                       {(() => {
                         const a = result.matchAnalysis;
                         if (!a) return null;
+                        const scorePct =
+                          typeof a.score === "number" ? Math.round(a.score * 100) : null;
+                        const reqs = a.requirements ?? [];
+                        const letter = a.cover_letter ?? "";
+                        const optimizedText = stripMarkdownPreamble(result.markdownContent);
+                        const kwTotal = result.keywords?.length ?? 0;
+                        const kwHit = kwTotal
+                          ? result.keywords.filter((k) =>
+                              optimizedText.toLowerCase().includes(String(k).toLowerCase())
+                            ).length
+                          : 0;
+                        // 后端 strength 取值：matched / weak / missing / unspported
+                        const reqMeta = (strength: string | undefined) =>
+                          strength === "matched"
+                            ? {
+                                label: t("matchReqMet"),
+                                cls: "bg-emerald-500/15 text-emerald-400",
+                              }
+                            : strength === "weak"
+                              ? {
+                                  label: t("matchReqPartial"),
+                                  cls: "bg-amber-500/15 text-amber-400",
+                                }
+                              : strength === "missing"
+                                ? {
+                                    label: t("matchReqMissing"),
+                                    cls: "bg-rose-500/15 text-rose-400",
+                                  }
+                                : {
+                                    label: t("matchReqUnsupported"),
+                                    cls: "bg-slate-500/20 text-slate-300",
+                                  };
                         return (
-                          <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
-                            <div className="flex items-center gap-2 text-sm font-semibold">
-                              <Target
-                                className="h-4 w-4"
-                                style={{ color: `hsl(${BRAND_VIOLET})` }}
-                              />
-                              {t("matchAnalysis")}
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-                              {a.role && (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-muted-foreground">
-                                    {t("matchAnalysisRole")}：
-                                  </span>
-                                  <span className="font-medium">{a.role}</span>
+                          <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
+                            {/* 左栏：匹配总结 + 匹配项逐条分析 */}
+                            <div className="min-w-0 flex-1 space-y-4">
+                              {(a.summary || a.role) && (
+                                <div className="rounded-[10px] border border-border bg-card p-5">
+                                  <div className="flex items-center justify-between">
+                                    <h3 className="text-[13.5px] font-medium text-foreground">
+                                      {t("matchAnalysisSummary")}
+                                    </h3>
+                                    <span className="xai-eyebrow">SUMMARY</span>
+                                  </div>
+                                  {a.role && (
+                                    <p className="mt-3 text-[13px] text-muted-foreground">
+                                      {t("matchAnalysisRole")}：
+                                      <span className="font-medium text-foreground">
+                                        {a.role}
+                                      </span>
+                                    </p>
+                                  )}
+                                  {a.summary && (
+                                    <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed text-muted-foreground">
+                                      {a.summary}
+                                    </p>
+                                  )}
                                 </div>
                               )}
-                              {typeof a.score === "number" && (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-muted-foreground">
-                                    {t("matchAnalysisScore")}：
-                                  </span>
-                                  <span
-                                    className="font-semibold"
-                                    style={{ color: `hsl(${BRAND_VIOLET})` }}
-                                  >
-                                    {/* 后端 score 为 0~1 的浮点数（0.595 = 59.5%） */}
-                                    {Math.round(a.score * 100)}%
-                                  </span>
-                                </div>
-                              )}
-                            </div>
 
-                            {a.requirements && a.requirements.length > 0 && (
-                              <div className="space-y-2">
-                                <div className="text-xs font-medium text-muted-foreground">
-                                  {t("matchAnalysisRequirements")}
-                                </div>
-                                <ul className="space-y-1.5">
-                                  {a.requirements.map((req, i) => {
-                                    // 后端 strength 取值：matched / weak / missing / unspported
-                                    const meta =
-                                      req.strength === "matched"
-                                        ? {
-                                            label: t("matchReqMet"),
-                                            cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
-                                          }
-                                        : req.strength === "weak"
-                                          ? {
-                                              label: t("matchReqPartial"),
-                                              cls: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
-                                            }
-                                          : req.strength === "missing"
-                                            ? {
-                                                label: t("matchReqMissing"),
-                                                cls: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400",
-                                              }
-                                            : {
-                                                label: t("matchReqUnsupported"),
-                                                cls: "bg-slate-200 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300",
-                                              };
-                                    return (
-                                      <li
-                                        key={i}
-                                        className="space-y-1.5 rounded-lg border border-border bg-background/70 p-3"
-                                      >
-                                        <div className="flex items-start gap-2 text-sm">
+                              {reqs.length > 0 && (
+                                <div className="rounded-[10px] border border-border bg-card p-5">
+                                  <div className="flex items-center justify-between">
+                                    <h3 className="text-[13.5px] font-medium text-foreground">
+                                      {t("matchAnalysisRequirements")}
+                                    </h3>
+                                    <span className="xai-eyebrow">REQ BREAKDOWN</span>
+                                  </div>
+                                  <ul className="mt-2 divide-y divide-border">
+                                    {reqs.map((req, i) => {
+                                      const meta = reqMeta(req.strength);
+                                      return (
+                                        <li
+                                          key={i}
+                                          className="flex gap-3 py-3.5 first:pt-3 last:pb-0"
+                                        >
                                           <span
                                             className={cn(
-                                              "mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium",
+                                              "mt-0.5 h-fit shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
                                               meta.cls
                                             )}
                                           >
                                             {meta.label}
                                           </span>
-                                          <span className="min-w-0 font-medium">
-                                            {req.requirement}
+                                          <div className="min-w-0">
+                                            <p className="text-[13px] font-medium text-foreground">
+                                              {req.requirement}
+                                            </p>
+                                            {req.evidence && (
+                                              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                                {t("matchReqEvidence")}：{req.evidence}
+                                              </p>
+                                            )}
+                                            {req.suggestion && (
+                                              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                                {t("matchReqSuggestion")}：{req.suggestion}
+                                              </p>
+                                            )}
+                                          </div>
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* 右栏：得分环形 + 命中关键词 + 打招呼话术 */}
+                            <div className="w-full shrink-0 space-y-4 xl:w-[340px]">
+                              <div className="rounded-[10px] border border-border bg-card p-5">
+                                <div className="flex items-center justify-between">
+                                  <h3 className="text-[13.5px] font-medium text-foreground">
+                                    {t("matchAnalysisScore")}
+                                  </h3>
+                                  <span className="xai-eyebrow">SCORE</span>
+                                </div>
+                                <div className="mt-4 flex justify-center">
+                                  <ScoreRing pct={scorePct ?? 0} />
+                                </div>
+                                {kwTotal > 0 && (
+                                  <div className="mt-4">
+                                    <div className="text-[11px] text-muted-foreground">
+                                      命中关键词 {kwHit}/{kwTotal}
+                                    </div>
+                                    <div className="mt-2 flex flex-wrap gap-1.5">
+                                      {result.keywords.map((k) => {
+                                        const hit = optimizedText
+                                          .toLowerCase()
+                                          .includes(String(k).toLowerCase());
+                                        return (
+                                          <span
+                                            key={k}
+                                            className={cn(
+                                              "rounded-full px-2.5 py-1 text-[11px] font-medium",
+                                              hit
+                                                ? "bg-emerald-500/15 text-emerald-400"
+                                                : "bg-muted text-muted-foreground line-through"
+                                            )}
+                                          >
+                                            {k}
                                           </span>
-                                        </div>
-                                        {req.evidence && (
-                                          <div className="flex gap-2 text-xs">
-                                            <span className="shrink-0 font-medium text-muted-foreground">
-                                              {t("matchReqEvidence")}：
-                                            </span>
-                                            <span className="min-w-0 text-muted-foreground">
-                                              {req.evidence}
-                                            </span>
-                                          </div>
-                                        )}
-                                        {req.suggestion && (
-                                          <div className="flex gap-2 text-xs">
-                                            <span className="shrink-0 font-medium text-muted-foreground">
-                                              {t("matchReqSuggestion")}：
-                                            </span>
-                                            <span className="min-w-0 text-muted-foreground">
-                                              {req.suggestion}
-                                            </span>
-                                          </div>
-                                        )}
-                                      </li>
-                                    );
-                                  })}
-                                </ul>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            )}
 
-                            {a.summary && (
-                              <div className="space-y-1.5">
-                                <div className="text-xs font-medium text-muted-foreground">
-                                  {t("matchAnalysisSummary")}
+                              {/* 匹配话术（cover_letter）：resume_match 节点输出；
+                                  顶层「求职信」tab 的 coverLetter 直接复用同一字段
+                                  （withCoverLetter=true 时返回），两者内容一致。 */}
+                              {letter && (
+                                <div className="rounded-[10px] border border-border bg-card p-5">
+                                  <div className="flex items-center justify-between">
+                                    <h3 className="flex items-center gap-1.5 text-[13.5px] font-medium text-foreground">
+                                      <Mail className="h-4 w-4" />
+                                      {t("matchAnalysisCoverLetter")}
+                                    </h3>
+                                    <button
+                                      type="button"
+                                      className="inline-flex h-7 items-center gap-1 rounded-full border border-border px-3 text-xs text-muted-foreground transition-colors hover:border-xai-hairline-strong hover:text-xai-text"
+                                      onClick={async () => {
+                                        try {
+                                          await navigator.clipboard.writeText(letter);
+                                          toast.success("已复制打招呼话术");
+                                        } catch {
+                                          toast.error("复制失败，请手动选择复制");
+                                        }
+                                      }}
+                                    >
+                                      <Copy className="h-3 w-3" />
+                                      复制
+                                    </button>
+                                  </div>
+                                  <p className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-background/60 p-3 text-[13px] leading-relaxed text-muted-foreground">
+                                    {letter}
+                                  </p>
+                                  <p className="mt-2 text-right text-[10px] text-muted-foreground">
+                                    {letter.length} 字
+                                  </p>
                                 </div>
-                                <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-                                  {a.summary}
-                                </p>
-                              </div>
-                            )}
-
-                            {/* 匹配话术（cover_letter）：resume_match 节点输出；
-                                顶层「求职信」tab 的 coverLetter 直接复用同一字段
-                                （withCoverLetter=true 时返回），两者内容一致。 */}
-                            {a.cover_letter && (
-                              <div className="space-y-1.5">
-                                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                                  <Mail className="h-3.5 w-3.5" />
-                                  {t("matchAnalysisCoverLetter")}
-                                </div>
-                                <p className="whitespace-pre-wrap rounded-lg border border-border bg-background/70 p-3 text-sm text-muted-foreground">
-                                  {a.cover_letter}
-                                </p>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
                         );
                       })()}
                     </TabsContent>
                   </div>
                 </ScrollArea>
-
-                {/* 接受 / 重新匹配 —— sticky 底部，永远可见 */}
-                <div
-                  className="flex shrink-0 flex-wrap items-center gap-3 border-t border-border px-6 py-3"
-                  style={{
-                    borderTopColor: `hsl(${BRAND_VIOLET} / 0.25)`,
-                    backgroundColor: `hsl(${BRAND_VIOLET} / 0.04)`,
-                  }}
-                >
-                  {accepted ? (
-                    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                      <Check className="h-4 w-4" />
-                      {t("acceptedHint")}
-                    </span>
-                  ) : (
-                    <Button size="sm" onClick={handleAccept} disabled={accepting}>
-                      {accepting ? (
-                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Check className="mr-1.5 h-3.5 w-3.5" />
-                      )}
-                      {t("acceptResult")}
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCreate}
-                    disabled={loading || accepted}
-                    title={accepted ? "已确认接受，不能重新匹配" : undefined}
-                  >
-                    {loading ? (
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                    )}
-                    {loading ? t("reMatching") : t("reMatch")}
-                  </Button>
-                </div>
               </Tabs>
             )}
           </section>

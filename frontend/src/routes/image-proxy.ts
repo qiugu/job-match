@@ -32,7 +32,11 @@ export const Route = createFileRoute("/image-proxy")({
 
           let response: Response;
           try {
+            // 必须带超时：这里是无界的服务端 await。远端图片服务器如果只建立连接
+            // 但不响应（或响应极慢），该请求会永远挂起，进而把 TanStack SSR 流拖到
+            // 120s 生命周期上限，触发 "Stream lifetime exceeded" 并连带 crash dev server。
             response = await fetch(imageUrl, {
+              signal: AbortSignal.timeout(15_000),
               headers: {
                 "User-Agent":
                   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",

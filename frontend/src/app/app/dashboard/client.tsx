@@ -1,8 +1,13 @@
 import { useState } from "react";
-import { LogOut } from "lucide-react";
 import { toast } from "sonner";
-import { IconResumes, IconTemplates, IconSettings, IconJobMatch } from "@/components/shared/icons/SidebarIcons";
+import {
+  IconDoc,
+  IconGrid,
+  IconLogout,
+  IconTarget,
+} from "@/components/shared/icons/XaiIcons";
 import { usePathname, useRouter } from "@/lib/navigation";
+import { cn } from "@/lib/utils";
 import {
   Sidebar,
   SidebarContent,
@@ -48,17 +53,17 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
     {
       title: t("sidebar.jobmatch"),
       url: "/app/dashboard/match",
-      icon: IconJobMatch,
+      icon: IconTarget,
     },
     {
       title: t("sidebar.resumes"),
       url: "/app/dashboard/resumes",
-      icon: IconResumes,
+      icon: IconDoc,
     },
     {
       title: t("sidebar.templates"),
       url: "/app/dashboard/templates",
-      icon: IconTemplates,
+      icon: IconGrid,
     },
   ];
 
@@ -92,30 +97,45 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div
+      className="theme-xai flex h-screen w-full overflow-hidden"
+      style={{ "--sidebar-width": "228px" } as React.CSSProperties}
+    >
       <SidebarProvider open={open} onOpenChange={setOpen}>
         <Sidebar
           collapsible={collapsible}
-          className="border-r border-border/40 bg-card/50 backdrop-blur-xl"
+          className="border-r border-xai-hairline-soft bg-xai-canvas"
         >
-          <SidebarHeader className="h-16 flex items-center justify-center border-b border-border/40">
-            <div className="w-full cursor-pointer justify-center flex items-center" onClick={() => router.push(`/${locale}`)}
+          <SidebarHeader className="h-[66px] flex-row items-center gap-2.5 border-b border-xai-hairline-soft px-5 py-0">
+            <div
+              className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5"
+              onClick={() => router.push(`/${locale}`)}
             >
               <Logo
-                className=" hover:opacity-80 transition-opacity"
-                size={48}
+                className="shrink-0 transition-opacity hover:opacity-80"
+                size={26}
               />
               {open && (
-                <span className="font-bold text-lg tracking-tight">
+                <span className="truncate text-[15px] font-medium tracking-tight text-xai-text">
                   {t("sidebar.appName")}
                 </span>
               )}
             </div>
+            {open && (
+              <SidebarTrigger className="size-7 shrink-0 text-xai-eyebrow transition-colors hover:text-xai-text" />
+            )}
           </SidebarHeader>
-          <SidebarContent className="px-3 py-4">
-            <SidebarGroup>
+
+          <SidebarContent className="px-4 py-6">
+            <SidebarGroup className="p-0">
               <SidebarGroupContent>
-                <SidebarMenu className="space-y-1">
+                {/* 等宽大写分组标签，纯装饰、不随语言切换 */}
+                {open && (
+                  <p className="xai-eyebrow mb-3 pl-3 text-[10px]">
+                    WORKSPACE
+                  </p>
+                )}
+                <SidebarMenu className="space-y-1.5">
                   {sidebarItems.map((item) => {
                     const active = isItemActive(item);
                     return (
@@ -126,35 +146,44 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                               <SidebarMenuButton
                                 asChild
                                 isActive={active}
-                                className={`w-full transition-all duration-200 ease-in-out h-12 mb-1 [&>svg]:size-auto ${active
-                                  ? "bg-primary/10 text-primary font-bold hover:bg-primary/20 hover:text-primary"
-                                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                                  }`}
+                                className={cn(
+                                  "h-10 w-full rounded-full px-3.5 transition-colors duration-150",
+                                  active
+                                    ? "bg-xai-text text-xai-canvas hover:bg-xai-text hover:text-xai-canvas"
+                                    : "text-xai-mute hover:bg-xai-surface-2 hover:text-xai-text"
+                                )}
                               >
                                 <div
-                                  className="flex items-center gap-2 px-2 cursor-pointer"
+                                  className="flex min-w-0 items-center gap-2.5 cursor-pointer"
                                   onClick={() => handleItemClick(item)}
                                 >
                                   <item.icon
-                                    size={24}
-                                    active={active}
+                                    size={18}
+                                    className="shrink-0"
                                   />
                                   {open && (
-                                    <span className="flex-1 text-sm">
+                                    <span
+                                      className={cn(
+                                        "flex-1 truncate text-[13px]",
+                                        active && "font-medium"
+                                      )}
+                                    >
                                       {item.title}
                                     </span>
                                   )}
                                 </div>
                               </SidebarMenuButton>
                               {item.items && open && (
-                                <div className="ml-9 mt-1 space-y-1 border-l-2 border-muted pl-2">
+                                <div className="ml-9 mt-1 space-y-1 border-l border-xai-hairline pl-3">
                                   {item.items.map((subItem) => (
                                     <div
                                       key={subItem.href}
-                                      className={`cursor-pointer px-3 py-2 rounded-md text-sm transition-colors ${pathname === subItem.href
-                                        ? "text-primary font-medium bg-primary/10"
-                                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                                        }`}
+                                      className={cn(
+                                        "cursor-pointer rounded-full px-3 py-2 text-[13px] transition-colors",
+                                        pathname === subItem.href
+                                          ? "bg-xai-surface-2 font-medium text-xai-text"
+                                          : "text-xai-mute hover:text-xai-text"
+                                      )}
                                       onClick={() => router.push(subItem.href)}
                                     >
                                       {subItem.title}
@@ -177,38 +206,39 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
               </SidebarGroupContent>
             </SidebarGroup>
           </SidebarContent>
-          <SidebarFooter className="border-t border-border/40 p-3">
-            <div className="flex items-center gap-2">
+
+          <SidebarFooter className="border-t border-xai-hairline-soft p-0">
+            <div className="flex h-[62px] items-center gap-2.5 px-5">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-xai-hairline bg-xai-surface-2 text-[13px] font-medium text-xai-text">
+                {displayName?.[0]?.toUpperCase() || "U"}
+              </div>
               {open && (
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium" title={displayName}>
-                    {displayName}
-                  </p>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <span className="truncate">{quotaText}</span>
-                    <span aria-hidden>·</span>
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="shrink-0 transition-colors hover:text-foreground"
+                <>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className="truncate text-[13px] font-medium text-xai-text-mid"
+                      title={displayName}
                     >
-                      {tAuth("auth.logout")}
-                    </button>
+                      {displayName}
+                    </p>
+                    <p className="truncate text-[11px] text-xai-mute">
+                      {quotaText}
+                    </p>
                   </div>
-                </div>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    aria-label={tAuth("auth.logout")}
+                    className="shrink-0 text-xai-eyebrow transition-colors hover:text-xai-text"
+                  >
+                    <IconLogout size={18} />
+                  </button>
+                </>
               )}
-              <LogOut
-                className="size-4 shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-destructive"
-                onClick={handleLogout}
-                aria-label={tAuth("auth.logout")}
-              />
             </div>
           </SidebarFooter>
         </Sidebar>
-        <main className="flex-1 flex flex-col">
-          <div className="p-2">
-            <SidebarTrigger />
-          </div>
+        <main className="flex min-w-0 flex-1 flex-col bg-xai-canvas">
           <div className="min-h-0 flex-1">{children}</div>
         </main>
       </SidebarProvider>

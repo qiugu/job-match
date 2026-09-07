@@ -2,6 +2,7 @@ import { toast } from "sonner";
 import { normalizeFontFamily } from "@/utils/fonts";
 import { ResumeData } from "@/types/resume";
 import { generateResumeMarkdown, ResumeMarkdownOptions } from "@/utils/markdown";
+import { PAGE_BREAK_CSS } from "@/utils/pageBreakCss";
 
 const INVALID_FILE_NAME_CHAR_REGEX = /[\\/:*?"<>|]/g;
 
@@ -247,6 +248,11 @@ export const exportToPdf = async ({
       html, body { background: white !important; }
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       [data-pdf-export-ignore] { display: none !important; }
+
+      /* PDF 分页：对通用语义块（标题/段落/列表项/表格行/图片等）整块换页，
+         避免页边界从块中间切断文本行。规则与浏览器打印共用同一份
+         （utils/pageBreakCss.ts），保证「预览所见 = 导出所得 = 打印所得」。 */
+      ${PAGE_BREAK_CSS}
     `;
     clonedElement.prepend(styleEl);
 

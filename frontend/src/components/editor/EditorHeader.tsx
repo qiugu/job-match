@@ -3,8 +3,8 @@ import { useTranslations } from "@/i18n/compat/client";
 import { toast } from "sonner";
 import {
   AlertCircle,
-  ShieldCheck,
-  ShieldAlert,
+  ArrowLeft,
+  Download,
   Edit2,
   Undo2,
   Redo2,
@@ -26,7 +26,6 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { GrammarCheckDrawer } from "./grammar/GrammarCheckDrawer";
-import { getFileHandle, getConfig } from "@/utils/fileSystem";
 
 interface EditorHeaderProps {
   isMobile?: boolean;
@@ -48,23 +47,6 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
   const t = useTranslations();
   const undoLabel = t("richEditor.undo");
   const redoLabel = t("richEditor.redo");
-
-  const [backupConfigured, setBackupConfigured] = useState<boolean | null>(null);
-  const [backupPath, setBackupPath] = useState<string>("");
-
-  useEffect(() => {
-    const checkBackup = async () => {
-      try {
-        const handle = await getFileHandle("syncDirectory");
-        const path = await getConfig("syncDirectoryPath");
-        setBackupConfigured(!!handle);
-        setBackupPath(path || "");
-      } catch {
-        setBackupConfigured(false);
-      }
-    };
-    checkBackup();
-  }, []);
 
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null) => {
@@ -161,7 +143,17 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
       animate={{ y: 0 }}
     >
       <div className="flex items-center justify-between px-6 h-full pr-2">
-        <div className="flex items-center space-x-4 scrollbar-hide">
+        <div className="flex items-center space-x-3 scrollbar-hide">
+          {/* 返回工作台 */}
+          <button
+            type="button"
+            aria-label={t("common.title")}
+            onClick={() => router.push("/app/dashboard")}
+            className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground md:inline-flex"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+
           <motion.div
             className="flex items-center space-x-2 shrink-0 cursor-pointer"
             whileHover={{ scale: 1.02 }}
@@ -170,11 +162,12 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
               router.push("/app/dashboard");
             }}
           >
-            <span className="text-lg font-semibold">{t("common.title")}</span>
+            <span className="text-[15px] font-medium">{t("common.title")}</span>
           </motion.div>
 
           <span className="text-muted-foreground/30 hidden md:inline-block font-light">/</span>
 
+          {/* 标题：pill 输入框 */}
           <div className="relative hidden md:flex items-center group">
             <Input
               key={activeResume?.id || "resume-title"}
@@ -182,67 +175,11 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
               onBlur={(e) => {
                 updateResumeTitle(e.target.value || "未命名简历");
               }}
-              className="w-56 text-sm h-8 bg-muted/30 border-transparent hover:bg-muted/60 focus:bg-background transition-colors px-2.5 py-1 pr-8 shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-border rounded-md font-medium text-foreground/90 hover:text-foreground"
+              className="h-9 w-56 rounded-full border-border bg-transparent px-4 pr-9 text-sm shadow-none transition-colors placeholder:text-muted-foreground/60 hover:border-xai-hairline-strong focus-visible:border-border focus-visible:ring-1 focus-visible:ring-ring font-medium text-foreground/90 hover:text-foreground"
               placeholder="简历名称"
             />
-            <Edit2 className="w-3.5 h-3.5 absolute right-2.5 text-muted-foreground/40 pointer-events-none transition-colors group-hover:text-muted-foreground/80" />
+            <Edit2 className="w-3.5 h-3.5 absolute right-3.5 text-muted-foreground/40 pointer-events-none transition-colors group-hover:text-muted-foreground/80" />
           </div>
-
-          {/* Backup Status Badge */}
-          {backupConfigured !== null && (
-            <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <motion.div
-                    className={`
-                      hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md cursor-pointer
-                      text-xs font-medium transition-colors ml-2
-                      ${backupConfigured
-                        ? "text-emerald-600/80 hover:bg-emerald-100/50 dark:text-emerald-500/80 dark:hover:bg-emerald-900/30"
-                        : "text-amber-600/80 hover:bg-amber-100/50 dark:text-amber-500/80 dark:hover:bg-amber-900/30"
-                      }
-                    `}
-                    initial={{ opacity: 0, x: -5 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3, duration: 0.3 }}
-                    onClick={() => router.push("/app/dashboard/settings")}
-                  >
-                    {backupConfigured ? (
-                      <>
-                        <ShieldCheck className="w-4 h-4" />
-                        <span>{t("previewDock.backup.configured")}</span>
-                      </>
-                    ) : (
-                      <>
-                        <motion.div
-                          animate={{ scale: [1, 1.15, 1] }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                          className="relative"
-                        >
-                          <ShieldAlert className="w-4 h-4" />
-                          <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500" />
-                        </motion.div>
-                        <span>{t("previewDock.backup.notConfigured")}</span>
-                      </>
-                    )}
-                  </motion.div>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" sideOffset={8} className="max-w-[240px]">
-                  {backupConfigured ? (
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-xs font-medium">{t("previewDock.backup.configured")}</span>
-                      <span className="text-[10px] text-muted-foreground truncate">{backupPath}</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-xs font-medium">{t("previewDock.backup.notConfigured")}</span>
-                      <span className="text-[10px] text-muted-foreground">{t("previewDock.backup.clickToConfigure")}</span>
-                    </div>
-                  )}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
         </div>
 
         <div className="flex items-center flex-wrap gap-x-3 gap-y-2">
@@ -299,20 +236,19 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 shrink-0"
+                <button
+                  type="button"
+                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-xai-text px-4 text-[13px] font-medium text-xai-canvas transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                   onClick={handleSaveMatch}
                   disabled={savingMatch || !isDirty}
                 >
                   {savingMatch ? (
-                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Save className="h-4 w-4 mr-1" />
+                    <Save className="h-4 w-4" />
                   )}
                   {t("jobmatch.saveMatch")}
-                </Button>
+                </button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 {isDirty ? t("jobmatch.saveMatchHint") : "内容未改动，无需保存"}
@@ -320,7 +256,15 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
             </Tooltip>
           </TooltipProvider>
           <div className="shrink-0">
-            <PdfExport />
+            <PdfExport>
+              <button
+                type="button"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-xai-hairline px-4 text-[13px] text-xai-text-mid transition-colors hover:border-xai-hairline-strong hover:text-xai-text"
+              >
+                <Download className="h-4 w-4" />
+                {t("pdfExport.button.export")}
+              </button>
+            </PdfExport>
           </div>
         </div>
       </div>

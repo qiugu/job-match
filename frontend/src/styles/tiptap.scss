@@ -131,44 +131,42 @@
   }
 }
 
-#resume-preview ul,
-#resume-preview ol,
+/* 简历预览排版（列表/有序列表计数等）。
+   作用域只能用 .resume-preview（class），禁止再加 #resume-preview（id）：
+   预览会把同一份内容渲染成「隐藏测量副本 + 多页显示副本」，而 id 只挂在第一页
+   显示副本上。按 id 生效的样式会让测量副本与显示副本排版不一致，分页切点按测量
+   坐标算出来后套到另一套坐标上，分页处内容就会凭空消失。
+   id="resume-preview" 仅作为 PDF 导出 / 打印 / 语法检查的 DOM 句柄。 */
 .resume-preview ul,
 .resume-preview ol {
   padding-left: 1.5rem;
   margin: 0.5rem 0;
 }
 
-#resume-preview ul,
 .resume-preview ul {
   list-style-type: disc;
   list-style-position: outside;
 }
 
-#resume-preview ul ul,
 .resume-preview ul ul {
   list-style-type: circle;
 }
 
-#resume-preview ul ul ul,
 .resume-preview ul ul ul {
   list-style-type: square;
 }
 
-#resume-preview ol,
 .resume-preview ol {
   list-style: none;
   counter-reset: resume-preview-ol;
   padding-left: 1.5rem;
 }
 
-#resume-preview ol > li,
 .resume-preview ol > li {
   counter-increment: resume-preview-ol;
   position: relative;
 }
 
-#resume-preview ol > li::before,
 .resume-preview ol > li::before {
   content: counter(resume-preview-ol, decimal) ".";
   position: absolute;
@@ -177,41 +175,31 @@
   text-align: left;
 }
 
-#resume-preview ol ol,
 .resume-preview ol ol {
   counter-reset: resume-preview-ol;
 }
 
-#resume-preview ol ol > li::before,
 .resume-preview ol ol > li::before {
   content: counter(resume-preview-ol, lower-alpha) ".";
 }
 
-#resume-preview ol ol ol > li::before,
 .resume-preview ol ol ol > li::before {
   content: counter(resume-preview-ol, lower-roman) ".";
 }
 
-#resume-preview ol ol ol ol > li::before,
 .resume-preview ol ol ol ol > li::before {
   content: counter(resume-preview-ol, upper-alpha) ".";
 }
 
-#resume-preview li,
 .resume-preview li {
   margin: 0.25rem 0;
 }
 
-#resume-preview li > p,
 .resume-preview li > p {
   display: inline;
   margin: 0;
 }
 
-#resume-preview ul ul,
-#resume-preview ul ol,
-#resume-preview ol ul,
-#resume-preview ol ol,
 .resume-preview ul ul,
 .resume-preview ul ol,
 .resume-preview ol ul,
@@ -221,7 +209,6 @@
 }
 
 /* 预览/导出态链接保留蓝色，与正文区分（产出物排版惯例） */
-#resume-preview a.rich-text-link,
 .resume-preview a.rich-text-link {
   color: #2563eb;
   text-decoration: underline;
@@ -231,7 +218,6 @@
   word-break: break-word;
 }
 
-#resume-preview a.rich-text-link:hover,
 .resume-preview a.rich-text-link:hover {
   color: #1d4ed8;
 }

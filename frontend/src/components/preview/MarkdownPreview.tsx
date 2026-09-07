@@ -14,6 +14,14 @@ import { cn } from "@/lib/utils";
 import type { ResumeData } from "@/types/resume";
 import type { MarkdownTemplateVariant } from "@/config/markdownTemplates";
 import { buildVariantCss, resolveMarkdownVariant } from "./markdownVariants";
+import {
+  A4_HEIGHT_PX,
+  SHEET_GAP_PX,
+  buildPageWindows,
+  collectBlockMetrics,
+  paginateBlocks,
+  type BlockMetric,
+} from "./pagination";
 
 interface MarkdownPreviewProps {
   markdown: string;
@@ -138,12 +146,91 @@ function enhanceTemplateSections(srcHtml: string): string {
   return out;
 }
 
-// 预览用 A4 纸张：把 #resume-preview 的长内容按每页高度裁切显示，
-// 纸张之间留出空白（margin-bottom），底部显示页码。
+// 预览用 A4 纸张：纸张之间留出空白（margin-bottom），底部显示页码。
 // 仅用于编辑预览；导出 PDF 时这些包装层不在导出 DOM 中（export.ts 克隆的是
 // #resume-preview 本身），且带 data-pdf-export-ignore 标记，导出/打印样式会将其拍平。
-const MM_TO_PX = 3.78;
-const A4_HEIGHT_PX = 297 * MM_TO_PX;
+// 分页算法（页边距口径、块边界切分）见 ./pagination，保持为无 DOM 依赖的纯函数便于测试。
+
+/** 块度量浅比较：测量结果未变化时复用旧对象，避免 ResizeObserver 触发无意义重渲染 */
+function sameBlocks(a: BlockMetric[], b: BlockMetric[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((x, i) => x.top === b[i].top && x.height === b[i].height);
+}
+
+/**
+ * 内容流根节点的 class：测量副本与每一页显示副本必须完全一致。
+ *
+ * 这是分页正确性的前提：切点按「测量副本」的坐标计算，再用负 margin 套用到
+ * 「显示副本」上。只要两者的 CSS 解析结果有任何差异（历史上就是全局样式
+ * `#resume-preview ul/li` 只命中了带 id 的第一页副本），切点就会落在错误的内容
+ * 位置上：上一页被挤出窗口、下一页又从更靠后的位置续接，中间那段内容在两页都
+ * 看不见。因此这里统一复用同一个 class 常量，任何新增样式都必须同时作用于两者。
+ *
+ * 注意：`id="resume-preview"` 只挂在第一页显示副本上，作为 PDF 导出 / 打印 /
+ * 语法检查的 DOM 句柄——全局样式禁止再按这个 id 命中元素（见 globals.css、
+ * styles/tiptap.scss 中的约定注释）。
+ */
+const CONTENT_FLOW_CLASS = "resume-markdown-preview relative bg-white";
+
+/** 参与「测量副本 vs 显示副本」一致性自检的布局相关属性（连字符写法） */
+const LAYOUT_PROPS = [
+  "display",
+  "position",
+  "box-sizing",
+  "width",
+  "margin-top",
+  "margin-bottom",
+  "padding-top",
+  "padding-bottom",
+  "padding-left",
+  "padding-right",
+  "font-family",
+  "font-size",
+  "font-weight",
+  "line-height",
+  "letter-spacing",
+  "text-indent",
+  "border-top-width",
+  "border-bottom-width",
+  "list-style-type",
+  "list-style-position",
+];
+
+/** 逐元素对比两份副本的计算样式，返回前 limit 条差异（无差异返回空数组） */
+function diffFlowStyles(a: HTMLElement, b: HTMLElement, limit = 5) {
+  const out: Array<{
+    index: number;
+    tag: string;
+    prop: string;
+    measure: string;
+    display: string;
+  }> = [];
+  const ea = Array.from(a.querySelectorAll<HTMLElement>("*"));
+  const eb = Array.from(b.querySelectorAll<HTMLElement>("*"));
+  if (ea.length !== eb.length) {
+    out.push({
+      index: -1,
+      tag: "structure",
+      prop: "elementCount",
+      measure: String(ea.length),
+      display: String(eb.length),
+    });
+  }
+  const n = Math.min(ea.length, eb.length);
+  for (let i = 0; i < n && out.length < limit; i++) {
+    const ca = getComputedStyle(ea[i]);
+    const cb = getComputedStyle(eb[i]);
+    for (const p of LAYOUT_PROPS) {
+      const va = ca.getPropertyValue(p);
+      const vb = cb.getPropertyValue(p);
+      if (va !== vb) {
+        out.push({ index: i, tag: ea[i].tagName, prop: p, measure: va, display: vb });
+        break;
+      }
+    }
+  }
+  return out;
+}
 
 const PageSheet = React.memo(
   ({
@@ -151,19 +238,20 @@ const PageSheet = React.memo(
     pageCount,
     sheetHeightPx,
     pagePadding,
+    windowHeightPx,
+    contentOffsetPx,
     children,
   }: {
     pageNumber: number;
     pageCount: number;
     sheetHeightPx: number;
     pagePadding: number;
+    /** 本页窗口高度（≤ 内容区高度）：块边界分页后，末段留白留在页底 */
+    windowHeightPx: number;
+    /** 本页内容在整体内容流中的起始 y，用负 margin-top 偏移到窗口顶部 */
+    contentOffsetPx: number;
     children?: React.ReactNode;
   }) => {
-    // 第 1 页直接承载 #resume-preview 内容；
-    // 其余页用 overflow:hidden + 负 margin-top 偏移，显示对应页的内容片段。
-    const offset = (pageNumber - 1) * sheetHeightPx;
-    const isFirst = pageNumber === 1;
-
     return (
       <div
         data-pdf-export-ignore
@@ -171,16 +259,45 @@ const PageSheet = React.memo(
         style={{
           width: "210mm",
           height: `${sheetHeightPx}px`,
-          marginBottom: pageNumber < pageCount ? "16px" : 0,
+          marginBottom: pageNumber < pageCount ? `${SHEET_GAP_PX}px` : 0,
           boxSizing: "border-box",
+          overflow: "hidden",
+          position: "relative",
+          display: "block",
         }}
       >
+        {/*
+          页边距：每一页的上下左右都要留边，与 PDF 导出口径一致
+          （exportToPdf 用 html2pdf margin=pagePadding，print.ts 给 #resume-preview 加 pagePadding）。
+          此前页边距只存在于整份内容的首尾，导致分页后上一页底部/下一页顶部贴着纸边，
+          跨页处的文本行被硬切、看起来「掉进页间的间隙里」。
+        */}
         <div
           style={{
-            marginTop: isFirst ? 0 : -offset,
+            padding: `${pagePadding}px`,
+            height: "100%",
+            boxSizing: "border-box",
           }}
         >
-          {children}
+          {/* 内容窗口：按本页实际内容高度裁切，块边界分页保证不会切断文本行 */}
+          <div
+            style={{
+              height: `${windowHeightPx}px`,
+              overflow: "hidden",
+              position: "relative",
+              display: "block",
+            }}
+          >
+            <div
+              style={{
+                marginTop: `-${contentOffsetPx}px`,
+                position: "relative",
+                width: "100%",
+              }}
+            >
+              {children}
+            </div>
+          </div>
         </div>
 
         {/* 底部页码：仅预览显示，导出 PDF 时不包含（data-pdf-export-ignore） */}
@@ -256,10 +373,16 @@ const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
       }
     }, [themeColor, previewRef]);
 
-    // 真实内容高度测量：使用独立的隐藏测量节点（measureRef），
-    // 不裁切、不设 minHeight，避免显示副本的 minHeight/overflow 干扰 → 页数真实反映内容。
-    const [contentHeight, setContentHeight] = useState(0);
+    // 真实内容测量：使用独立的隐藏测量节点（measureRef），
+    // 不裁切、不设 minHeight、不设 padding，避免显示副本的窗口裁切干扰 → 页数真实反映内容。
+    // 除了总高，还要采集「块度量」用于按块边界分页（见 paginateBlocks）。
+    const [metrics, setMetrics] = useState<{
+      height: number;
+      blocks: BlockMetric[];
+    }>({ height: 0, blocks: [] });
     const measureRef = useRef<HTMLDivElement>(null);
+    // 每页可用内容高度 = A4 总高 - 上页边距 - 下页边距（与 PDF 导出口径一致）
+    const contentAreaPx = Math.max(1, A4_HEIGHT_PX - 2 * pagePadding);
 
     useEffect(() => {
       const el = measureRef.current;
@@ -267,9 +390,12 @@ const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
 
       const update = () => {
         const height = el.scrollHeight;
-        if (height > 0) {
-          setContentHeight((prev) => (prev !== height ? height : prev));
-        }
+        const blocks = collectBlockMetrics(el, contentAreaPx);
+        setMetrics((prev) =>
+          prev.height === height && sameBlocks(prev.blocks, blocks)
+            ? prev
+            : { height, blocks }
+        );
       };
 
       update();
@@ -297,26 +423,52 @@ const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
         resizeObserver.disconnect();
         cancelAnimationFrame(raf);
       };
-    }, [markdown, pagePadding, fontFamily, baseFontSize, lineHeight]);
+    }, [
+      markdown,
+      contentAreaPx,
+      fontFamily,
+      baseFontSize,
+      lineHeight,
+      sectionSpacing,
+      moduleSpacing,
+      headerSize,
+      subheaderSize,
+      variantCss,
+    ]);
 
-    // 分页计算：每页 = 一张 A4 纸（总高 A4_HEIGHT_PX），与 Puppeteer PDF 导出一致。
-    // 页面按整张 A4 高度向下切分（PageSheet 通过负 margin-top 偏移显示对应片段），
-    // padding 只存在于内容首尾各一次，因此页数 = 内容总高（含首尾 padding）/ A4 高，向上取整。
-    // 注意不能按「内容区高度 / (A4 - 2*padding)」计算——那相当于每页都重复扣减 padding，
-    // 当内容高度恰好落在 (k-1)*A4+2P 与 k*A4 之间时会多算一页，渲染出没有任何内容的空白页。
-    const { pageCount, sheetHeightPx } = useMemo(() => {
-      if (contentHeight <= 0) {
-        return { pageCount: 1, sheetHeightPx: A4_HEIGHT_PX };
-      }
+    // 分页计算：
+    // 1) 每页可用内容高度 = A4 总高 - 上页边距 - 下页边距，与 PDF 导出
+    //    （html2pdf margin=pagePadding / 打印 @page + #resume-preview padding）口径一致，
+    //    因此预览里每页的上下留白就是真实 PDF 的留白，所见即所得。
+    // 2) 切点落在内容块的边界上（paginateBlocks），块放不下就整块推到下一页，
+    //    不会把段落/列表项/标题从中间切断——这正是「文字落到页间间隙里看不见」的根因。
+    // 3) 每页窗口高度 = 下一页起点 - 本页起点（上限为内容区高度），
+    //    整块下推产生的留白就留在页底，不会出现没有任何内容的空白页。
+    const pages = useMemo(() => {
+      const cuts = paginateBlocks(metrics.blocks, contentAreaPx);
+      return buildPageWindows(cuts, contentAreaPx, metrics.height);
+    }, [metrics, contentAreaPx]);
 
-      let count = Math.max(1, Math.ceil(contentHeight / A4_HEIGHT_PX));
-      // 兜底：若末页偏移起点已超出实际内容高度（如测量误差导致页数偏大），
-      // 回收该空白页，保证最后一页一定有内容、页码与实际渲染页数一致
-      while (count > 1 && (count - 1) * A4_HEIGHT_PX >= contentHeight) {
-        count -= 1;
-      }
-      return { pageCount: count, sheetHeightPx: A4_HEIGHT_PX };
-    }, [contentHeight, pagePadding]);
+    // 开发期不变量自检：测量副本与显示副本必须解析出完全相同的排版样式。
+    // 切点按测量副本的坐标算、却要套用到显示副本上，两者一旦不一致，切点就会
+    // 错位，表现为「分页处内容消失 / 被遮挡」——这类问题过去反复出现且极难定位，
+    // 因此在这里直接对比两份副本的计算样式并报警（仅开发期、每个实例只报一次）。
+    const divergenceWarnedRef = useRef(false);
+    useEffect(() => {
+      if (!import.meta.env.DEV || divergenceWarnedRef.current) return;
+      const measureEl = measureRef.current;
+      const displayEl = previewRef.current;
+      if (!measureEl || !displayEl) return;
+      const diffs = diffFlowStyles(measureEl, displayEl);
+      if (diffs.length === 0) return;
+      divergenceWarnedRef.current = true;
+      console.warn(
+        "[MarkdownPreview] 测量副本与显示副本的排版样式不一致，分页切点会错位（内容可能在分页处消失）。\n" +
+          "常见原因：某个全局样式只命中其中一个副本（例如按 id=\"resume-preview\" 只命中第一页副本）。\n" +
+          "measure = 测量副本，display = 显示副本：",
+        diffs
+      );
+    }, [metrics, enhancedHtml, previewRef]);
 
     if (!activeResume) {
       // 允许在「无激活简历」上下文中渲染（如仪表盘缩略卡片）：
@@ -327,23 +479,24 @@ const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
       <div
         className={cn(
           "h-full min-h-0 overflow-y-auto",
-          embedded ? "bg-white" : "bg-gray-100 py-4"
+          embedded ? "bg-muted py-4" : "bg-muted py-4"
         )}
       >
-        {/* 隐藏测量节点：渲染完整内容，仅用于测量真实高度（不裁切、无 minHeight），保证页数真实。
+        {/* 隐藏测量节点：渲染完整内容，仅用于测量真实高度与块位置（不裁切、无 minHeight、无 padding），
+            保证页数真实。
             必须带上 resume-markdown-preview 类，否则内部 h1/h2/p/ul 等不应用简历样式，测量高度会远小于真实显示高度，
-            导致 pageCount 算少、末尾内容被截断。 */}
+            导致页数算少、末尾内容被截断。
+            宽度必须与显示节点的内容区一致 = 纸张宽 - 左右页边距，否则换行位置不同 → 高度与块位置全部失真。 */}
         <div
           ref={measureRef}
           aria-hidden
-          className="resume-markdown-preview"
+          className={CONTENT_FLOW_CLASS}
           data-preview-id={previewId}
           style={{
             position: "absolute",
             left: "-99999px",
             top: 0,
-            width: "210mm",
-            padding: `${pagePadding}px`,
+            width: `calc(210mm - ${pagePadding * 2}px)`,
             fontFamily,
             fontSize: `${baseFontSize}px`,
             lineHeight,
@@ -356,30 +509,31 @@ const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
           dangerouslySetInnerHTML={{ __html: enhancedHtml }}
         />
         <div className="mx-auto w-[210mm]">
-          {Array.from({ length: pageCount }, (_, i) => {
+          {pages.map((page, i) => {
             const pageNumber = i + 1;
             const isFirst = pageNumber === 1;
             return (
               <PageSheet
                 key={`page-${pageNumber}`}
                 pageNumber={pageNumber}
-                pageCount={pageCount}
-                sheetHeightPx={sheetHeightPx}
+                pageCount={pages.length}
+                sheetHeightPx={A4_HEIGHT_PX}
                 pagePadding={pagePadding}
+                windowHeightPx={page.windowHeight}
+                contentOffsetPx={page.start}
               >
                 <div
                   ref={isFirst ? previewRef : undefined}
                   id={isFirst ? "resume-preview" : undefined}
-                  className="resume-markdown-preview relative bg-white"
+                  className={CONTENT_FLOW_CLASS}
                   data-preview-id={previewId}
                   style={{
                     fontFamily,
                     fontSize: `${baseFontSize}px`,
                     lineHeight,
-                    padding: `${pagePadding}px`,
+                    // 页边距由 PageSheet 提供（每页都有），内容本身不再重复加 padding
                     color: "#1a1a1a",
                     boxSizing: "border-box",
-                    minHeight: `${sheetHeightPx}px`,
                     ["--resume-theme" as string]: themeColor,
                   }}
                   dangerouslySetInnerHTML={{ __html: enhancedHtml }}

@@ -3,6 +3,9 @@ import type { Config } from "tailwindcss";
 const { heroui } = require("@heroui/react");
 
 const config = {
+  // dark: 变体跟随 html 层 class（next-themes attribute="class"）。
+  // .theme-xai 作用域内通过 globals.css 的 html.light/.dark 变量翻转，
+  // 组件应优先用语义 token 与 xai-* 变量色，而非依赖 dark:。
   darkMode: ["class"],
   content: [
     "./pages/**/*.{ts,tsx}",
@@ -24,9 +27,28 @@ const config = {
     extend: {
       fontFamily: {
         serif: ["Newsreader", "serif"],
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ["Inter", "Noto Sans SC", "system-ui", "sans-serif"],
+        mono: ["Geist Mono", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       colors: {
+        /* xAI 深色语义色板 —— 与 globals.css 的 --xai-* 变量同源 */
+        xai: {
+          canvas: "var(--xai-canvas)",
+          surface: "var(--xai-surface)",
+          "surface-2": "var(--xai-surface-2)",
+          hairline: "var(--xai-hairline)",
+          "hairline-soft": "var(--xai-hairline-soft)",
+          "hairline-strong": "var(--xai-hairline-strong)",
+          text: "var(--xai-text)",
+          "text-mid": "var(--xai-text-mid)",
+          mute: "var(--xai-mute)",
+          eyebrow: "var(--xai-eyebrow)",
+          success: "var(--xai-success)",
+          add: "var(--xai-add)",
+          "add-bg": "var(--xai-add-bg)",
+          del: "var(--xai-del)",
+          "del-bg": "var(--xai-del-bg)",
+        },
         baseFont: "#212529",
         subtitleFont: "#212529",
         border: "hsl(var(--border))",

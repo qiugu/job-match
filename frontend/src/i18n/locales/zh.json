@@ -169,6 +169,8 @@
       "create": "新建简历",
       "newResume": "新建简历",
       "newResumeDescription": "创建一个新简历以开始。",
+      "uploadPdf": "上传 PDF 简历",
+      "resumesSubtitle": "上传已有简历、从空白开始，或基于模板快速创建",
       "untitled": "未命名简历",
       "importSuccess": "配置导入成功",
       "importError": "配置导入失败，请检查文件格式",
@@ -238,6 +240,7 @@
     },
     "templates": {
       "title": "模板",
+      "subtitle": "版式与主题色即选即用，进入编辑器后仍可自由调整",
       "useTemplate": "使用此模板",
       "preview": "预览",
       "switchTemplate": "切换模板",
