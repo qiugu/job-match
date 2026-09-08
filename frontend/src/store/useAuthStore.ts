@@ -7,6 +7,7 @@ import { create } from "zustand";
 import {
   ApiError,
   AuthUser,
+  changePassword as changePasswordApi,
   clearToken,
   fetchMe,
   getToken,
@@ -32,6 +33,11 @@ interface AuthStore {
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, password: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
+  /**
+   * 修改密码。后端改密后会递增 token_version 使旧令牌立即失效，并在响应里回发
+   * 新令牌，因此这里必须落地新令牌——否则改密成功后的每个业务请求都会 401。
+   */
+  changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   /** 匹配成功后用后端返回的剩余次数刷新本地显示 */
   applyQuota: (remaining: number) => void;
   clearError: () => void;
@@ -114,6 +120,29 @@ export const useAuthStore = create<AuthStore>((set) => ({
   logout: async () => {
     await logoutApi();
     set({ status: "anonymous", user: null, error: null, cooldownUntil: null });
+  },
+
+  changePassword: async (oldPassword, newPassword) => {
+    set({ submitting: true, error: null });
+    try {
+      const res = await changePasswordApi(oldPassword, newPassword);
+      // 旧令牌已被服务端作废，换成响应里回发的新令牌，当前会话保持登录
+      setToken(res.token);
+      set({
+        status: "authenticated",
+        user: res.user,
+        submitting: false,
+        error: null,
+        cooldownUntil: null,
+      });
+    } catch (error) {
+      set({
+        submitting: false,
+        error: error instanceof Error ? error.message : "修改密码失败",
+        cooldownUntil: cooldownFrom(error),
+      });
+      throw error;
+    }
   },
 
   applyQuota: (remaining) =>

@@ -152,3 +152,58 @@ async def test_change_password_invalidates_old_token(client, session):
         json={"username": "chgpw", "password": "NewPass#5678"},
     )
     assert r.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_change_password_returns_usable_token(client, session):
+    """改密响应回发的新令牌必须可直接访问受保护路由。
+
+    前端改密后会把这个令牌落地以保持当前会话登录（useAuthStore.changePassword）。
+    若回发的令牌不可用、或前端没有落地它，改密成功后的每个业务请求都会 401——
+    这条断言锁住的就是这个契约。
+    """
+    token = await _register(client, session, "chgpw2", code="CP2")
+
+    r = await client.post(
+        "/api/auth/change-password",
+        headers=auth_headers(token),
+        json={"oldPassword": "Pass#1234", "newPassword": "NewPass#5678"},
+    )
+    assert r.status_code == 200
+    new_token = r.json()["token"]
+    assert new_token and new_token != token
+
+    # 新令牌立即可用：当前会话无需重新登录
+    r = await client.get("/api/auth/me", headers=auth_headers(new_token))
+    assert r.status_code == 200
+    assert r.json()["username"] == "chgpw2"
+
+
+@pytest.mark.asyncio
+async def test_change_password_wrong_old_password(client, session):
+    token = await _register(client, session, "chgpw3", code="CP3")
+
+    r = await client.post(
+        "/api/auth/change-password",
+        headers=auth_headers(token),
+        json={"oldPassword": "Wrong#1234", "newPassword": "NewPass#5678"},
+    )
+    assert r.status_code == 400
+    assert "原密码" in r.json()["detail"]
+
+    # 原密码校验失败时口令未被改动，旧令牌仍然有效
+    r = await client.get("/api/auth/me", headers=auth_headers(token))
+    assert r.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_change_password_weak_new_password(client, session):
+    token = await _register(client, session, "chgpw4", code="CP4")
+
+    r = await client.post(
+        "/api/auth/change-password",
+        headers=auth_headers(token),
+        json={"oldPassword": "Pass#1234", "newPassword": "123"},
+    )
+    assert r.status_code == 400
+    assert "密码" in r.json()["detail"]

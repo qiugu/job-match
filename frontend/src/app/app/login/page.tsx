@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { formatCountdown } from "@/utils/countdown";
 
 import Logo from "@/components/shared/Logo";
+import { IcpFilingLink } from "@/components/shared/IcpFiling";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -91,7 +92,7 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-12">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-12">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,hsl(var(--primary)/0.12),transparent_70%)]"
@@ -183,6 +184,11 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
           </p>
         </CardContent>
       </Card>
+
+      {/* 合规悬挂位：备案号居中展示，并链接至工信部备案管理系统 */}
+      <div className="relative mt-12 flex justify-center">
+        <IcpFilingLink />
+      </div>
     </div>
   );
 }

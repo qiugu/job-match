@@ -293,8 +293,9 @@ const TemplatesPage = () => {
               if (!open) setPreviewTemplateId(null);
             }}
           >
+            {/* 同 CreateResumeModal：Portal 出 .theme-xai 作用域，需补上以跟随主题 */}
             {activePreviewTemplate && (
-              <DialogContent className="max-w-[680px] overflow-hidden rounded-2xl border border-xai-hairline bg-xai-surface p-0 shadow-none">
+              <DialogContent className="theme-xai max-w-[680px] overflow-hidden rounded-2xl border border-xai-hairline bg-xai-surface p-0 shadow-none">
                 <div className="flex flex-col">
                   <div className="flex flex-col gap-1.5 border-b border-xai-hairline px-5 py-4">
                     <p className="xai-eyebrow text-[10px]">TEMPLATE PREVIEW</p>

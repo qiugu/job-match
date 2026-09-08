@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import {
+  IconChevronDown,
   IconDoc,
   IconGrid,
   IconLogout,
@@ -8,6 +10,14 @@ import {
 } from "@/components/shared/icons/XaiIcons";
 import { usePathname, useRouter } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChangePasswordDialog } from "@/components/shared/ChangePasswordDialog";
 import {
   Sidebar,
   SidebarContent,
@@ -74,6 +84,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const [collapsible, setCollapsible] = useState<"offcanvas" | "icon" | "none">(
     "icon"
   );
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const handleItemClick = (item: MenuItem) => {
     if (item.items) {
@@ -207,14 +218,47 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
             </SidebarGroup>
           </SidebarContent>
 
+          {/* 账号区：头像 + 昵称 + 额度，整行即账号菜单触发器。
+              侧边栏折叠时只显示头像，菜单依旧可用（此前登出按钮在折叠时会被隐藏）。 */}
           <SidebarFooter className="border-t border-xai-hairline-soft p-0">
-            <div className="flex h-[62px] items-center gap-2.5 px-5">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-xai-hairline bg-xai-surface-2 text-[13px] font-medium text-xai-text">
-                {displayName?.[0]?.toUpperCase() || "U"}
-              </div>
-              {open && (
-                <>
-                  <div className="min-w-0 flex-1">
+            <div className="flex h-[62px] items-center px-5">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-center gap-2.5 rounded-full text-left transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-xai-text"
+                  >
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-xai-hairline bg-xai-surface-2 text-[13px] font-medium text-xai-text">
+                      {displayName?.[0]?.toUpperCase() || "U"}
+                    </span>
+                    {open && (
+                      <>
+                        <span className="min-w-0 flex-1">
+                          <span
+                            className="block truncate text-[13px] font-medium text-xai-text-mid"
+                            title={displayName}
+                          >
+                            {displayName}
+                          </span>
+                          <span className="block truncate text-[11px] text-xai-mute">
+                            {quotaText}
+                          </span>
+                        </span>
+                        <IconChevronDown
+                          size={14}
+                          className="shrink-0 rotate-180 text-xai-eyebrow"
+                        />
+                      </>
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                {/* 菜单同样挂在 body 上，补 theme-xai 才能继承控制台的具名令牌 */}
+                <DropdownMenuContent
+                  side="top"
+                  align="start"
+                  className="theme-xai w-60 rounded-xl border border-xai-hairline bg-xai-surface p-1.5"
+                >
+                  <div className="px-2.5 py-2">
                     <p
                       className="truncate text-[13px] font-medium text-xai-text-mid"
                       title={displayName}
@@ -225,16 +269,25 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                       {quotaText}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    aria-label={tAuth("auth.logout")}
-                    className="shrink-0 text-xai-eyebrow transition-colors hover:text-xai-text"
+                  <DropdownMenuSeparator className="bg-xai-hairline-soft" />
+                  <DropdownMenuItem
+                    onSelect={() => setPasswordOpen(true)}
+                    className="h-9 cursor-pointer gap-2.5 rounded-lg px-2.5 text-[13px] text-xai-text-mid focus:bg-xai-surface-2 focus:text-xai-text"
                   >
-                    <IconLogout size={18} />
-                  </button>
-                </>
-              )}
+                    <KeyRound size={15} className="text-xai-mute" />
+                    {tAuth("auth.changePassword")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      void handleLogout();
+                    }}
+                    className="h-9 cursor-pointer gap-2.5 rounded-lg px-2.5 text-[13px] text-xai-del focus:bg-xai-del-bg focus:text-xai-del"
+                  >
+                    <IconLogout size={15} />
+                    {tAuth("auth.logout")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </SidebarFooter>
         </Sidebar>
@@ -242,6 +295,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
           <div className="min-h-0 flex-1">{children}</div>
         </main>
       </SidebarProvider>
+      <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
     </div>
   );
 };

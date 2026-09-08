@@ -176,7 +176,9 @@ export const CreateResumeModal = ({
                 onOpenChange(nextOpen);
             }}
         >
-            <DialogContent hideClose className="flex h-[88vh] max-w-[1050px] w-[95vw] flex-col overflow-hidden rounded-2xl border border-xai-hairline bg-xai-surface p-0 shadow-none">
+            {/* 弹窗挂在 body 上、落在 .theme-xai 作用域之外：补 theme-xai 才能拿到
+                控制台的同款令牌，否则浅色主题下会渲染成深色面板。 */}
+            <DialogContent hideClose className="theme-xai flex h-[88vh] max-w-[1050px] w-[95vw] flex-col overflow-hidden rounded-2xl border border-xai-hairline bg-xai-surface p-0 shadow-none">
                 {/* We keep an empty DialogTitle to satisfy accessibility requirements without taking up space */}
                 <DialogTitle className="sr-only">{t("dashboard.resumes.createDialog.title")}</DialogTitle>
 
