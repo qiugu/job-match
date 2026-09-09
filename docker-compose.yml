@@ -42,8 +42,10 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8005/health').status==200 else 1)"]
       interval: 30s
       timeout: 5s
-      retries: 3
-      start_period: 15s
+      retries: 5
+      # 2G 小内存机冷启动（langchain 导入 + 双重 alembic + bootstrap_auth）常超 15s，
+      # 放宽到 90s 避免健康探测在后端尚未就绪时误判失败。
+      start_period: 90s
 
   # 前端：TanStack Start 生产服务器（SSR + 静态资源）
   frontend:
