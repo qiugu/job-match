@@ -1,14 +1,16 @@
 import { toast } from "sonner";
-import { normalizeFontFamily } from "@/utils/fonts";
 import { ResumeData } from "@/types/resume";
 import { generateResumeMarkdown, ResumeMarkdownOptions } from "@/utils/markdown";
-import { PAGE_BREAK_CSS } from "@/utils/pageBreakCss";
+
+/**
+ * 简历文件导出（JSON / Markdown）。
+ *
+ * 注意：PDF 导出已迁移到服务端矢量渲染（utils/pdfExportServer.ts → 后端
+ * /api/export/pdf，headless Chromium），html2pdf 位图导出链已退役删除，
+ * 不再在此提供 exportToPdf。
+ */
 
 const INVALID_FILE_NAME_CHAR_REGEX = /[\\/:*?"<>|]/g;
-
-// A4 纸张尺寸（px @ 96dpi），与 MarkdownPreview 的预览容器一致
-const A4_WIDTH_PX = 794;
-const A4_HEIGHT_PX = 1123;
 
 const getSafeFileName = (title?: string) => {
   const normalized = (title || "resume")
@@ -34,83 +36,6 @@ const downloadTextFile = (content: string, fileName: string, mimeType: string) =
   const blob = new Blob([content], { type: mimeType });
   downloadBlob(blob, fileName);
 };
-
-export const getOptimizedStyles = () => {
-  const styleCache = new Map();
-  const startTime = performance.now();
-
-  const styles = Array.from(document.styleSheets)
-    .map((sheet) => {
-      try {
-        return Array.from(sheet.cssRules)
-          .filter((rule) => {
-            const ruleText = rule.cssText;
-            const normalizedRuleText = ruleText.toLowerCase();
-            if (styleCache.has(ruleText)) return false;
-            styleCache.set(ruleText, true);
-
-            if (rule instanceof CSSFontFaceRule) return false;
-            if (rule instanceof CSSImportRule) return false;
-            if (normalizedRuleText.includes("fonts.googleapis.com")) return false;
-            if (normalizedRuleText.includes("fonts.gstatic.com")) return false;
-            if (ruleText.includes("font-family")) return false;
-            if (ruleText.includes("@keyframes")) return false;
-            if (ruleText.includes("animation")) return false;
-            if (ruleText.includes("transition")) return false;
-            if (ruleText.includes("hover")) return false;
-            return true;
-          })
-          .map((rule) => rule.cssText)
-          .join("\n");
-      } catch (e) {
-        console.warn("Style processing error:", e);
-        return "";
-      }
-    })
-    .join("\n");
-
-  console.log(`Style processing took ${performance.now() - startTime}ms`);
-  return styles;
-};
-
-export const optimizeImages = async (element: HTMLElement) => {
-  const startTime = performance.now();
-  const images = element.getElementsByTagName("img");
-
-  const imagePromises = Array.from(images)
-    .filter((img) => !img.src.startsWith("data:"))
-    .map(async (img) => {
-      try {
-        const response = await fetch(img.src);
-        const blob = await response.blob();
-        return new Promise<void>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            img.src = reader.result as string;
-            resolve();
-          };
-          reader.readAsDataURL(blob);
-        });
-      } catch (error) {
-        console.error("Image conversion error:", error);
-        return Promise.resolve();
-      }
-    });
-
-  await Promise.all(imagePromises);
-  console.log(`Image processing took ${performance.now() - startTime}ms`);
-};
-
-export interface ExportToPdfOptions {
-  elementId: string;
-  title: string;
-  pagePadding: number;
-  fontFamily?: string;
-  onStart?: () => void;
-  onEnd?: () => void;
-  successMessage?: string;
-  errorMessage?: string;
-}
 
 interface ExportResumeFileOptions {
   resume?: ResumeData | null;
@@ -174,116 +99,6 @@ export const exportResumeAsMarkdown = ({
     if (successMessage) toast.success(successMessage);
   } catch (error) {
     console.error("Markdown export error:", error);
-    if (errorMessage) toast.error(errorMessage);
-  } finally {
-    onEnd?.();
-  }
-};
-
-export const exportToPdf = async ({
-  elementId,
-  title,
-  pagePadding,
-  fontFamily,
-  onStart,
-  onEnd,
-  successMessage,
-  errorMessage
-}: ExportToPdfOptions) => {
-  const exportStartTime = performance.now();
-  onStart?.();
-
-  try {
-    const pdfElement = document.querySelector<HTMLElement>(`#${elementId}`);
-    if (!pdfElement) {
-      throw new Error(`PDF element #${elementId} not found`);
-    }
-
-    const clonedElement = pdfElement.cloneNode(true) as HTMLElement;
-    const selectedFontFamily = normalizeFontFamily(fontFamily);
-    const transformValue = clonedElement.style.transform || "";
-    const scaleMatch = transformValue.match(/scale\(([\d.]+)\)/);
-
-    if (scaleMatch) {
-      const scale = Number(scaleMatch[1]);
-      if (Number.isFinite(scale) && scale > 0 && scale < 1) {
-        // 导出前将 transform 缩放转为 zoom，避免页面宽高计算偏差
-        clonedElement.style.removeProperty("transform");
-        clonedElement.style.removeProperty("transform-origin");
-        clonedElement.style.setProperty("zoom", String(scale));
-      }
-    }
-
-    // 统一宽度与字体：导出容器固定为 A4 内容宽度，padding 交给 html2pdf 的 margin 控制
-    clonedElement.style.setProperty("width", `${A4_WIDTH_PX}px`, "important");
-    clonedElement.style.setProperty("padding", "0", "important");
-    clonedElement.style.setProperty("margin", "0", "important");
-    clonedElement.style.setProperty("box-sizing", "border-box");
-    clonedElement.style.setProperty("font-family", selectedFontFamily, "important");
-    clonedElement.style.setProperty("background", "white", "important");
-
-    // 预览专用装饰（页码容器 / 分页占位线）在真实 PDF 中隐藏
-    clonedElement
-      .querySelectorAll<HTMLElement>("[data-pdf-export-ignore]")
-      .forEach((el) => {
-        el.style.margin = "0";
-        el.style.boxShadow = "none";
-        el.style.overflow = "visible";
-        el.style.height = "auto";
-        el.style.width = "100%";
-      });
-    clonedElement
-      .querySelectorAll<HTMLElement>(".page-break-line")
-      .forEach((line) => {
-        line.style.display = "none";
-      });
-
-    const capturedStyles = await getOptimizedStyles();
-    await optimizeImages(clonedElement);
-
-    // 把样式注入克隆节点，保证 html2pdf 用 canvas 截图时样式完整
-    const styleEl = document.createElement("style");
-    styleEl.textContent = `
-      ${capturedStyles}
-      html, body { background: white !important; }
-      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      [data-pdf-export-ignore] { display: none !important; }
-
-      /* PDF 分页：对通用语义块（标题/段落/列表项/表格行/图片等）整块换页，
-         避免页边界从块中间切断文本行。规则与浏览器打印共用同一份
-         （utils/pageBreakCss.ts），保证「预览所见 = 导出所得 = 打印所得」。 */
-      ${PAGE_BREAK_CSS}
-    `;
-    clonedElement.prepend(styleEl);
-
-    // 纯前端生成 PDF：使用已安装的 html2pdf.js（无跨域请求，彻底规避 CORS error）
-    const html2pdf = (await import("html2pdf.js")).default;
-    await html2pdf()
-      .set({
-        margin: pagePadding,
-        filename: `${getSafeFileName(title)}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          width: A4_WIDTH_PX,
-          windowWidth: A4_WIDTH_PX
-        },
-        jsPDF: {
-          unit: "px",
-          format: [A4_WIDTH_PX, A4_HEIGHT_PX],
-          orientation: "portrait"
-        },
-        pagebreak: { mode: ["css", "legacy"] }
-      })
-      .from(clonedElement)
-      .save();
-
-    if (successMessage) toast.success(successMessage);
-    console.log(`Total export took ${performance.now() - exportStartTime}ms`);
-  } catch (error) {
-    console.error("Export error:", error);
     if (errorMessage) toast.error(errorMessage);
   } finally {
     onEnd?.();

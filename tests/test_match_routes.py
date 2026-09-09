@@ -3,10 +3,14 @@
 通过 monkeypatch 替换 app.api.match.run_match 注入确定性结果，
 不触发真实 LLM / 网络。重点验证路由层契约：
 - 额度扣减后返回 remainingQuota
+- create_match 挂载岗位卡并返回 jobId（匹配即建档，刷新不丢上下文）
 - accept 幂等（同结果复用以 accepted_master_id 为键）
 - 接受落库 MasterResume 标题冲突时加 ` (2)` 后缀
-- 响应字段名 markdownContent / coverLetter / hasCoverLetter
+- 响应字段名 markdownContent
 - 无限制账号不扣额度（管理员）
+
+注：话术（cover letter）已从匹配结果解耦到独立资源 /api/cover-letters，
+匹配响应不再包含 hasCoverLetter / coverLetter 字段。
 """
 
 import pytest
@@ -45,8 +49,8 @@ async def _login(client, session, username, code, password="Pass#1234"):
 
 
 # 确定性伪匹配结果，绕过 LLM。
-async def _fake_run_match(master_text, jd_text, with_cover_letter):
-    cover = "尊敬的招聘经理：\n\n我对贵司岗位非常感兴趣。\n" if with_cover_letter else ""
+# 当前 run_match(master_text, jd_text) 返回 3 元组：(keywords, markdown, analysis)
+async def _fake_run_match(master_text, jd_text):
     md = (
         "# 项目经历\n"
         "- 主导某系统重构，QPS 提升 3 倍\n"
@@ -55,7 +59,7 @@ async def _fake_run_match(master_text, jd_text, with_cover_letter):
         "- Python / FastAPI\n"
     )
     analysis = {"score": 5}
-    return (["Python", "FastAPI"], md, cover, analysis)
+    return (["Python", "FastAPI"], md, analysis)
 
 
 @pytest.mark.asyncio
@@ -69,7 +73,6 @@ async def test_create_match_consumes_quota(client, session, monkeypatch):
         json={
             "resumeText": "# resume\n- did x",
             "jdText": "# jd\n- need y",
-            "withCoverLetter": False,
             "title": "match1",
         },
         headers=h,
@@ -79,11 +82,13 @@ async def test_create_match_consumes_quota(client, session, monkeypatch):
     # 初始配额 3，扣 1 后剩余 2
     assert body["remainingQuota"] == 2
     assert "markdownContent" in body and body["markdownContent"]
-    assert body["hasCoverLetter"] is False
+    # 匹配即建档：响应挂载 jobId（话术已解耦，无 hasCoverLetter/coverLetter）
+    assert isinstance(body.get("jobId"), str) and body["jobId"]
 
 
 @pytest.mark.asyncio
-async def test_create_match_with_cover_letter(client, session, monkeypatch):
+async def test_create_match_returns_job_id(client, session, monkeypatch):
+    """create_match 必须自动挂载岗位卡并返回非空 jobId（归一化 JD 查重/建档）。"""
     token = await _login(client, session, "covl", "CL1")
     h = auth_headers(token)
     monkeypatch.setattr("app.api.match.run_match", _fake_run_match)
@@ -93,14 +98,12 @@ async def test_create_match_with_cover_letter(client, session, monkeypatch):
         json={
             "resumeText": "# resume",
             "jdText": "# jd",
-            "withCoverLetter": True,
             "title": "match-cl",
         },
         headers=h,
     )
     assert r.status_code == 200, r.text
-    assert r.json()["hasCoverLetter"] is True
-    assert r.json().get("coverLetter")
+    assert isinstance(r.json().get("jobId"), str) and r.json()["jobId"]
 
 
 @pytest.mark.asyncio
@@ -108,7 +111,7 @@ async def test_quota_exhausted_returns_403(client, session, monkeypatch):
     token = await _login(client, session, "qexh", "QE1")  # 配额 3
     h = auth_headers(token)
     monkeypatch.setattr("app.api.match.run_match", _fake_run_match)
-    payload = {"resumeText": "# r", "jdText": "# j", "withCoverLetter": False}
+    payload = {"resumeText": "# r", "jdText": "# j"}
     for i in range(3):
         r = await client.post(
             "/api/derived-resumes", json={**payload, "title": f"m{i}"}, headers=h
@@ -131,7 +134,6 @@ async def test_get_and_list_derived(client, session, monkeypatch):
         json={
             "resumeText": "# r",
             "jdText": "# j",
-            "withCoverLetter": False,
             "title": "t1",
         },
         headers=h,
@@ -159,7 +161,6 @@ async def test_accept_derived_idempotent(client, session, monkeypatch):
         json={
             "resumeText": "# r",
             "jdText": "# j",
-            "withCoverLetter": False,
             "title": "derived-title",
         },
         headers=h,
@@ -199,7 +200,6 @@ async def test_accept_title_conflict_gets_suffix(client, session, monkeypatch):
         json={
             "resumeText": "# r",
             "jdText": "# j",
-            "withCoverLetter": False,
             "title": "derived-title",
         },
         headers=h,
@@ -217,7 +217,6 @@ async def test_accept_title_conflict_gets_suffix(client, session, monkeypatch):
         json={
             "resumeText": "# r2",
             "jdText": "# j2",
-            "withCoverLetter": False,
             "title": "derived-title",
         },
         headers=h,
@@ -246,7 +245,6 @@ async def test_update_derived(client, session, monkeypatch):
         json={
             "resumeText": "# r",
             "jdText": "# j",
-            "withCoverLetter": False,
             "title": "upd",
         },
         headers=h,
@@ -287,7 +285,6 @@ async def test_unlimited_user_not_charged(client, session, monkeypatch):
         json={
             "resumeText": "# r",
             "jdText": "# j",
-            "withCoverLetter": False,
             "title": "adm-match",
         },
         headers=h,

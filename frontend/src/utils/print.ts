@@ -1,5 +1,9 @@
 import { getFontFaceCss, normalizeFontFamily } from "@/utils/fonts";
-import { PAGE_BREAK_CSS } from "@/utils/pageBreakCss";
+import {
+  buildPrintHtml,
+  collectDocumentCss,
+  normalizePrintContent,
+} from "@/utils/printHtml";
 
 export const exportResumeToBrowserPrint = async (
   resumeContent: HTMLElement,
@@ -28,117 +32,17 @@ export const exportResumeToBrowserPrint = async (
 
     const clonedContent = resumeContent.cloneNode(true) as HTMLElement;
     const selectedFontFamily = normalizeFontFamily(fontFamily);
-    const transformValue = clonedContent.style.transform || "";
-    const match = transformValue.match(/scale\(([\d.]+)\)/);
-    if (match) {
-      const scale = Number(match[1]);
-      if (Number.isFinite(scale) && scale > 0 && scale < 1) {
-        // 打印时使用 zoom 参与分页布局计算，比 transform 更接近最终分页效果
-        clonedContent.style.removeProperty("transform");
-        clonedContent.style.removeProperty("transform-origin");
-        clonedContent.style.setProperty("width", "100%");
-        clonedContent.style.setProperty("zoom", String(scale));
-      }
-    }
-
-    clonedContent.style.setProperty("font-family", selectedFontFamily, "important");
+    normalizePrintContent(clonedContent, selectedFontFamily);
     const fontFaceStyles = await getFontFaceCss(selectedFontFamily);
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Print Resume</title>
-          <style>
-            ${fontFaceStyles}
-
-            @page {
-              size: A4;
-              margin: 0;
-              padding: 0;
-            }
-            * {
-              box-sizing: border-box;
-            }
-            html, body {
-              margin: 0;
-              padding: 0;
-              width: 100%;
-              background: white !important;
-              height: auto !important;
-              overflow: visible !important;
-            }
-            body {
-              font-family: ${selectedFontFamily};
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-
-            #resume-preview {
-              margin: 0 !important;
-              padding: ${pagePadding}px !important;
-              -webkit-box-decoration-break: clone;
-              box-decoration-break: clone;
-              font-family: ${selectedFontFamily} !important;
-              background: white !important;
-            }
-
-            #print-content {
-              width: 210mm;
-              margin: 0 auto;
-              padding: 0;
-              background: white;
-              box-shadow: none;
-            }
-            #print-content * {
-              box-shadow: none !important;
-            }
-
-            #resume-preview .min-h-screen,
-            #resume-preview .min-h-full,
-            #resume-preview [style*="min-height"] {
-              min-height: 0 !important;
-            }
-            
-            .page-break-line {
-              display: none;
-            }
-
-            /* 防御性：打印时拍平预览纸张包装层，不留白、不显页码 */
-            [data-pdf-export-ignore] {
-              margin: 0 !important;
-              box-shadow: none !important;
-              overflow: visible !important;
-              height: auto !important;
-              width: 100% !important;
-            }
-
-            /* 浏览器打印分页：标题/段落/列表项/引用/表格行等整块换页，避免页边界
-               切断文本行。规则与 PDF 导出共用同一份（utils/pageBreakCss.ts），
-               只按语义标签命中，不绑定具体简历版式。 */
-            ${PAGE_BREAK_CSS}
-
-            ${Array.from(document.styleSheets)
-              .map((sheet) => {
-                try {
-                  return Array.from(sheet.cssRules)
-                    .map((rule) => rule.cssText)
-                    .join("\n");
-                } catch (e) {
-                  console.warn("Could not copy styles from sheet:", e);
-                  return "";
-                }
-              })
-              .join("\n")}
-          </style>
-        </head>
-        <body>
-          <div id="print-content">
-            ${clonedContent.outerHTML}
-          </div>
-        </body>
-      </html>
-    `;
+    const htmlContent = buildPrintHtml({
+      content: clonedContent.outerHTML,
+      pagePadding,
+      fontFamily: selectedFontFamily,
+      fontFaceCss: fontFaceStyles,
+      contentCss: collectDocumentCss(),
+      title: "Print Resume"
+    });
 
     iframeWindow.document.write(htmlContent);
     iframeWindow.document.close();

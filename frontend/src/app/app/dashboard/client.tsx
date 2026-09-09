@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { KeyRound } from "lucide-react";
+import { Briefcase, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import {
   IconChevronDown,
@@ -64,6 +64,12 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       title: t("sidebar.jobmatch"),
       url: "/app/dashboard/match",
       icon: IconTarget,
+    },
+    {
+      // 岗位卡（机会管理）：独立入口，取代匹配页内的抽屉按钮
+      title: t("sidebar.jobs"),
+      url: "/app/dashboard/jobs",
+      icon: Briefcase,
     },
     {
       title: t("sidebar.resumes"),

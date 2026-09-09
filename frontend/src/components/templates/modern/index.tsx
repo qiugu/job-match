@@ -1,5 +1,5 @@
 import React from "react";
-import { ResumeData } from "@/types/resume";
+import { DEFAULT_PAGE_PADDING, ResumeData } from "@/types/resume";
 import { ResumeTemplate } from "@/types/template";
 import BaseInfo from "./sections/BaseInfo";
 import ExperienceSection from "./sections/ExperienceSection";
@@ -73,7 +73,7 @@ const ModernTemplate: React.FC<ModernTemplateProps> = ({ data, template }) => {
         <table
             className="w-full border-collapse"
             style={{
-                height: `calc(297mm - ${(data.globalSettings?.pagePadding || 32) * 2}px)`,
+                height: `calc(297mm - ${(data.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING) * 2}px)`,
                 tableLayout: 'fixed'
             }}
         >

@@ -1,5 +1,5 @@
 import React from "react";
-import { ResumeData } from "@/types/resume";
+import { DEFAULT_PAGE_PADDING, ResumeData } from "@/types/resume";
 import { ResumeTemplate } from "@/types/template";
 import BaseInfo from "./sections/BaseInfo";
 import ExperienceSection from "./sections/ExperienceSection";
@@ -57,9 +57,9 @@ const EditorialTemplate: React.FC<EditorialTemplateProps> = ({ data, template })
       style={{
         backgroundColor: colorScheme.background || "#FFFFFF",
         color: colorScheme.text || "#1a1a1a",
-        margin: `-${data.globalSettings?.pagePadding || 0}px`,
-        padding: `${data.globalSettings?.pagePadding || 0}px`,
-        paddingTop: `${(data.globalSettings?.pagePadding || 0) + 16}px`,
+        margin: `-${data.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING}px`,
+        padding: `${data.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING}px`,
+        paddingTop: `${(data.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING) + 16}px`,
       }}
     >
       {enabledSections.map((section) => (

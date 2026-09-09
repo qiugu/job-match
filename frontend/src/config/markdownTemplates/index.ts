@@ -1,5 +1,5 @@
 import type { GlobalSettings, ResumeData, ThemeColor } from "@/types/resume";
-import { THEME_COLORS } from "@/types/resume";
+import { DEFAULT_PAGE_PADDING, THEME_COLORS } from "@/types/resume";
 import { DEFAULT_FONT_FAMILY } from "@/utils/fonts";
 import { blankResumeState, blankResumeStateEn } from "@/config/initialResumeData";
 import { MARKDOWN_SAMPLE_EN, MARKDOWN_SAMPLE_ZH } from "./samples";
@@ -91,7 +91,8 @@ export const MARKDOWN_TEMPLATES: MarkdownTemplate[] = [
     fontFamily: FONT_SANS,
     baseFontSize: 15,
     lineHeight: 1.6,
-    pagePadding: 36,
+    // 全模板页边距统一走 DEFAULT_PAGE_PADDING（48px = 0.5″，简历通行下限）
+    pagePadding: DEFAULT_PAGE_PADDING,
     sectionSpacing: 14,
     headerSize: 18,
     subheaderSize: 15,
@@ -101,7 +102,7 @@ export const MARKDOWN_TEMPLATES: MarkdownTemplate[] = [
     fontFamily: FONT_NOTO,
     baseFontSize: 14,
     lineHeight: 1.55,
-    pagePadding: 32,
+    pagePadding: DEFAULT_PAGE_PADDING,
     sectionSpacing: 12,
     headerSize: 17,
     subheaderSize: 14,
@@ -111,7 +112,7 @@ export const MARKDOWN_TEMPLATES: MarkdownTemplate[] = [
     fontFamily: FONT_MISANS,
     baseFontSize: 14,
     lineHeight: 1.6,
-    pagePadding: 34,
+    pagePadding: DEFAULT_PAGE_PADDING,
     sectionSpacing: 16,
     headerSize: 17,
     subheaderSize: 14,
@@ -121,7 +122,7 @@ export const MARKDOWN_TEMPLATES: MarkdownTemplate[] = [
     fontFamily: FONT_SANS,
     baseFontSize: 15,
     lineHeight: 1.65,
-    pagePadding: 36,
+    pagePadding: DEFAULT_PAGE_PADDING,
     sectionSpacing: 16,
     headerSize: 18,
     subheaderSize: 15,
@@ -131,7 +132,7 @@ export const MARKDOWN_TEMPLATES: MarkdownTemplate[] = [
     fontFamily: FONT_SANS,
     baseFontSize: 14,
     lineHeight: 1.8,
-    pagePadding: 48,
+    pagePadding: DEFAULT_PAGE_PADDING,
     sectionSpacing: 24,
     headerSize: 16,
     subheaderSize: 14,
@@ -141,7 +142,7 @@ export const MARKDOWN_TEMPLATES: MarkdownTemplate[] = [
     fontFamily: FONT_SERIF,
     baseFontSize: 15,
     lineHeight: 1.7,
-    pagePadding: 40,
+    pagePadding: DEFAULT_PAGE_PADDING,
     sectionSpacing: 18,
     headerSize: 17,
     subheaderSize: 15,
@@ -151,7 +152,7 @@ export const MARKDOWN_TEMPLATES: MarkdownTemplate[] = [
     fontFamily: FONT_SANS,
     baseFontSize: 15,
     lineHeight: 1.6,
-    pagePadding: 32,
+    pagePadding: DEFAULT_PAGE_PADDING,
     sectionSpacing: 18,
     headerSize: 22,
     subheaderSize: 17,
@@ -161,7 +162,7 @@ export const MARKDOWN_TEMPLATES: MarkdownTemplate[] = [
     fontFamily: FONT_SERIF,
     baseFontSize: 14,
     lineHeight: 1.75,
-    pagePadding: 28,
+    pagePadding: DEFAULT_PAGE_PADDING,
     sectionSpacing: 20,
     headerSize: 22,
     subheaderSize: 16,
@@ -171,7 +172,7 @@ export const MARKDOWN_TEMPLATES: MarkdownTemplate[] = [
     fontFamily: FONT_SANS,
     baseFontSize: 14,
     lineHeight: 1.45,
-    pagePadding: 40,
+    pagePadding: DEFAULT_PAGE_PADDING,
     sectionSpacing: 20,
     headerSize: 18,
     subheaderSize: 14,

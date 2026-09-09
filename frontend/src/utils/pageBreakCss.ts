@@ -9,9 +9,10 @@
  * 否则换一套简历样式就会失效，分页问题又会以另一种形式复发。
  *
  * 适用范围：
- * - html2pdf 导出（pagebreak.mode 含 "css"，识别 break-inside / break-after）
  * - 浏览器打印（exportResumeToBrowserPrint）
- * 两条路径共用同一份规则，保证「预览所见 = 导出所得 = 打印所得」。
+ * - 服务端 PDF 导出（后端 headless Chromium 渲染同一份 print HTML，
+ *   buildPrintHtml 内联本规则；Chromium 原生识别 break-inside / break-after）
+ * 两条路径共用同一份规则，保证「打印所得 = 导出所得 = 预览所见」。
  *
  * 选择器根用 #resume-preview：导出/打印时克隆的就是这个节点，且它是克隆树里
  * 唯一的内容流根，因此规则对整个内容统一生效，不会只命中其中一页。

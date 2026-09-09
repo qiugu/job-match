@@ -1,5 +1,6 @@
 import { DEFAULT_FIELD_ORDER } from "./constants";
 import {
+  DEFAULT_PAGE_PADDING,
   GlobalSettings,
   DEFAULT_CONFIG,
   ResumeData,
@@ -7,7 +8,8 @@ import {
 } from "../types/resume";
 const initialGlobalSettings: GlobalSettings = {
   baseFontSize: 16,
-  pagePadding: 32,
+  // 与 types/resume.ts 的 DEFAULT_PAGE_PADDING 同源，避免默认值分叉
+  pagePadding: DEFAULT_PAGE_PADDING,
   paragraphSpacing: 12,
   lineHeight: 1.5,
   sectionSpacing: 10,

@@ -13,8 +13,9 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.database import init_db
 from app.core.logging import get_logger
-from app.api import resume, match, ai, auth
+from app.api import resume, match, ai, auth, cover_letter, jobs, export
 from app.services.auth_bootstrap import bootstrap_auth
+from app.services.pdf_export import shutdown_renderer
 
 logger = get_logger("main")
 
@@ -27,6 +28,8 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     await bootstrap_auth()
     logger.info("数据库初始化完成")
     yield
+    # 关闭服务端 PDF 渲染的共享 Chromium 单例（若已启动）
+    await shutdown_renderer()
     logger.info("应用关闭")
 
 
@@ -81,6 +84,9 @@ def create_app() -> FastAPI:
     app.include_router(resume.router)
     app.include_router(match.router)
     app.include_router(ai.router)
+    app.include_router(cover_letter.router)
+    app.include_router(jobs.router)
+    app.include_router(export.router)
 
     @app.get("/health", tags=["health"])
     async def health():

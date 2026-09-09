@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import LayoutSetting from "./layout/LayoutSetting";
 import { useResumeStore } from "@/store/useResumeStore";
 import { cn } from "@/lib/utils";
-import { THEME_COLORS, MenuSection } from "@/types/resume";
+import { DEFAULT_PAGE_PADDING, THEME_COLORS, MenuSection } from "@/types/resume";
 import { ColorPicker } from "@/components/ui/color-picker";
 import {
   Popover,
@@ -474,7 +474,7 @@ export function SidePanel({
               </Label>
               <div className="flex items-center gap-4">
                 <Slider
-                  value={[globalSettings?.pagePadding || 0]}
+                  value={[globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING]}
                   min={0}
                   max={100}
                   step={1}
@@ -490,7 +490,7 @@ export function SidePanel({
                       min={1}
                       max={100}
                       step={1}
-                      value={globalSettings?.pagePadding || 0}
+                      value={globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                         const value = Number(e.target.value);
                         if (!isNaN(value) && value >= 0 && value <= 100) {
@@ -504,7 +504,7 @@ export function SidePanel({
                         type="button"
                         className="flex h-4 w-8 items-center justify-center border-b border-input bg-transparent text-muted-foreground hover:bg-accent"
                         onClick={() => {
-                          const currentValue = globalSettings?.pagePadding || 0;
+                          const currentValue = globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING;
                           if (currentValue < 100) {
                             updateGlobalSettings?.({
                               pagePadding: currentValue + 1,
@@ -531,7 +531,7 @@ export function SidePanel({
                         type="button"
                         className="flex h-4 w-8 items-center justify-center bg-transparent text-muted-foreground hover:bg-accent"
                         onClick={() => {
-                          const currentValue = globalSettings?.pagePadding || 0;
+                          const currentValue = globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING;
                           if (currentValue > 0) {
                             updateGlobalSettings?.({
                               pagePadding: currentValue - 1,

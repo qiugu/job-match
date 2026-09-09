@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { useTranslations } from "@/i18n/compat/client";
 import { Download, Loader2, ChevronDown, ShieldCheck } from "lucide-react";
 import { useResumeStore } from "@/store/useResumeStore";
+import { DEFAULT_PAGE_PADDING } from "@/types/resume";
 import { Button } from "@/components/ui/button";
-import { exportResumeAsJson, exportResumeAsMarkdown, exportToPdf } from "@/utils/export";
+import { exportToServerPdf } from "@/utils/pdfExportServer";
 import { exportResumeToBrowserPrint } from "@/utils/print";
 import { cn } from "@/lib/utils";
 import {
@@ -92,10 +93,13 @@ const PdfExport = ({ children }: { children?: React.ReactNode }) => {
   const tBasicField = useTranslations("workbench.basicPanel.basicFields");
 
   const handleExport = async () => {
-    await exportToPdf({
+    // 服务端 headless Chromium 矢量导出：文字可选中/可搜索、体积小。
+    // 服务不可用时（渲染组件缺失/超时/限流）由 toast 提示改用打印，
+    // 不再降级 html2pdf。
+    await exportToServerPdf({
       elementId: "resume-preview",
       title: title || "resume",
-      pagePadding: globalSettings?.pagePadding || 0,
+      pagePadding: globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING,
       fontFamily: globalSettings?.fontFamily,
       onStart: () => setIsExporting(true),
       onEnd: () => setIsExporting(false),
@@ -147,7 +151,7 @@ const PdfExport = ({ children }: { children?: React.ReactNode }) => {
 
     try {
       setIsPrinting(true);
-      const pagePadding = globalSettings?.pagePadding || 0;
+      const pagePadding = globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING;
       await exportResumeToBrowserPrint(
         resumeContent,
         pagePadding,
