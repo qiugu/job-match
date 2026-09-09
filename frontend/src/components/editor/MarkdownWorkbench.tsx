@@ -4,7 +4,7 @@ import { FileText, Eye, Palette } from "lucide-react";
 import { useResumeStore } from "@/store/useResumeStore";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/i18n/compat/client";
-import { THEME_COLORS } from "@/types/resume";
+import { DEFAULT_PAGE_PADDING, THEME_COLORS } from "@/types/resume";
 import MarkdownEditor from "@/components/editor/MarkdownEditor";
 import MarkdownPreview from "@/components/preview/MarkdownPreview";
 import {
@@ -222,7 +222,7 @@ const MarkdownWorkbench = () => {
                       min={16}
                       max={64}
                       step={2}
-                      value={activeResume.globalSettings?.pagePadding || 32}
+                      value={activeResume.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING}
                       onChange={(e) =>
                         updateGlobalSettings({
                           pagePadding: Number(e.target.value),
@@ -231,7 +231,7 @@ const MarkdownWorkbench = () => {
                       className="w-20 accent-primary"
                     />
                     <span className="w-8 tabular-nums text-right">
-                      {activeResume.globalSettings?.pagePadding || 32}
+                      {activeResume.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING}
                     </span>
                   </label>
 

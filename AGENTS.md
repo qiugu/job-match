@@ -106,7 +106,12 @@ docker compose ps / logs -f / down
 | `AUTH_TOKEN_EXPIRE_MINUTES`     | 登录令牌有效期（分钟，默认 10080）                      |
 | `AUTH_ALLOW_REGISTRATION`       | 是否开放注册（默认 true）                               |
 | `AUTH_BOOTSTRAP_USERNAME` / `AUTH_BOOTSTRAP_PASSWORD` | 初始账号（即管理员），创建时接管历史简历数据 |
-| `REGISTRATION_DEFAULT_MATCHES` | 注册码默认授予的匹配次数（默认 10）        |
+| `REGISTRATION_DEFAULT_MATCHES` | 注册码默认授予的匹配次数（默认 20，JD 简历匹配与话术生成共享）        |
+| `PDF_EXPORT_FONT_ORIGIN`      | 服务端 PDF 渲染的字体源：compose 默认 `http://frontend:3005`；本机 uvicorn 直跑需设 `http://localhost:3005` |
+| `PDF_EXPORT_MAX_HTML_BYTES`   | 导出接口接收 HTML 上限（默认 2MB）                            |
+| `PDF_EXPORT_TIMEOUT_SECONDS`  | 单次渲染超时秒数（默认 30）                                   |
+| `PDF_EXPORT_MAX_CONCURRENCY`  | 渲染并发上限（默认 2，受内存约束）                            |
+| `PDF_EXPORT_RATE_LIMIT_PER_HOUR` | 单用户每小时导出次数上限（默认 20）                        |
 | `BACKEND_HOST` / `BACKEND_PORT` | 监听地址/端口                                           |
 
 ## 数据契约

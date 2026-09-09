@@ -8,6 +8,7 @@ import { useResumeStore } from "@/store/useResumeStore";
 import { useAutoOnePage } from "@/hooks/useAutoOnePage";
 import { useTranslations } from "@/i18n/compat/client";
 import { normalizeFontFamily } from "@/utils/fonts";
+import { DEFAULT_PAGE_PADDING } from "@/types/resume";
 import ResumeTemplateComponent from "../templates";
 
 interface PreviewPanelProps {
@@ -132,7 +133,7 @@ const PreviewPanel = React.forwardRef<HTMLDivElement, PreviewPanelProps>(
       }
     }, [activeResume]);
 
-    const pagePadding = activeResume?.globalSettings?.pagePadding || 0;
+    const pagePadding = activeResume?.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING;
     const autoOnePageEnabled = activeResume?.globalSettings?.autoOnePage || false;
 
     const { scaleFactor, isScaled, cannotFit } = useAutoOnePage({
@@ -220,7 +221,9 @@ const PreviewPanel = React.forwardRef<HTMLDivElement, PreviewPanelProps>(
               onClickCapture={handlePreviewClickCapture}
               style={{
                 fontFamily: selectedFontFamily,
-                padding: `${activeResume.globalSettings?.pagePadding}px`,
+                // 复用上方归一化的 pagePadding（缺失时回退 DEFAULT_PAGE_PADDING），
+                // 保证实际渲染边距与分页数学 / autoOnePage 计算同口径。
+                padding: `${pagePadding}px`,
                 ...(isScaled
                   ? {
                     transform: `scale(${scaleFactor})`,

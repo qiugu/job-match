@@ -4,5 +4,13 @@ from app.models.registration_code import RegistrationCode
 from app.models.master_resume import MasterResume
 from app.models.derived_resume import DerivedResume
 from app.models.cover_letter import CoverLetter
+from app.models.job import Job
 
-__all__ = ["User", "RegistrationCode", "MasterResume", "DerivedResume", "CoverLetter"]
+__all__ = [
+    "User",
+    "RegistrationCode",
+    "MasterResume",
+    "DerivedResume",
+    "CoverLetter",
+    "Job",
+]

@@ -3,7 +3,7 @@
  *
  * 设计目标（三条规定了分页的正确性）：
  * 1. 每页可用内容高度 = A4 总高 - 上页边距 - 下页边距，与 PDF 导出口径一致
- *    （exportToPdf 用 html2pdf margin=pagePadding；打印用 @page + #resume-preview padding）。
+ *    （打印/服务端导出共用 printHtml.ts 的 buildPrintHtml：@page + #resume-preview padding）。
  *    这样预览里每张纸的上下留白就是真实 PDF 的留白，不会出现「预览贴着纸边、
  *    导出后这段文本被挤到页边距里看不见」的错位。
  * 2. 切点只能落在内容块的边界上：块装不进当前页就整块推到下一页，

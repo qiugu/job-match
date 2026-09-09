@@ -11,7 +11,7 @@ import { normalizeFontFamily } from "@/utils/fonts";
 import { renderMarkdownToHtml } from "@/utils/markdownRender";
 import { generateUUID } from "@/utils/uuid";
 import { cn } from "@/lib/utils";
-import type { ResumeData } from "@/types/resume";
+import { DEFAULT_PAGE_PADDING, type ResumeData } from "@/types/resume";
 import type { MarkdownTemplateVariant } from "@/config/markdownTemplates";
 import { buildVariantCss, resolveMarkdownVariant } from "./markdownVariants";
 import {
@@ -268,7 +268,7 @@ const PageSheet = React.memo(
       >
         {/*
           页边距：每一页的上下左右都要留边，与 PDF 导出口径一致
-          （exportToPdf 用 html2pdf margin=pagePadding，print.ts 给 #resume-preview 加 pagePadding）。
+          （打印/服务端导出共用 printHtml.ts：@page margin 0 + #resume-preview padding=pagePadding）。
           此前页边距只存在于整份内容的首尾，导致分页后上一页底部/下一页顶部贴着纸边，
           跨页处的文本行被硬切、看起来「掉进页间的间隙里」。
         */}
@@ -315,7 +315,7 @@ const PageSheet = React.memo(
 PageSheet.displayName = "MarkdownPageSheet";
 
 // React Renderer：将 Markdown Parser 输出的 HTML 渲染为 A4 纸张上的简历。
-// 容器保留 id="resume-preview"，以便复用既有 exportToPdf（Playwright 服务端导出）。
+// 容器保留 id="resume-preview"，供导出/打印克隆（pdfExportServer.ts / print.ts）。
 const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
   ({ markdown, embedded = false, resume, variant }, ref) => {
     const internalRef = useRef<HTMLDivElement>(null);
@@ -342,7 +342,7 @@ const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
     const lineHeight = settings?.lineHeight || 1.5;
     // 一行文本的高度（px），标题间距以此为基准，随全局行高联动
     const lineUnit = Math.round(lineHeight * baseFontSize);
-    const pagePadding = settings?.pagePadding || 32;
+    const pagePadding = settings?.pagePadding ?? DEFAULT_PAGE_PADDING;
     const sectionSpacing = settings?.sectionSpacing || 10;
     // 模块间距：h2 顶级模块标题上方的留白。未设置时保持原有「半行高」观感
     // （随字号/行高联动、与历史渲染逐像素一致）；用户通过工具栏滑块显式
@@ -438,7 +438,7 @@ const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
 
     // 分页计算：
     // 1) 每页可用内容高度 = A4 总高 - 上页边距 - 下页边距，与 PDF 导出
-    //    （html2pdf margin=pagePadding / 打印 @page + #resume-preview padding）口径一致，
+    //    （打印/服务端导出共用 printHtml.ts 的 @page + #resume-preview padding）口径一致，
     //    因此预览里每页的上下留白就是真实 PDF 的留白，所见即所得。
     // 2) 切点落在内容块的边界上（paginateBlocks），块放不下就整块推到下一页，
     //    不会把段落/列表项/标题从中间切断——这正是「文字落到页间间隙里看不见」的根因。

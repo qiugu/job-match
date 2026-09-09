@@ -26,6 +26,16 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev
 
+# 服务端 PDF 导出（矢量渲染）依赖：
+#   - playwright install --with-deps chromium：安装 Chromium 及其系统依赖
+#     （镜像体积 +~200MB，属一次性成本；渲染在首次请求时懒加载）
+#   - fonts-noto-cjk：中文字体兜底。若 EXPORT_FONT_ORIGIN 指向的前端字体源
+#     不可达，Chromium 仍能渲染中文，避免豆腐块（主字体仍走站点字体源）
+RUN .venv/bin/playwright install --with-deps chromium \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends fonts-noto-cjk \
+    && rm -rf /var/lib/apt/lists/*
+
 # 拷贝后端代码
 COPY app ./app
 COPY run.py alembic.ini ./

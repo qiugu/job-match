@@ -39,7 +39,7 @@ class User(Base):
     # 角色：admin 不受匹配额度限制（初始账号）；user 按额度使用
     role: Mapped[str] = mapped_column(String(16), default=ROLE_USER)
     # 剩余可发起的「简历匹配 JD」次数：-1（及其他负值）表示无限制
-    match_quota: Mapped[int] = mapped_column(Integer, default=10)
+    match_quota: Mapped[int] = mapped_column(Integer, default=20)
     # 注册时使用的注册码（审计用；管理员/初始账号为空）
     registered_code: Mapped[str] = mapped_column(String(64), default="")
     last_login_at: Mapped[datetime | None] = mapped_column(

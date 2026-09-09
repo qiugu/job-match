@@ -4,12 +4,15 @@ services:
     image: nginx:1.27-alpine
     # 默认使用 HTTP 配置；启用 HTTPS 时把 nginx.ssl.conf 挂为 default.conf 并将证书放入 nginx/certs
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      # - ./nginx/nginx.ssl.conf:/etc/nginx/conf.d/default.conf:ro   # 启用 HTTPS 时取消注释并注释上一行
-      # - ./nginx/certs:/etc/nginx/certs:ro                           # 启用 HTTPS 时取消注释
+      # HTTP 配置（停用）
+      # - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # HTTPS 配置（启用）：证书来自仓库根目录，挂载进容器只读
+      - ./nginx/nginx.ssl.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./jdmatch.site_bundle.crt:/etc/nginx/certs/jdmatch.site_bundle.crt:ro
+      - ./jdmatch.site.key:/etc/nginx/certs/jdmatch.site.key:ro
     ports:
       - "80:80"
-      # - "443:443"                                                   # 启用 HTTPS 时取消注释
+      - "443:443"
     depends_on:
       - frontend
       - backend

@@ -10,17 +10,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.core.logging import get_logger
-from app.models.cover_letter import CoverLetter
 from app.models.derived_resume import DerivedResume
+from app.models.job import Job, JOB_STATUS_RESUME_READY
 from app.models.master_resume import MasterResume
 from app.models.user import UNLIMITED_QUOTA, User
 from app.schemas.resume import ResumeData
 from app.services.agent import run_match
+from app.services.job import attach_or_create_job, promote_for_action
 from app.services.quota import refund_match_quota, reserve_match_quota
 
 logger = get_logger("match")
@@ -65,7 +65,6 @@ class MatchRequest(BaseModel):
     # 匹配基准简历文本（用户从已上传简历中选择的 markdown 文本，直接传入）
     resumeText: str
     jdText: str
-    withCoverLetter: bool = False
     title: str = ""
 
 
@@ -90,10 +89,9 @@ async def create_match(
         reserved = True
 
     try:
-        keywords, resume_md, cover, analysis = await run_match(
+        keywords, resume_md, analysis = await run_match(
             master_text=req.resumeText,
             jd_text=req.jdText,
-            with_cover_letter=req.withCoverLetter,
         )
     except RuntimeError as e:
         # LLM 未配置、超时、LLM 调用失败等可预期错误，返回 503 而非 500
@@ -114,22 +112,35 @@ async def create_match(
         db, req.title or "匹配简历", user.id
     )
 
+    # 自动挂载岗位卡：归一化 JD 查重，命中复用旧卡，未命中建新卡；
+    # 返回 job.id 写入匹配结果的 job_id（实现「匹配即建档、刷新不丢上下文」）。
+    # V2：首动作定初始态——新建卡（match-first）直接进入 resume_ready；
+    # 复用旧卡不在此处改状态，统一由下方 promote_for_action 决定推进。
+    job = await attach_or_create_job(
+        db, user.id, req.jdText, initial_status=JOB_STATUS_RESUME_READY
+    )
+
     # 匹配结果即 markdown 简历文本（非结构化 JSON 模块化简历）
+    # 话术已解耦为独立链路（/api/cover-letters），匹配结果不再内联生成求职信。
     derived = DerivedResume(
         id=did,
         user_id=user.id,
+        job_id=job.id,
         title=title,
         jd_text=req.jdText,
         markdown_content=resume_md,
         keywords=json.dumps(keywords),
-        has_cover_letter=bool(cover),
+        # V2：匹配分析（MatchResult 结构）随结果一并落库，
+        # 供岗位详情「回看匹配结果」；analysis 为 None（历史/异常）时留空。
+        analysis_json=json.dumps(analysis) if analysis is not None else None,
+        # 话术已解耦为独立资源，DerivedResume 不再持有任何话术关联字段。
     )
+    db.add(derived)
+    # V2：任何一次成功生成定制简历即自动推进到 resume_ready（生成即触发，
+    # 不再依赖「接受」）；只前进不回退；closed 卡重新生成视为重新激活。
+    await promote_for_action(db, job, JOB_STATUS_RESUME_READY)
     try:
         db.add(derived)
-        if cover:
-            db.add(
-                CoverLetter(id=uuid.uuid4().hex, derived_resume_id=did, content=cover)
-            )
         await db.commit()
         await db.refresh(derived)
     except Exception:
@@ -143,10 +154,10 @@ async def create_match(
         "title": derived.title,
         "keywords": keywords,
         "markdownContent": resume_md,
-        "coverLetter": cover,
-        "hasCoverLetter": bool(cover),
+        # 话术已解耦为独立资源（/api/cover-letters），不在匹配响应中冗余返回。
         "matchAnalysis": analysis,
         "accepted": bool(derived.accepted),
+        "jobId": derived.job_id,
         "createdAt": derived.created_at.isoformat(),
         # 本次匹配后剩余的次数：-1 表示无限制
         "remainingQuota": (
@@ -159,25 +170,19 @@ async def create_match(
 
 @router.get("", summary="衍生简历列表")
 async def list_derived(
+    job_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    rows = (
-        (
-            await db.execute(
-                select(DerivedResume)
-                .where(DerivedResume.user_id == user.id)
-                .order_by(DerivedResume.updated_at.desc())
-            )
-        )
-        .scalars()
-        .all()
-    )
+    stmt = select(DerivedResume).where(DerivedResume.user_id == user.id)
+    if job_id:
+        stmt = stmt.where(DerivedResume.job_id == job_id)
+    rows = (await db.execute(stmt.order_by(DerivedResume.updated_at.desc()))).scalars().all()
     return [
         {
             "id": r.id,
             "title": r.title,
-            "hasCoverLetter": r.has_cover_letter,
+            "jobId": r.job_id,
             "createdAt": r.created_at.isoformat(),
         }
         for r in rows
@@ -192,21 +197,20 @@ async def get_derived(
 ):
     r = (
         await db.execute(
-            select(DerivedResume)
-            .options(selectinload(DerivedResume.cover_letter))
-            .where(DerivedResume.id == derived_id)
+            select(DerivedResume).where(DerivedResume.id == derived_id)
         )
     ).scalar_one_or_none()
     r = _ensure_owner(r, user)
-    cover = r.cover_letter.content if r.cover_letter else None
     return {
         "id": r.id,
         "title": r.title,
+        "jobId": r.job_id,
         "jdText": r.jd_text,
         "keywords": json.loads(r.keywords),
         "markdownContent": r.markdown_content,
-        "coverLetter": cover,
-        "matchAnalysis": None,  # 匹配分析为实时计算结果，未持久化，仅在 create_match 时返回
+        # V2：匹配分析已随 create_match 落库（analysis_json），此处回读供岗位页回看；
+        # 历史记录（V2 前生成）为 None。
+        "matchAnalysis": json.loads(r.analysis_json) if r.analysis_json else None,
         "accepted": bool(r.accepted),
         "createdAt": r.created_at.isoformat(),
     }
@@ -294,34 +298,46 @@ async def accept_match(
     r.accepted = payload.accepted
     r.accepted_master_id = accepted_master_id
     r.updated_at = datetime.now(timezone.utc)
+
+    # 自动推进岗位状态（V2 收敛到 promote_for_action）：
+    # 「接受」把匹配结果另存为我的简历资产；生成链路上已推进过 resume_ready，
+    # 此处为兼容 V2 前遗留记录（仅话术的卡 + 历史衍生简历）做幂等兜底推进。
+    job_status_advanced: str | None = None
+    if payload.accepted and r.job_id:
+        job = await db.get(Job, r.job_id)
+        if job is not None and job.user_id == user.id:
+            changed = await promote_for_action(db, job, JOB_STATUS_RESUME_READY)
+            if changed:
+                job_status_advanced = job.status
+
     await db.commit()
     await db.refresh(r)
     return {
         "id": r.id,
         "accepted": r.accepted,
+        "jobId": r.job_id,
+        "jobStatus": job_status_advanced,
         "masterResumeId": r.accepted_master_id,
         "deduped": deduped,
         "updatedAt": r.updated_at.isoformat(),
     }
 
 
-@router.get("/{derived_id}/cover-letter", summary="获取求职信")
+@router.get("/{derived_id}/cover-letter", summary="获取求职信（已废弃：话术已迁移至 /api/cover-letters）", deprecated=True)
 async def get_cover_letter(
     derived_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    r = (
-        await db.execute(
-            select(DerivedResume)
-            .options(selectinload(DerivedResume.cover_letter))
-            .where(DerivedResume.id == derived_id)
-        )
-    ).scalar_one_or_none()
-    r = _ensure_owner(r, user)
-    if not r.cover_letter:
-        raise HTTPException(status_code=404, detail="求职信不存在")
-    return {"content": r.cover_letter.content}
+    """DEPRECATED: 话术已从 DerivedResume 解耦并迁移到独立资源 /api/cover-letters。
+
+    保留此端点仅用于向后兼容（返回 410 Gone 提示客户端迁移到新接口）。
+    新代码不应再调用；下个大版本将直接删除。
+    """
+    raise HTTPException(
+        status_code=410,
+        detail="话术接口已迁移至 /api/cover-letters，请改用列表+详情端点获取",
+    )
 
 
 def _now_iso() -> str:

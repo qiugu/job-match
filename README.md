@@ -100,7 +100,7 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
 
 注册账号必须提供注册码（`POST /api/auth/register` 的 `code` 字段）：
 
-- 每个注册码带**过期时间**和**授予的匹配次数**（默认 10 次，可用 `REGISTRATION_DEFAULT_MATCHES` 调整）；
+- 每个注册码带**过期时间**和**授予的匹配次数**（默认 20 次，JD 简历匹配与话术生成共享，可用 `REGISTRATION_DEFAULT_MATCHES` 调整）；
 - 用该码注册的账号获得对应次数的「简历匹配 JD」额度——调用 LLM **之前**原子预扣，
   调用失败自动归还，即只在真正产出匹配结果时才消耗；
 - 额度用完后 `POST /api/derived-resumes` 返回 403「匹配次数已用完」；
@@ -112,7 +112,7 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
 - 每日限量 `REGISTRATION_DAILY_LIMIT`（默认 10 个），北京时间 0 点重置，
   每个网络每日限领 3 个；
 - 领取的注册码有效期 `REGISTRATION_CODE_VALIDITY_DAYS`（默认 30 天），
-  授予匹配次数 `REGISTRATION_DEFAULT_MATCHES`（默认 10 次）；
+  授予匹配次数 `REGISTRATION_DEFAULT_MATCHES`（默认 20 次）；
 - 弹框顶部会展示当日剩余名额与下次重置时间。
 
 ### 初始账号与历史数据
@@ -150,7 +150,7 @@ AUTH_BOOTSTRAP_PASSWORD=至少8位
 | `AUTH_TOKEN_EXPIRE_MINUTES` | 登录令牌有效期（分钟，默认 10080）        |
 | `AUTH_ALLOW_REGISTRATION` | 是否开放注册（默认 true）                      |
 | `AUTH_BOOTSTRAP_USERNAME` / `AUTH_BOOTSTRAP_PASSWORD` | 初始账号（即管理员），创建时接管历史数据 |
-| `REGISTRATION_DEFAULT_MATCHES` | 注册码默认授予的匹配次数（默认 10） |
+| `REGISTRATION_DEFAULT_MATCHES` | 注册码默认授予的匹配次数（默认 20，JD 简历匹配与话术生成共享） |
 | `REGISTRATION_DAILY_LIMIT` | 官网每日自助发放的注册码上限（默认 10，北京时间 0 点重置） |
 | `REGISTRATION_CODE_VALIDITY_DAYS` | 自助领取的注册码有效期（天，默认 30） |
 

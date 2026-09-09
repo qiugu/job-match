@@ -141,6 +141,16 @@ export type GlobalSettings = {
   autoOnePage?: boolean | undefined;
 };
 
+/**
+ * 页面边距（px）默认值 —— 全站单一事实源。
+ * 取值依据：A4 实纸 @96dpi 下 1px = 0.2646mm，48px = 12.7mm = 0.5 inch，
+ * 恰为简历排版通行下限（主流职业指南均要求 ≥ 0.5″，常规推荐 0.75–1″）。
+ * 曾为 32px（0.33″，低于下限，观感贴边），2026-09-09 修正并统一为 48px。
+ * 消费方（PDF 导出 / 浏览器打印 / 分页计算 / 模板渲染）在字段缺失时
+ * 必须回退到本常量，禁止再各自硬编码 0 或 32/48。
+ */
+export const DEFAULT_PAGE_PADDING = 48;
+
 export interface ResumeTheme {
   id: string;
   name: string;

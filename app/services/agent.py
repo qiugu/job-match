@@ -1,17 +1,16 @@
 """简历匹配 Agent：基于 LangGraph 的多节点工作流。
 
-流程：
+流程（匹配链路）：
   1. jd_extract       —— 从 JD 提取关键词（技能/经验/要求），打平为 keywords
   2. resume_match     —— 基于 JD 分析结果与简历的匹配关系，产出匹配项、优化建议
-                         与求职信话术（MatchResult.cover_letter）
+                         （MatchResult，已不含话术）
   3. keyword_optimize —— 关键词/模块级优化：保持简历大结构，在建议指导下
                          优化措辞，允许有依据时新增/删除条目或模块（markdown）
 
-已删除 refactor_mode（rewrite/optimize）分支：统一走 keyword_optimize。
-rewrite_resume / generate_cover_letter 节点代码留存但不再路由（求职信复用
-resume_match 的 MatchResult.cover_letter，不再单独调用一次 LLM）。
+话术（cover letter）已解耦为独立链路：单次 LLM 调用，不进 LangGraph 图，
+由 `run_cover_letter` 直接产出，支持 greeting/followup/interview 多场景。
 
-状态在节点间以 TypedDict 传递，最终产出优化后的 markdown 简历与可选求职信。
+状态在节点间以 TypedDict 传递，最终产出优化后的 markdown 简历与匹配分析。
 """
 from __future__ import annotations
 
@@ -26,7 +25,14 @@ from pydantic import ValidationError
 from app.core.llm import get_llm, is_configured, model
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.core.prompts import JD_EXTRACT_PROMPT, RESUME_REWRITE_PROMPT, COVER_LETTER_PROMPT, KEYWORDS_OPTIMIZE, RESUME_MATCHER_PROMPT
+from app.core.prompts import (
+    JD_EXTRACT_PROMPT,
+    RESUME_REWRITE_PROMPT,
+    COVER_LETTER_PROMPT,
+    COVER_LETTER_SCENES,
+    KEYWORDS_OPTIMIZE,
+    RESUME_MATCHER_PROMPT,
+)
 from app.schemas.resume import GlobalSettings, MenuSection, ResumeData
 from app.schemas.agent import AgentState, JDAnalysis, MatchResult
 
@@ -228,10 +234,7 @@ async def rewrite_resume(state: AgentState) -> AgentState:
         state["error"] = state.get("error") or "匹配结果缺失，无法重写简历"
         return state
     prompt = RESUME_REWRITE_PROMPT.format(
-        resume_match_results=resume_match_results.model_dump_json(
-            indent=2,
-            exclude={ "cover_letter", "resume_match_results" }
-        ),
+        resume_match_results=resume_match_results.model_dump_json(indent=2),
         resume_text=state["resume_text"]
     )
     resp = await asyncio.wait_for(model.ainvoke(prompt), timeout=settings.llm_timeout)
@@ -249,9 +252,7 @@ async def keyword_optimize(state: AgentState) -> AgentState:
     # 紧凑 JSON（不带 indent）：indent=2 的缩进/换行会额外增加 30%+ 的输入 token，
     # 抬高 TTFT 与费用，对模型解析没有帮助。
     prompt = KEYWORDS_OPTIMIZE.format(
-        resume_match_results=resume_match_results.model_dump_json(
-            exclude=set(["cover_letter", "resume_match_results"])
-        ),
+        resume_match_results=resume_match_results.model_dump_json(),
         resume_text=state["resume_text"],
         kw=kw
     )
@@ -269,19 +270,36 @@ async def keyword_optimize(state: AgentState) -> AgentState:
     return state
 
 
-async def generate_cover_letter(state: AgentState) -> AgentState:
-    """（留档，未接入图）求职信已由 resume_match 节点顺带产出
-    （MatchResult.cover_letter 随匹配分析一起生成），单独再调一次 LLM 生成
-    同样的内容纯属浪费时长；run_match 直接取该字段返回。"""
-    if not state.get("with_cover_letter"):
-        return state
+async def run_cover_letter(
+    jd_text: str,
+    resume_text: str,
+    scene: str = "greeting",
+) -> str:
+    """独立话术生成链路：单次 LLM 调用，不进 LangGraph 图。
+
+    输入仅需简历文本 + JD 文本 + 场景（greeting/followup/interview），
+    输出纯文本话术。与简历匹配链路完全解耦，可独立调用、独立扣额度。
+    """
+    if not is_configured():
+        raise RuntimeError("LLM 未配置：请在 .env 设置 LLM_API_KEY 等参数")
+
+    guidance = COVER_LETTER_SCENES.get(scene, COVER_LETTER_SCENES["greeting"])
     prompt = COVER_LETTER_PROMPT.format(
-        jd_text=state["jd_text"],
-        resume_text=state["resume_text"]
+        scene=guidance,
+        jd_text=jd_text,
+        resume_text=resume_text,
     )
-    resp = await asyncio.wait_for(model.ainvoke(prompt), timeout=settings.llm_timeout)
-    state["cover_letter"] = _to_text(resp.content).strip()
-    return state
+    try:
+        resp = await asyncio.wait_for(
+            model.ainvoke(prompt), timeout=settings.llm_timeout
+        )
+    except asyncio.TimeoutError:
+        logger.exception("话术生成超时")
+        raise RuntimeError("话术生成请求超时（LLM 接口未在规定时间内响应），请稍后重试")
+    except Exception as e:
+        logger.exception("话术生成失败: %s", e)
+        raise RuntimeError(f"话术生成失败：{e}") from e
+    return _to_text(resp.content).strip()
 
 
 def build_graph():
@@ -295,7 +313,7 @@ def build_graph():
     g.set_entry_point("jd_extract")
     g.add_edge("jd_extract", "resume_match")
     # 已删除 refactor_mode 分支：统一走 keyword_optimize（描述/模块级优化）。
-    # rewrite_resume / generate_cover_letter 节点保留（代码留存不路由）。
+    # 话术（cover letter）已解耦为独立链路 run_cover_letter，不在此图中路由。
     g.add_edge("resume_match", "keyword_optimize")
     g.add_edge("keyword_optimize", END)
     return g.compile()
@@ -304,26 +322,23 @@ def build_graph():
 async def run_match(
     master_text: str,
     jd_text: str,
-    with_cover_letter: bool,
-) -> tuple[list[str], str, str, dict | None]:
-    """执行匹配工作流，返回 (关键词, 优化后简历, 求职信, 匹配分析)。
+) -> tuple[list[str], str, dict | None]:
+    """执行匹配工作流，返回 (关键词, 优化后简历, 匹配分析)。
 
     匹配方式已统一为 optimize（描述/模块级优化），不再由 LLM 判定 rewrite/optimize，
     因此不再返回匹配方式字段。
-    求职信复用 resume_match 节点顺带产出的 MatchResult.cover_letter（仅在
-    with_cover_letter=True 时随响应返回），不再单独调用 LLM。
     匹配分析为 resume_match 节点产出的结构化结果（岗位角色、得分、匹配项、总结），
     下游节点不直接消费但前端需要展示，因此一并回传。
+    话术已解耦为独立链路（run_cover_letter），本函数不再产出求职信。
     """
     if not is_configured():
         raise RuntimeError("LLM 未配置：请在 .env 设置 LLM_API_KEY 等参数")
 
-    async def _run_once() -> tuple[list[str], str, str, dict | None]:
+    async def _run_once() -> tuple[list[str], str, dict | None]:
         graph = build_graph()
         init: AgentState = {
             "resume_text": master_text,
             "jd_text": jd_text,
-            "with_cover_letter": with_cover_letter,
         }
         result = await asyncio.wait_for(graph.ainvoke(init), timeout=settings.llm_timeout)
 
@@ -337,16 +352,10 @@ async def run_match(
         analysis = (
             match_results.model_dump(exclude_none=True) if match_results else None
         )
-        # 求职信复用 resume_match 的产出（随匹配分析一起生成）：
-        # generate_cover_letter 节点从未接入图，原实现下 with_cover_letter 一直不生效。
-        cover = ""
-        if with_cover_letter and match_results is not None:
-            cover = (match_results.cover_letter or "").strip()
 
         return (
             result.get("keywords", []),
             resume_raw,
-            cover,
             analysis,
         )
 

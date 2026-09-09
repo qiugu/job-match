@@ -72,7 +72,8 @@ async def _upload(client, session, username, code, filename="Resume.pdf"):
 async def test_upload_duplicate_title_409(client, session):
     # 第一个用户上传 Resume.pdf
     r1, token = await _upload(client, session, "dup1", "DUP1", filename="Resume.pdf")
-    assert r1.json()["title"] == "Resume.pdf"
+    # 上传时标题剥掉 .pdf 扩展名（避免导出叠加出 xxx.pdf.pdf），故为 "Resume"
+    assert r1.json()["title"] == "Resume"
 
     # 同一用户再次上传同名 → 409（标题唯一，不静默复用/覆盖）
     r2 = await client.post(
@@ -107,8 +108,9 @@ async def test_list_only_own_resumes(client, session):
     assert r1.status_code == 200 and r2.status_code == 200
     titles1 = [x["title"] for x in r1.json()]
     titles2 = [x["title"] for x in r2.json()]
-    assert "A.pdf" in titles1 and "A.pdf" not in titles2
-    assert "B.pdf" in titles2 and "B.pdf" not in titles1
+    # 标题剥掉扩展名：A.pdf→"A"，B.pdf→"B"
+    assert "A" in titles1 and "A" not in titles2
+    assert "B" in titles2 and "B" not in titles1
 
 
 @pytest.mark.asyncio
@@ -156,5 +158,5 @@ async def test_json_created_id_immediately_fetchable(client, session):
     detail = await client.get(f"/api/master-resumes/{created_id}", headers=h)
     assert detail.status_code == 200, detail.text
     assert detail.json()["id"] == created_id
-    assert detail.json()["title"] == "Imported.pdf"
+    assert detail.json()["title"] == "Imported"
     assert "resumeJson" in detail.json()

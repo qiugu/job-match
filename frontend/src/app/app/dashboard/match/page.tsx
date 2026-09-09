@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
-import { useTranslations } from "@/i18n/compat/client";
+import { useLocale, useTranslations } from "@/i18n/compat/client";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/useAuthStore";
 import { motion } from "framer-motion";
@@ -15,8 +15,8 @@ import {
   Check,
   RefreshCw,
   Mail,
-  Copy,
   Crosshair,
+  Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,6 +39,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import MarkdownPreview from "@/components/preview/MarkdownPreview";
 import ResumeDiffView from "@/components/match/ResumeDiffView";
+import CoverLetterPanel from "@/components/match/CoverLetterPanel";
 import { useResumeStore } from "@/store/useResumeStore";
 import { useRouter } from "@/lib/navigation";
 import {
@@ -55,10 +56,17 @@ import {
   listMasterResumes,
   createMatch,
   acceptMatch,
+  createCoverLetter,
+  detectJob,
+  listJobs,
+  getJob,
   type CreateMatchPayload,
   type MasterResumeSummary,
   type MatchResult,
+  type CoverLetterScene,
+  type JobSummary,
 } from "@/lib/jobmatch";
+import TaskModePicker, { type TaskMode } from "@/components/match/TaskModePicker";
 
 // 把毫秒格式化为「秒.十分位」，如 1.2s / 12.3s；超过 60s 显示 m:ss
 function formatElapsed(ms: number): string {
@@ -68,6 +76,19 @@ function formatElapsed(ms: number): string {
   const m = Math.floor(totalSec / 60);
   const s = Math.round(totalSec % 60);
   return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+/** 相对时间（中英文自适应），用于 detect 重复确认里「何时打过招呼」的展示。 */
+function relTime(iso: string | null, loc: string): string {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const day = Math.floor((Date.now() - then) / 86400000);
+  const isZh = loc.startsWith("zh");
+  if (day <= 0) return isZh ? "今天" : "today";
+  if (day === 1) return isZh ? "昨天" : "yesterday";
+  if (day < 30) return isZh ? `${day} 天前` : `${day}d ago`;
+  return new Date(iso).toLocaleDateString(isZh ? "zh-CN" : "en-US");
 }
 
 /** 匹配得分环形图（xAI 风格：hairline 轨道 + 单色弧线 + 中心大数字） */
@@ -163,6 +184,7 @@ const BRAND_VIOLET = "271 72% 47%"; /* xAI accent-dusk #7C3AED */
 
 export default function JobMatchPage() {
   const t = useTranslations("jobmatch");
+  const locale = useLocale();
   const router = useRouter();
   const { syncResumeToBackend } = useResumeStore();
   // 左侧「匹配配置 / JD」抽屉：默认打开；收起后结果区占满剩余宽度
@@ -173,6 +195,20 @@ export default function JobMatchPage() {
   const [jdText, setJdText] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [elapsedMs, setElapsedMs] = useState<number>(0);
+  // 任务类型：默认「打招呼话术」（轻操作，先建立机会），重操作（定制简历）留给有正反馈的岗位。
+  // 三者是平级入口——话术不再需要先跑完匹配才能进入。
+  const [taskMode, setTaskMode] = useState<TaskMode>("pitch");
+  // 仅话术模式下在配置区选场景（匹配模式下场景在结果区的话术面板里选）
+  const [pitchScene, setPitchScene] = useState<CoverLetterScene>("greeting");
+  // 仅话术模式产出的独立话术 id（不关联任何匹配结果）
+  const STORAGE_KEY_LAST_PITCH = "jdmatch.lastCoverLetterId";
+  const [soloPitchId, setSoloPitchId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY_LAST_PITCH);
+    } catch {
+      return null;
+    }
+  });
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [result, setResult] = useState<MatchResult | null>(null);
   const [accepted, setAccepted] = useState<boolean>(false);
@@ -180,13 +216,39 @@ export default function JobMatchPage() {
   // 接受后询问「是否立刻编辑简历」的弹窗；pendingMasterId 为落库的 master resume id
   const [editNowOpen, setEditNowOpen] = useState<boolean>(false);
   const [pendingMasterId, setPendingMasterId] = useState<string | null>(null);
-  // 结果区当前 tab：匹配分析（默认） / 简历
-  const [resultTab, setResultTab] = useState<"resume" | "analysis">("analysis");
+  // 结果区当前 tab：匹配分析（默认） / 简历 / 话术
+  const [resultTab, setResultTab] = useState<"resume" | "analysis" | "pitch">(
+    "analysis"
+  );
   // 「优化简历」内部子视图：A4 预览（用于 PDF 导出） / 左右对比（高亮修改 + hover 依据）
   const [resumeView, setResumeView] = useState<"preview" | "compare">("compare");
+  // 最近一次匹配的衍生简历 id：写入 localStorage，使得刷新页面后话术面板仍能按此 id
+  // 从 DB 加载历史话术（验收：话术为独立 DB 资源，刷新后不丢失）。
+  const STORAGE_KEY_LAST_DERIVED = "jdmatch.lastDerivedResumeId";
+  const [lastDerivedResumeId, setLastDerivedResumeId] = useState<string | null>(
+    () => {
+      try {
+        return localStorage.getItem(STORAGE_KEY_LAST_DERIVED);
+      } catch {
+        return null;
+      }
+    }
+  );
+
+  // 岗位卡（Job Tracking）：当前上下文 jobId 与 detect 重复确认。
+  // 岗位列表/详情已独立为左侧导航页 /app/dashboard/jobs，此处不再维护抽屉。
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [detectConfirm, setDetectConfirm] = useState<{
+    jd: string;
+    job: JobSummary;
+  } | null>(null);
 
   const formCardRef = useRef<HTMLDivElement>(null);
   const resultCardRef = useRef<HTMLDivElement>(null);
+
+  // 结果区是否处于「仅话术」视图：独立产出的话术，没有也不需要有匹配结果。
+  // 与 taskMode 分开——用户可在出结果后切回任务类型，不应丢失已产出的话术。
+  const pitchOnlyView = !result && Boolean(soloPitchId);
 
   const loadMasters = async () => {
     try {
@@ -242,7 +304,77 @@ export default function JobMatchPage() {
     router.push("/app/dashboard/resumes");
   };
 
-  const handleCreate = async () => {
+  // 计时器启停：开始任务时启动，结束（成功/失败）时清理
+  const startTimer = () => {
+    setElapsedMs(0);
+    const startedAt = Date.now();
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setElapsedMs(Date.now() - startedAt);
+    }, 100);
+  };
+  const stopTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  /** 生成一次话术（不跑匹配）。返回新话术 id，失败返回 null。 */
+  const generatePitch = async (
+    baseText: string,
+    scene: CoverLetterScene,
+    derivedResumeId?: string,
+    jdOverride?: string
+  ): Promise<string | null> => {
+    try {
+      const letter = await createCoverLetter({
+        resume_text: baseText,
+        jd_text: jdOverride ?? jdText,
+        scene,
+        derived_resume_id: derivedResumeId,
+      });
+      // 写链路自动挂载岗位卡：把返回的 job_id 记入当前上下文
+      if (typeof letter.job_id === "string") setCurrentJobId(letter.job_id);
+      if (typeof letter.remaining_quota === "number") {
+        useAuthStore.getState().applyQuota(letter.remaining_quota);
+      }
+      return letter.id;
+    } catch (err) {
+      console.error("生成话术失败:", err);
+      const status = (err as Error & { status?: number }).status;
+      toast.error(
+        status === 403 ? (err as Error).message : t("pitchGenerateError")
+      );
+      return null;
+    }
+  };
+
+  /** 仅话术模式：跳过简历优化链路，直接生成话术（约 2 秒，不产出匹配结果）。 */
+  const handlePitchOnly = async (baseText: string, jdOverride?: string) => {
+    setLoading(true);
+    setSoloPitchId(null);
+    startTimer();
+    try {
+      const id = await generatePitch(baseText, pitchScene, undefined, jdOverride);
+      if (id) {
+        setSoloPitchId(id);
+        try {
+          localStorage.setItem(STORAGE_KEY_LAST_PITCH, id);
+        } catch {
+          /* 忽略 localStorage 不可用的情况 */
+        }
+        toast.success(t("pitchGenerated"));
+      }
+    } finally {
+      stopTimer();
+      setLoading(false);
+    }
+  };
+
+  const handleCreate = async (jdOverride?: string, modeOverride?: TaskMode) => {
+    const mode = modeOverride ?? taskMode;
+    const effJd = jdOverride ?? jdText;
     if (!selected) {
       toast.warning(t("selectResumeFirst"));
       return;
@@ -252,27 +384,46 @@ export default function JobMatchPage() {
       toast.warning(t("emptyResumeText"));
       return;
     }
-    if (!jdText.trim()) return;
+    if (!effJd.trim()) return;
+
+    // 仅话术：不触发匹配，直接生成（话术与匹配是平级入口）
+    if (mode === "pitch") {
+      await handlePitchOnly(baseText, effJd);
+      return;
+    }
+
     setLoading(true);
     setResult(null);
-    setElapsedMs(0);
-    const startedAt = Date.now();
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setElapsedMs(Date.now() - startedAt);
-    }, 100);
+    setSoloPitchId(null);
+    startTimer();
     try {
       const payload: CreateMatchPayload = {
         resumeText: baseText,
-        jdText,
+        jdText: effJd,
         title: selected.title,
       };
       const data = await createMatch(payload);
       setResult(data);
       setAccepted(Boolean(data.accepted));
+      // 写链路自动挂载岗位卡：把返回的 jobId 记入当前上下文
+      if (typeof data.jobId === "string") setCurrentJobId(data.jobId);
+      // 记录最近匹配 id：供话术面板刷新后从 DB 加载历史话术
+      if (data.id) {
+        setLastDerivedResumeId(data.id);
+        try {
+          localStorage.setItem(STORAGE_KEY_LAST_DERIVED, data.id);
+        } catch {
+          /* 忽略 localStorage 不可用的情况 */
+        }
+      }
       // 匹配会扣一次额度：用后端返回的剩余次数刷新侧边栏显示
       if (typeof data.remainingQuota === "number") {
         useAuthStore.getState().applyQuota(data.remainingQuota);
+      }
+      // 「两者都要」：匹配完成后按当前场景接着生成话术（话术约 2 秒，
+      // 失败不回滚已产出的匹配结果，仅提示）。
+      if (mode === "both" && data.id) {
+        await generatePitch(baseText, pitchScene, data.id, effJd);
       }
     } catch (err) {
       console.error("Match failed:", err);
@@ -280,13 +431,72 @@ export default function JobMatchPage() {
       const status = (err as Error & { status?: number }).status;
       toast.error(status === 403 ? (err as Error).message : t("matchError"));
     } finally {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      stopTimer();
       setLoading(false);
     }
   };
+
+  // 恢复岗位 JD 上下文到工作台（岗位列表 → 点击卡片）
+  const handleRestoreJob = (job: JobSummary) => {
+    setJdText(job.jd_text);
+    setCurrentJobId(job.id);
+    toast.success(t("jobRestoredHint"));
+  };
+
+  // JD 文本域失焦：按归一化 JD 查重，命中且非当前上下文则弹确认（仅提示不拦截）
+  const handleDetectDuplicate = async () => {
+    const jd = jdText.trim();
+    if (!jd) return;
+    try {
+      const res = await detectJob(jd);
+      if (res.job_id && res.job_id !== currentJobId) {
+        const all = await listJobs();
+        const job = all.find((j) => j.id === res.job_id);
+        if (job) setDetectConfirm({ jd, job });
+      }
+    } catch {
+      /* 查重失败不打扰用户 */
+    }
+  };
+
+  // 仅话术结果区的「生成定制简历」衔接：切到匹配任务，用同一 JD 立即发起匹配。
+  const handleGenerateResumeFromPitch = () => {
+    setTaskMode("match");
+    handleCreate(jdText, "match");
+  };
+
+  // 从「我的投递」页跳转携带的意图：?job=<id>&mode=match&run=1 时，
+  // 自动把该岗位 JD 回填到工作台并立即以「定制简历」发起匹配（岗位页生成/重新匹配）。
+  const [pendingJobRun, setPendingJobRun] = useState<string | null>(null);
+  const jobIntentRef = useRef(false);
+  useEffect(() => {
+    if (pathname !== "/app/dashboard/match" || jobIntentRef.current) return;
+    jobIntentRef.current = true;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const jobId = params.get("job");
+      if (!jobId) return;
+      (async () => {
+        const d = await getJob(jobId);
+        setJdText(d.jd_text);
+        setCurrentJobId(d.id);
+        const mode = params.get("mode");
+        if (mode === "match" || mode === "both") setTaskMode(mode);
+        if (params.get("run") === "1") setPendingJobRun(d.jd_text);
+      })().catch((err) => console.error("恢复岗位上下文失败:", err));
+    } catch {
+      /* window 不可用的环境忽略 */
+    }
+  }, [pathname]);
+
+  // run=1：待基准简历就绪（selected 就位）后立即发起一次「定制简历」匹配
+  useEffect(() => {
+    if (!pendingJobRun || !selected) return;
+    const jd = pendingJobRun;
+    setPendingJobRun(null);
+    void handleCreate(jd, "match");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingJobRun, selected]);
 
   // 「接受」= 把匹配结果采纳并落库为「我的简历」中的一份资产（后端按 markdown 去重复用）。
   // 落库成功后弹窗询问是否立刻打开编辑器微调，用户也可选择稍后。
@@ -421,6 +631,13 @@ export default function JobMatchPage() {
 
             <ScrollArea className="flex-1">
               <div className="space-y-6 px-5 py-4">
+                {/* 任务类型：JD 简历匹配 / JD 话术匹配 / 两者都要（平级入口） */}
+                <TaskModePicker
+                  value={taskMode}
+                  onChange={setTaskMode}
+                  disabled={loading}
+                />
+
                 {/* 选择要优化的简历 */}
                 <div className="space-y-2">
                   <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -481,25 +698,69 @@ export default function JobMatchPage() {
                   <Textarea
                     value={jdText}
                     onChange={(e) => setJdText(e.target.value)}
+                    onBlur={handleDetectDuplicate}
                     placeholder={t("jdPlaceholder")}
                     disabled={loading}
                     className="min-h-[160px] resize-y border-border bg-muted/40 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20"
                   />
                 </div>
 
+                {/* 话术场景：只要任务涉及话术就出现（仅话术 / 两者都要） */}
+                {taskMode !== "match" && (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      {t("pitchScene")}
+                    </Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(
+                        [
+                          ["greeting", "pitchGreeting"],
+                          ["followup", "pitchFollowup"],
+                          ["interview", "pitchInterview"],
+                        ] as Array<[CoverLetterScene, string]>
+                      ).map(([val, key]) => (
+                        <button
+                          key={val}
+                          type="button"
+                          disabled={loading}
+                          onClick={() => setPitchScene(val)}
+                          className={cn(
+                            "rounded-lg border px-2 py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                            pitchScene === val
+                              ? "border-primary bg-primary/[0.06] text-foreground"
+                              : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40"
+                          )}
+                        >
+                          {t(key)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* 开始匹配 */}
                 <button
                   type="button"
-                  onClick={handleCreate}
+                  onClick={() => handleCreate()}
                   disabled={loading || !selected}
                   className="group flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : taskMode === "pitch" ? (
+                    <Mail className="h-4 w-4" />
                   ) : (
                     <Crosshair className="h-4 w-4 transition-transform group-hover:rotate-90" />
                   )}
-                  {loading ? t("matching") : t("startMatch")}
+                  {loading
+                    ? taskMode === "pitch"
+                      ? t("generatingPitch")
+                      : t("matching")
+                    : taskMode === "pitch"
+                      ? t("startPitch")
+                      : taskMode === "both"
+                        ? t("startBoth")
+                        : t("startMatch")}
                 </button>
 
               </div>
@@ -531,16 +792,35 @@ export default function JobMatchPage() {
                     <PanelLeftOpen className="h-4 w-4" />
                   )}
                 </button>
+                {/* 我的投递：跳转到独立的投递管理页（列表 + 详情 + 阶段化 CTA） */}
+                <button
+                  type="button"
+                  onClick={() => router.push("/app/dashboard/jobs")}
+                  title={t("jobsToggle")}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <Briefcase className="h-4 w-4" />
+                </button>
                 <div
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                   style={{ backgroundColor: `hsl(${BRAND_VIOLET} / 0.12)` }}
                 >
-                  <Target className="h-4.5 w-4.5" style={{ color: `hsl(${BRAND_VIOLET})` }} />
+                  {pitchOnlyView ? (
+                    <Mail className="h-4.5 w-4.5" style={{ color: `hsl(${BRAND_VIOLET})` }} />
+                  ) : (
+                    <Target className="h-4.5 w-4.5" style={{ color: `hsl(${BRAND_VIOLET})` }} />
+                  )}
                 </div>
                 <div className="min-w-0">
-                  <h2 className="text-base font-semibold">{t("result")}</h2>
+                  <h2 className="text-base font-semibold">
+                    {pitchOnlyView ? t("pitchResult") : t("result")}
+                  </h2>
                   <p className="truncate text-xs text-muted-foreground">
-                    {result ? result.title : t("resultEmpty")}
+                    {result
+                      ? result.title
+                      : pitchOnlyView
+                        ? t("pitchResultDesc")
+                        : t("resultEmpty")}
                   </p>
                 </div>
               </div>
@@ -559,51 +839,117 @@ export default function JobMatchPage() {
                   }}
                 >
                   <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-                  {t("matchingDesc")}
+                  {taskMode === "pitch"
+                    ? t("generatingPitchDesc")
+                    : t("matchingDesc")}
                   <span className="ml-auto tabular-nums font-medium">
                     {formatElapsed(elapsedMs)}
                   </span>
                 </div>
-                <div className="space-y-3 rounded-lg border border-border p-4">
-                  <Skeleton className="h-5 w-24" />
-                  <div className="flex flex-wrap gap-2">
-                    <Skeleton className="h-6 w-16 rounded-full" />
-                    <Skeleton className="h-6 w-24 rounded-full" />
-                    <Skeleton className="h-6 w-20 rounded-full" />
+                {taskMode === "pitch" ? (
+                  // 仅话术：约 2 秒出结果，骨架按话术形态给（一段正文 + 操作条）
+                  <div className="space-y-3 rounded-lg border border-border p-4">
+                    <Skeleton className="h-5 w-20" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-11/12" />
+                    <Skeleton className="h-4 w-4/5" />
                   </div>
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
+                ) : (
+                  <div className="space-y-3 rounded-lg border border-border p-4">
+                    <Skeleton className="h-5 w-24" />
+                    <div className="flex flex-wrap gap-2">
+                      <Skeleton className="h-6 w-16 rounded-full" />
+                      <Skeleton className="h-6 w-24 rounded-full" />
+                      <Skeleton className="h-6 w-20 rounded-full" />
+                    </div>
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                )}
+              </div>
+            ) : pitchOnlyView ? (
+              // 仅话术结果：直接呈现话术，不套匹配结果的 Tab 结构
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+                {/* 仅话术模式的结果衔接：对方要简历了 → 用同一 JD 生成定制简历 */}
+                <div className="mb-4 rounded-[10px] border border-border bg-card p-4">
+                  <div className="flex items-start gap-3">
+                    <span
+                      className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                      style={{ backgroundColor: `hsl(${BRAND_VIOLET} / 0.12)` }}
+                    >
+                      <Crosshair
+                        className="h-4 w-4"
+                        style={{ color: `hsl(${BRAND_VIOLET})` }}
+                      />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-medium text-foreground">
+                        {t("jobPitchCtaTitle")}
+                      </p>
+                      <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+                        {t("jobPitchCtaDesc")}
+                      </p>
+                      <button
+                        type="button"
+                        className="xai-pill-primary mt-3"
+                        onClick={handleGenerateResumeFromPitch}
+                        disabled={!selected || loading}
+                      >
+                        <Crosshair className="h-3.5 w-3.5" />
+                        {t("jobPitchCtaBtn")}
+                      </button>
+                    </div>
+                  </div>
                 </div>
+                <CoverLetterPanel
+                  resumeText={selected ? matchBaseText(selected) : ""}
+                  jdText={jdText}
+                  focusId={soloPitchId ?? undefined}
+                />
               </div>
             ) : !result ? (
-              <div className="relative flex flex-1 items-center justify-center overflow-hidden px-6 py-10">
-                <div
-                  className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full border"
-                  style={{ borderColor: `hsl(${BRAND_VIOLET} / 0.1)` }}
-                  aria-hidden
-                />
-                <div
-                  className="pointer-events-none absolute left-1/2 top-1/2 h-[240px] w-[240px] -translate-x-1/2 -translate-y-1/2 rounded-full border"
-                  style={{ borderColor: `hsl(${BRAND_VIOLET} / 0.14)` }}
-                  aria-hidden
-                />
-                <div
-                  className="pointer-events-none absolute left-1/2 top-1/2 h-[120px] w-[120px] -translate-x-1/2 -translate-y-1/2 rounded-full border"
-                  style={{ borderColor: `hsl(${BRAND_VIOLET} / 0.2)` }}
-                  aria-hidden
-                />
-                <div className="relative flex flex-col items-center text-center">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="relative flex flex-1 items-center justify-center overflow-hidden px-6 py-10">
                   <div
-                    className="flex h-14 w-14 items-center justify-center rounded-full"
-                    style={{ backgroundColor: `hsl(${BRAND_VIOLET} / 0.1)` }}
-                  >
-                    <Crosshair className="h-7 w-7" style={{ color: `hsl(${BRAND_VIOLET})` }} />
+                    className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full border"
+                    style={{ borderColor: `hsl(${BRAND_VIOLET} / 0.1)` }}
+                    aria-hidden
+                  />
+                  <div
+                    className="pointer-events-none absolute left-1/2 top-1/2 h-[240px] w-[240px] -translate-x-1/2 -translate-y-1/2 rounded-full border"
+                    style={{ borderColor: `hsl(${BRAND_VIOLET} / 0.14)` }}
+                    aria-hidden
+                  />
+                  <div
+                    className="pointer-events-none absolute left-1/2 top-1/2 h-[120px] w-[120px] -translate-x-1/2 -translate-y-1/2 rounded-full border"
+                    style={{ borderColor: `hsl(${BRAND_VIOLET} / 0.2)` }}
+                    aria-hidden
+                  />
+                  <div className="relative flex flex-col items-center text-center">
+                    <div
+                      className="flex h-14 w-14 items-center justify-center rounded-full"
+                      style={{ backgroundColor: `hsl(${BRAND_VIOLET} / 0.1)` }}
+                    >
+                      <Crosshair className="h-7 w-7" style={{ color: `hsl(${BRAND_VIOLET})` }} />
+                    </div>
+                    <h3 className="mt-5 text-base font-semibold">{t("resultEmpty")}</h3>
+                    <p className="mt-2 max-w-xs text-sm text-muted-foreground">
+                      {t("resultHint")}
+                    </p>
                   </div>
-                  <h3 className="mt-5 text-base font-semibold">{t("resultEmpty")}</h3>
-                  <p className="mt-2 max-w-xs text-sm text-muted-foreground">
-                    {t("resultHint")}
-                  </p>
                 </div>
+                {/* 刷新后：若最近匹配过，仍从 DB 加载历史话术（话术为独立资源，不随匹配结果丢失）。
+                    若用户从「我的投递」恢复了某张卡，则按 job_id 过滤展示该卡的话术。 */}
+                {(lastDerivedResumeId || currentJobId) && (
+                  <div className="shrink-0 overflow-y-auto border-t border-border px-6 py-5">
+                    <CoverLetterPanel
+                      resumeText={selected ? matchBaseText(selected) : ""}
+                      jdText={jdText}
+                      derivedResumeId={currentJobId ? undefined : lastDerivedResumeId ?? undefined}
+                      jobId={currentJobId ?? undefined}
+                    />
+                  </div>
+                )}
               </div>
             ) : (
               <Tabs
@@ -630,6 +976,16 @@ export default function JobMatchPage() {
                       <FileText className="mr-1.5 h-3.5 w-3.5" />
                       {t("optimizedResume")}
                     </TabsTrigger>
+                    {/* 话术 tab 仅在「两者都要」时出现：选了「仅 JD 匹配」就不该看到话术入口 */}
+                    {taskMode === "both" && (
+                      <TabsTrigger
+                        value="pitch"
+                        className="h-8 rounded-full px-4 text-xs data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                      >
+                        <Mail className="mr-1.5 h-3.5 w-3.5" />
+                        {t("matchAnalysisCoverLetter")}
+                      </TabsTrigger>
+                    )}
                   </TabsList>
                 </div>
 
@@ -704,7 +1060,7 @@ export default function JobMatchPage() {
                             <button
                               type="button"
                               className="xai-pill-outline"
-                              onClick={handleCreate}
+                              onClick={() => handleCreate()}
                               disabled={loading || accepted}
                               title={accepted ? "已确认接受，不能重新匹配" : undefined}
                             >
@@ -820,7 +1176,6 @@ export default function JobMatchPage() {
                         const scorePct =
                           typeof a.score === "number" ? Math.round(a.score * 100) : null;
                         const reqs = a.requirements ?? [];
-                        const letter = a.cover_letter ?? "";
                         const optimizedText = stripMarkdownPreamble(result.markdownContent);
                         const kwTotal = result.keywords?.length ?? 0;
                         const kwHit = kwTotal
@@ -964,45 +1319,22 @@ export default function JobMatchPage() {
                                   </div>
                                 )}
                               </div>
-
-                              {/* 匹配话术（cover_letter）：resume_match 节点输出；
-                                  顶层「求职信」tab 的 coverLetter 直接复用同一字段
-                                  （withCoverLetter=true 时返回），两者内容一致。 */}
-                              {letter && (
-                                <div className="rounded-[10px] border border-border bg-card p-5">
-                                  <div className="flex items-center justify-between">
-                                    <h3 className="flex items-center gap-1.5 text-[13.5px] font-medium text-foreground">
-                                      <Mail className="h-4 w-4" />
-                                      {t("matchAnalysisCoverLetter")}
-                                    </h3>
-                                    <button
-                                      type="button"
-                                      className="inline-flex h-7 items-center gap-1 rounded-full border border-border px-3 text-xs text-muted-foreground transition-colors hover:border-xai-hairline-strong hover:text-xai-text"
-                                      onClick={async () => {
-                                        try {
-                                          await navigator.clipboard.writeText(letter);
-                                          toast.success("已复制打招呼话术");
-                                        } catch {
-                                          toast.error("复制失败，请手动选择复制");
-                                        }
-                                      }}
-                                    >
-                                      <Copy className="h-3 w-3" />
-                                      复制
-                                    </button>
-                                  </div>
-                                  <p className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-background/60 p-3 text-[13px] leading-relaxed text-muted-foreground">
-                                    {letter}
-                                  </p>
-                                  <p className="mt-2 text-right text-[10px] text-muted-foreground">
-                                    {letter.length} 字
-                                  </p>
-                                </div>
-                              )}
                             </div>
                           </div>
                         );
                       })()}
+                    </TabsContent>
+
+                    {/* Tab: 匹配话术（与匹配解耦的独立资源）
+                        挂载 CoverLetterPanel：按 derivedResumeId 从 DB 加载历史话术，
+                        支持多场景生成 / 列表 / 编辑 / 重生成 / 删除。 */}
+                    <TabsContent value="pitch" className="mt-4">
+                      <CoverLetterPanel
+                        resumeText={selected ? matchBaseText(selected) : ""}
+                        jdText={jdText}
+                        derivedResumeId={result?.id}
+                        jobId={currentJobId ?? undefined}
+                      />
                     </TabsContent>
                   </div>
                 </ScrollArea>
@@ -1020,6 +1352,38 @@ export default function JobMatchPage() {
           )}
         </div>
       </motion.div>
+
+      {/* JD 失焦查重命中确认：仅提示不拦截，提供「继续机会 / 仍然新建」 */}
+      <AlertDialog
+        open={!!detectConfirm}
+        onOpenChange={(o) => !o && setDetectConfirm(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("jobDetectTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {detectConfirm
+                ? t("jobDetectDesc", {
+                    time: relTime(detectConfirm.job.last_activity_at, locale),
+                  })
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDetectConfirm(null)}>
+              {t("jobDetectNew")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (detectConfirm) handleRestoreJob(detectConfirm.job);
+                setDetectConfirm(null);
+              }}
+            >
+              {t("jobDetectContinue")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* 接受后询问：是否立刻编辑简历 */}
       <AlertDialog open={editNowOpen} onOpenChange={setEditNowOpen}>

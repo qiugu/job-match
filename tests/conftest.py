@@ -38,7 +38,7 @@ async def engine():
 
     eng = create_async_engine(
         f"sqlite+aiosqlite:///{db_path}",
-        connect_args={"check_same_thread": False},
+        connect_args={"check_same_thread": False, "timeout": 30},
     )
     async with eng.begin() as conn:
         await conn.run_sync(database_module.Base.metadata.create_all)
