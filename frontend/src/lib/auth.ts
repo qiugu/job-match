@@ -22,8 +22,8 @@ export interface AuthUser {
   username: string;
   nickname: string;
   role: "admin" | "user";
-  /** 剩余可发起的「简历匹配 JD」次数，-1 表示无限制（管理员） */
-  matchQuota: number;
+  /** 剩余积分（简历匹配扣 5、话术生成扣 1），-1 表示无限制（管理员） */
+  credits: number;
   createdAt: string;
   lastLoginAt: string | null;
 }
@@ -124,7 +124,7 @@ export function login(username: string, password: string): Promise<AuthResponse>
   });
 }
 
-/** 注册必须带注册码：注册码决定该账号获得多少次匹配额度 */
+/** 注册必须带注册码：注册码决定该账号获得多少积分 */
 export function register(
   username: string,
   password: string,
@@ -166,8 +166,8 @@ export interface RegistrationCodeStatus {
   dailyLimit: number;
   /** 今日剩余可领数量 */
   remaining: number;
-  /** 注册码授予的匹配次数 */
-  grantMatches: number;
+  /** 注册码授予的积分 */
+  grantCredits: number;
   /** 有效天数 */
   validityDays: number;
   /** 下次重置时间（ISO8601 含时区，前端转本地时区展示） */
@@ -176,7 +176,7 @@ export interface RegistrationCodeStatus {
 
 export interface RegistrationCodeIssue {
   code: string;
-  grantMatches: number;
+  grantCredits: number;
   /** 过期时间（ISO8601 含时区） */
   expiresAt: string;
   /** 领取后的今日剩余名额 */

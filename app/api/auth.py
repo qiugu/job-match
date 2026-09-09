@@ -178,7 +178,7 @@ def _user_out(user: User) -> UserOut:
         nickname=user.nickname or user.username,
         role=user.role,
         # 负号（默认 -1）对前端即「无限制」
-        matchQuota=int(user.match_quota),
+        credits=int(user.credits),
         createdAt=user.created_at.isoformat(),
         lastLoginAt=user.last_login_at.isoformat() if user.last_login_at else None,
     )
@@ -259,7 +259,7 @@ async def register(
         nickname=username,
         password_hash=hash_password(payload.password),
         role=ROLE_USER,
-        match_quota=max(int(code.grant_matches), 0),
+        credits=max(int(code.grant_credits), 0),
         registered_code=code.code,
         last_login_at=utcnow(),
     )
@@ -272,10 +272,10 @@ async def register(
         raise HTTPException(status_code=409, detail=f"用户名「{username}」已存在") from None
     await db.refresh(user)
     logger.info(
-        "新用户注册：%s（注册码 %s，匹配额度 %s）",
+        "新用户注册：%s（注册码 %s，积分 %s）",
         username,
         code.code,
-        user.match_quota,
+        user.credits,
     )
     return _issue(user, response)
 
@@ -369,7 +369,7 @@ async def registration_code_status(db: AsyncSession = Depends(get_db)):
     return RegistrationCodeStatusOut(
         dailyLimit=settings.registration_daily_limit,
         remaining=max(settings.registration_daily_limit - issued, 0),
-        grantMatches=settings.registration_default_matches,
+        grantCredits=settings.registration_default_credits,
         validityDays=settings.registration_code_validity_days,
         nextResetAt=_iso_utc(next_reset),
     )
@@ -418,7 +418,7 @@ async def issue_registration_code(
     logger.info("自助发放注册码：%s（今日剩余 %s/%s）", record.code, remaining, limit)
     return RegistrationCodeOut(
         code=record.code,
-        grantMatches=record.grant_matches,
+        grantCredits=record.grant_credits,
         expiresAt=_iso_utc(record.expires_at),
         remaining=remaining,
         nextResetAt=_iso_utc(next_reset),

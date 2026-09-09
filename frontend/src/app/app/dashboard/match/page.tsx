@@ -336,8 +336,8 @@ export default function JobMatchPage() {
       });
       // 写链路自动挂载岗位卡：把返回的 job_id 记入当前上下文
       if (typeof letter.job_id === "string") setCurrentJobId(letter.job_id);
-      if (typeof letter.remaining_quota === "number") {
-        useAuthStore.getState().applyQuota(letter.remaining_quota);
+      if (typeof letter.remaining_credits === "number") {
+        useAuthStore.getState().applyCredits(letter.remaining_credits);
       }
       return letter.id;
     } catch (err) {
@@ -416,9 +416,9 @@ export default function JobMatchPage() {
           /* 忽略 localStorage 不可用的情况 */
         }
       }
-      // 匹配会扣一次额度：用后端返回的剩余次数刷新侧边栏显示
-      if (typeof data.remainingQuota === "number") {
-        useAuthStore.getState().applyQuota(data.remainingQuota);
+      // 匹配会扣积分：用后端返回的剩余积分刷新侧边栏显示
+      if (typeof data.remainingCredits === "number") {
+        useAuthStore.getState().applyCredits(data.remainingCredits);
       }
       // 「两者都要」：匹配完成后按当前场景接着生成话术（话术约 2 秒，
       // 失败不回滚已产出的匹配结果，仅提示）。
@@ -427,7 +427,7 @@ export default function JobMatchPage() {
       }
     } catch (err) {
       console.error("Match failed:", err);
-      // 403=匹配次数已用完：直接展示后端提示，其余错误走通用文案
+      // 403=积分不足：直接展示后端提示，其余错误走通用文案
       const status = (err as Error & { status?: number }).status;
       toast.error(status === 403 ? (err as Error).message : t("matchError"));
     } finally {

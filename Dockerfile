@@ -12,7 +12,10 @@ COPY --from=ghcr.io/astral-sh/uv:0.12.9 /uv /usr/local/bin/uv
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_LINK_MODE=copy \
-    UV_CACHE_DIR=/root/.cache/uv
+    UV_CACHE_DIR=/root/.cache/uv \
+    # 防御性兜底：放宽依赖下载超时，避免 CI/远端构建在拉取较大 wheel 时因
+    # 瞬时网络抖动而失败（默认仅 30s，曾导致 pypdfium2 下载超时阻断构建）。
+    UV_HTTP_TIMEOUT=300
 # 注意：未开启 UV_COMPILE_BYTECODE。该选项会在 uv sync 阶段就地编译所有 wheel 的
 # 字节码，langchain/pymupdf 等大包编译时内存峰值极高，在 2G 小内存服务器上极易
 # 触发 OOM（表现为构建卡死）。关闭后仅首次启动略慢，换取构建稳定。

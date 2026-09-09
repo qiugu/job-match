@@ -28,7 +28,7 @@ async def test_bootstrap_takes_over_legacy_and_orphan(session, monkeypatch):
         password_hash="!",
         token_version=1,
         role="user",
-        match_quota=-1,
+        credits=-1,
         is_active=False,
         registered_code="",
     )
@@ -60,7 +60,7 @@ async def test_bootstrap_takes_over_legacy_and_orphan(session, monkeypatch):
     admin = res.scalars().first()
     assert admin is not None
     assert admin.is_admin is True
-    assert admin.unlimited_match_quota is True
+    assert admin.unlimited_credits is True
 
     # 无归属简历被接管
     await session.refresh(orphan)

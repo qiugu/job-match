@@ -1,9 +1,9 @@
-"""注册码：注册账号必须提供，用于发放「JD 匹配次数」额度。
+"""注册码：注册账号必须提供，用于发放积分（credits）余额。
 
 - 一个码可被兑换的次数不做限制（需求只约束过期时间与授予额度），
-   redeemed_count / last_redeemed_at 仅用于审计「发出去的码有没有人用」；
-- grant_matches 是用该码注册的账号获得的匹配次数，默认 10；
-- 管理员账号不受额度限制（users.match_quota = -1），无需注册码。
+  redeemed_count / last_redeemed_at 仅用于审计「发出去的码有没有人用」；
+- grant_credits 是用该码注册的账号获得的积分，默认 50；
+- 管理员账号不消耗积分（users.credits = -1），无需注册码。
 """
 from __future__ import annotations
 
@@ -30,8 +30,8 @@ class RegistrationCode(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
     code: Mapped[str] = mapped_column(String(64), default="", index=True)
-    # 用该码注册的账号获得的匹配次数
-    grant_matches: Mapped[int] = mapped_column(Integer, default=10)
+    # 用该码注册的账号获得的积分
+    grant_credits: Mapped[int] = mapped_column(Integer, default=50)
     # 过期时间（UTC，naive）；过期后不能用于注册
     expires_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     # 审计字段：被兑换的次数与最后一次兑换时间

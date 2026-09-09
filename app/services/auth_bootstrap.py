@@ -20,7 +20,7 @@ from app.core.security import hash_password
 from app.core.timeutils import utcnow
 from app.models.derived_resume import DerivedResume
 from app.models.master_resume import MasterResume
-from app.models.user import ROLE_ADMIN, UNLIMITED_QUOTA, User
+from app.models.user import ROLE_ADMIN, UNLIMITED_CREDITS, User
 
 logger = get_logger("auth.bootstrap")
 
@@ -52,13 +52,13 @@ async def bootstrap_auth() -> None:
         if existing is not None:
             return
 
-        # 初始账号即管理员：匹配额度无限制，也不需要注册码
+        # 初始账号即管理员：积分无限制（-1），也不需要注册码
         user = User(
             username=username,
             nickname=username,
             password_hash=hash_password(password),
             role=ROLE_ADMIN,
-            match_quota=UNLIMITED_QUOTA,
+            credits=UNLIMITED_CREDITS,
             last_login_at=utcnow(),
         )
         db.add(user)

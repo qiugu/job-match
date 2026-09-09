@@ -4,7 +4,7 @@
 
 ## 项目概览
 
-简历匹配 Agent（magic-resume）：一个前后端分离的应用。
+简历匹配 Agent（job-matcher）：一个前后端分离的应用。
 
 - **后端**：独立的 Python 服务（FastAPI + LangChain + LangGraph + SQLite），提供简历结构化存储与基于大模型的匹配/重写能力。
 - **前端**：基于 TanStack Start（React + Vite）的简历编辑器 `frontend/`（原 magic-resume）。
@@ -93,26 +93,28 @@ docker compose ps / logs -f / down
 
 ## 环境变量（后端 `.env`）
 
-| 变量                            | 说明                                                    |
-| ------------------------------- | ------------------------------------------------------- |
-| `LLM_API_KEY`                   | 大模型 API Key（必填，缺失时匹配接口返回 503）          |
-| `LLM_BASE_URL`                  | OpenAI 兼容接口地址，如 `https://api.deepseek.com/v1`   |
-| `LLM_MODEL`                     | 模型名，如 `deepseek-chat`                              |
-| `LLM_PROVIDER`                  | 厂商标识，默认 `deepseek`                               |
-| `LLM_TEMPERATURE`               | 采样温度，默认 `0.3`                                    |
-| `CORS_ORIGINS`                  | 前端来源，默认含 dev(3005)、Nginx 同源代理(80)、`http://frontend:3005` |
-| `DATABASE_URL`                  | SQLite 路径（默认 `sqlite+aiosqlite:///./jobmatch.db`） |
-| `AUTH_SECRET_KEY`               | JWT 签名密钥（生产必填，≥32 字节；留空则重启即失效）    |
-| `AUTH_TOKEN_EXPIRE_MINUTES`     | 登录令牌有效期（分钟，默认 10080）                      |
-| `AUTH_ALLOW_REGISTRATION`       | 是否开放注册（默认 true）                               |
-| `AUTH_BOOTSTRAP_USERNAME` / `AUTH_BOOTSTRAP_PASSWORD` | 初始账号（即管理员），创建时接管历史简历数据 |
-| `REGISTRATION_DEFAULT_MATCHES` | 注册码默认授予的匹配次数（默认 20，JD 简历匹配与话术生成共享）        |
-| `PDF_EXPORT_FONT_ORIGIN`      | 服务端 PDF 渲染的字体源：compose 默认 `http://frontend:3005`；本机 uvicorn 直跑需设 `http://localhost:3005` |
-| `PDF_EXPORT_MAX_HTML_BYTES`   | 导出接口接收 HTML 上限（默认 2MB）                            |
-| `PDF_EXPORT_TIMEOUT_SECONDS`  | 单次渲染超时秒数（默认 30）                                   |
-| `PDF_EXPORT_MAX_CONCURRENCY`  | 渲染并发上限（默认 2，受内存约束）                            |
-| `PDF_EXPORT_RATE_LIMIT_PER_HOUR` | 单用户每小时导出次数上限（默认 20）                        |
-| `BACKEND_HOST` / `BACKEND_PORT` | 监听地址/端口                                           |
+| 变量                                                  | 说明                                                                                                        |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `LLM_API_KEY`                                         | 大模型 API Key（必填，缺失时匹配接口返回 503）                                                              |
+| `LLM_BASE_URL`                                        | OpenAI 兼容接口地址，如 `https://api.deepseek.com/v1`                                                       |
+| `LLM_MODEL`                                           | 模型名，如 `deepseek-chat`                                                                                  |
+| `LLM_PROVIDER`                                        | 厂商标识，默认 `deepseek`                                                                                   |
+| `LLM_TEMPERATURE`                                     | 采样温度，默认 `0.3`                                                                                        |
+| `CORS_ORIGINS`                                        | 前端来源，默认含 dev(3005)、Nginx 同源代理(80)、`http://frontend:3005`                                      |
+| `DATABASE_URL`                                        | SQLite 路径（默认 `sqlite+aiosqlite:///./jobmatch.db`）                                                     |
+| `AUTH_SECRET_KEY`                                     | JWT 签名密钥（生产必填，≥32 字节；留空则重启即失效）                                                        |
+| `AUTH_TOKEN_EXPIRE_MINUTES`                           | 登录令牌有效期（分钟，默认 10080）                                                                          |
+| `AUTH_ALLOW_REGISTRATION`                             | 是否开放注册（默认 true）                                                                                   |
+| `AUTH_BOOTSTRAP_USERNAME` / `AUTH_BOOTSTRAP_PASSWORD` | 初始账号（即管理员），创建时接管历史简历数据                                                                |
+| `REGISTRATION_DEFAULT_CREDITS`                        | 注册码默认授予的积分（默认 50，JD 简历匹配与话术生成共享）                                                  |
+| `RESUME_MATCH_COST`                                   | 每次 JD 简历匹配消耗的积分（默认 5）                                                                        |
+| `COVER_LETTER_COST`                                   | 每次 JD 话术生成/重生成消耗的积分（默认 1）                                                                  |
+| `PDF_EXPORT_FONT_ORIGIN`                              | 服务端 PDF 渲染的字体源：compose 默认 `http://frontend:3005`；本机 uvicorn 直跑需设 `http://localhost:3005` |
+| `PDF_EXPORT_MAX_HTML_BYTES`                           | 导出接口接收 HTML 上限（默认 2MB）                                                                          |
+| `PDF_EXPORT_TIMEOUT_SECONDS`                          | 单次渲染超时秒数（默认 30）                                                                                 |
+| `PDF_EXPORT_MAX_CONCURRENCY`                          | 渲染并发上限（默认 2，受内存约束）                                                                          |
+| `PDF_EXPORT_RATE_LIMIT_PER_HOUR`                      | 单用户每小时导出次数上限（默认 20）                                                                         |
+| `BACKEND_HOST` / `BACKEND_PORT`                       | 监听地址/端口                                                                                               |
 
 ## 数据契约
 

@@ -48,9 +48,13 @@ class Settings(BaseSettings):
     # 创建出来即为管理员（匹配额度无限制），首次部署时用它登录即可看到升级前已有的简历。
     auth_bootstrap_username: str = ""
     auth_bootstrap_password: str = ""
-    # 注册码默认授予的「JD 匹配次数」（官网自助领取的注册码用；
-    # JD 简历匹配与 JD 话术生成共享此额度，每次消耗 1）
-    registration_default_matches: int = 20
+    # ---------- 积分（credits）定价 ----------
+    # JD 简历匹配 / JD 话术生成（创建与重新生成）分别消耗的积分；
+    # 两者共享同一余额 users.credits（新注册码默认充入 registration_default_credits）。
+    resume_match_cost: int = 5
+    cover_letter_cost: int = 1
+    # 注册码默认授予的积分（官网自助领取的注册码用；新注册账号默认 50）
+    registration_default_credits: int = 50
     # 官网「自助获取注册码」每日发放上限（对应官网提示「每天可获取的注册账号最多 10 个」）
     registration_daily_limit: int = 10
     # 自助获取的注册码有效期（天）

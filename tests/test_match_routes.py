@@ -1,13 +1,13 @@
-"""match 路由测试：create/GET/list/accept/delete 业务流、额度扣减、接受幂等。
+"""match 路由测试：create/GET/list/accept/delete 业务流、积分扣减、接受幂等。
 
 通过 monkeypatch 替换 app.api.match.run_match 注入确定性结果，
 不触发真实 LLM / 网络。重点验证路由层契约：
-- 额度扣减后返回 remainingQuota
+- 简历匹配每次消耗 5 积分，成功后返回 remainingCredits
 - create_match 挂载岗位卡并返回 jobId（匹配即建档，刷新不丢上下文）
 - accept 幂等（同结果复用以 accepted_master_id 为键）
 - 接受落库 MasterResume 标题冲突时加 ` (2)` 后缀
 - 响应字段名 markdownContent
-- 无限制账号不扣额度（管理员）
+- 无限制账号不扣积分（管理员）
 
 注：话术（cover letter）已从匹配结果解耦到独立资源 /api/cover-letters，
 匹配响应不再包含 hasCoverLetter / coverLetter 字段。
@@ -21,7 +21,7 @@ from app.models.registration_code import RegistrationCode
 from sqlalchemy import select
 
 
-async def _ensure_code(session, code, grant_matches=3):
+async def _ensure_code(session, code, grant_credits=20):
     res = await session.execute(
         select(RegistrationCode).where(RegistrationCode.code == code)
     )
@@ -31,7 +31,7 @@ async def _ensure_code(session, code, grant_matches=3):
         session.add(
             RegistrationCode(
                 code=code,
-                grant_matches=grant_matches,
+                grant_credits=grant_credits,
                 expires_at=utcnow() + timedelta(days=1),
             )
         )
@@ -79,8 +79,8 @@ async def test_create_match_consumes_quota(client, session, monkeypatch):
     )
     assert r.status_code == 200, r.text
     body = r.json()
-    # 初始配额 3，扣 1 后剩余 2
-    assert body["remainingQuota"] == 2
+    # 初始积分 20，简历匹配扣 5 后剩余 15
+    assert body["remainingCredits"] == 15
     assert "markdownContent" in body and body["markdownContent"]
     # 匹配即建档：响应挂载 jobId（话术已解耦，无 hasCoverLetter/coverLetter）
     assert isinstance(body.get("jobId"), str) and body["jobId"]
@@ -108,11 +108,11 @@ async def test_create_match_returns_job_id(client, session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_quota_exhausted_returns_403(client, session, monkeypatch):
-    token = await _login(client, session, "qexh", "QE1")  # 配额 3
+    token = await _login(client, session, "qexh", "QE1")  # 积分 20，可匹配 4 次
     h = auth_headers(token)
     monkeypatch.setattr("app.api.match.run_match", _fake_run_match)
     payload = {"resumeText": "# r", "jdText": "# j"}
-    for i in range(3):
+    for i in range(4):
         r = await client.post(
             "/api/derived-resumes", json={**payload, "title": f"m{i}"}, headers=h
         )
@@ -121,7 +121,7 @@ async def test_quota_exhausted_returns_403(client, session, monkeypatch):
         "/api/derived-resumes", json={**payload, "title": "overflow"}, headers=h
     )
     assert r.status_code == 403, r.text
-    assert "匹配次数" in r.json()["detail"]
+    assert "积分" in r.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -265,10 +265,10 @@ async def test_update_derived(client, session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_unlimited_user_not_charged(client, session, monkeypatch):
-    # 管理员账号无限制：注册码授予额度仅审计，但角色 admin 跳过预扣
+    # 管理员账号无限制：注册码授予积分仅审计，但角色 admin 跳过预扣
     from app.models.user import User
 
-    # 注册一个普通用户后手动置为 admin，验证不扣额度
+    # 注册一个普通用户后手动置为 admin，验证不扣积分
     token = await _login(client, session, "adminx", "ADM1", password="Pass#1234")
     h = auth_headers(token)
     from sqlalchemy import select
@@ -276,7 +276,7 @@ async def test_unlimited_user_not_charged(client, session, monkeypatch):
     res = await session.execute(select(User).where(User.username == "adminx").limit(1))
     u = res.scalars().first()
     u.role = "admin"
-    u.match_quota = -1
+    u.credits = -1
     await session.commit()
 
     monkeypatch.setattr("app.api.match.run_match", _fake_run_match)
@@ -291,4 +291,4 @@ async def test_unlimited_user_not_charged(client, session, monkeypatch):
     )
     assert r.status_code == 200, r.text
     # 无限制账号返回 -1
-    assert r.json()["remainingQuota"] == -1
+    assert r.json()["remainingCredits"] == -1

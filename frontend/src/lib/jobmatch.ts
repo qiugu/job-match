@@ -200,8 +200,8 @@ export interface MatchResult {
   matchAnalysis?: MatchAnalysis | null;
   /** 用户是否已确认接受该匹配结果 */
   accepted: boolean;
-  /** 本次匹配后剩余的匹配次数（-1 表示无限制），失败时不存在 */
-  remainingQuota?: number;
+  /** 本次匹配后剩余的积分（-1 表示无限制），失败时不存在 */
+  remainingCredits?: number;
   /** 归属岗位卡 id（写链路自动挂载；未命中历史/未开启时为 null） */
   jobId: string | null;
   createdAt: string;
@@ -238,8 +238,8 @@ export interface CoverLetter {
   job_id: string | null;
   created_at: string;
   updated_at: string;
-  /** 本次生成/重生成后剩余匹配额度（-1=无限制）；非消耗型操作不返回 */
-  remaining_quota?: number | null;
+  /** 本次生成/重生成后剩余积分（-1=无限制）；非消耗型操作不返回 */
+  remaining_credits?: number | null;
 }
 
 export interface CreateCoverLetterPayload {

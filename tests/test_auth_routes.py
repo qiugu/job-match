@@ -1,9 +1,9 @@
-"""auth 路由测试：注册/登录/鉴权/注册码/额度/口令失效。
+"""auth 路由测试：注册/登录/鉴权/注册码/积分/口令失效。
 
 依据 app/api/auth.py 的真实契约：
 - 注册必须带 code；无效/已用/过期返回 400，detail 为可读提示（非 error 字段）。
 - 注册码一次性（用即失效）。
-- 响应体 AuthResponse：{ token, tokenType, expiresIn, user{matchQuota,...} }。
+- 响应体 AuthResponse：{ token, tokenType, expiresIn, user{credits,...} }。
 - 登录失败 401；登出 / 改口令递增 token_version 使旧令牌失效。
 """
 
@@ -15,7 +15,7 @@ from app.models.registration_code import RegistrationCode
 from sqlalchemy import select
 
 
-async def _ensure_code(session, code, grant_matches=5):
+async def _ensure_code(session, code, grant_credits=50):
     res = await session.execute(
         select(RegistrationCode).where(RegistrationCode.code == code)
     )
@@ -26,7 +26,7 @@ async def _ensure_code(session, code, grant_matches=5):
         session.add(
             RegistrationCode(
                 code=code,
-                grant_matches=grant_matches,
+                grant_credits=grant_credits,
                 expires_at=utcnow() + timedelta(days=1),
             )
         )
@@ -54,12 +54,12 @@ async def test_register_with_invalid_code(client, session):
 
 
 @pytest.mark.asyncio
-async def test_register_success_grants_quota(client, session):
+async def test_register_success_grants_credits(client, session):
     token = await _register(client, session, "bob", code="GOOD1", password="Pass#1234")
-    # 通过 /me 验证额度
+    # 通过 /me 验证积分（注册码默认 50）
     r = await client.get("/api/auth/me", headers=auth_headers(token))
     assert r.status_code == 200
-    assert r.json()["matchQuota"] == 5
+    assert r.json()["credits"] == 50
     assert r.json()["username"] == "bob"
 
 

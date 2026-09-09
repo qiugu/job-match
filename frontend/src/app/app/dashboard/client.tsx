@@ -54,11 +54,11 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const tAuth = useTranslations();
   const user = useAuthStore((state) => state.user);
   const displayName = user?.nickname || user?.username || "";
-  // 负值（管理员默认 -1）即无限制；无限额度用独立整句，不套「剩余匹配」前缀
+  // 负值（管理员默认 -1）即无限制；无限额度用独立整句，不套「剩余积分」前缀
   const quotaText =
-    user && user.matchQuota < 0
+    user && user.credits < 0
       ? tAuth("auth.quotaUnlimited")
-      : `${tAuth("auth.quota")} · ${user?.matchQuota ?? 0}`;
+      : `${tAuth("auth.quota")} · ${user?.credits ?? 0}`;
   const sidebarItems: MenuItem[] = [
     {
       title: t("sidebar.jobmatch"),

@@ -20,21 +20,21 @@ const OPTIONS: Array<{
     icon: Mail,
     titleKey: "taskModePitch",
     descKey: "taskModePitchDesc",
-    costKey: "taskModeCost1",
+    costKey: "taskModeCostPitch",
   },
   {
     value: "match",
     icon: Crosshair,
     titleKey: "taskModeMatch",
     descKey: "taskModeMatchDesc",
-    costKey: "taskModeCost1",
+    costKey: "taskModeCostMatch",
   },
   {
     value: "both",
     icon: Layers,
     titleKey: "taskModeBoth",
     descKey: "taskModeBothDesc",
-    costKey: "taskModeCost2",
+    costKey: "taskModeCostBoth",
   },
 ];
 

@@ -1,6 +1,6 @@
-"""quota 模块测试：额度预扣/归还、耗尽、无限制账号。
+"""quota 模块测试：积分预扣/归还、耗尽、部分扣减、无限制账号。
 
-reserve_match_quota / refund_match_quota 内部使用 AsyncSessionLocal，
+consume_credits / refund_credits 内部使用 AsyncSessionLocal，
 由 conftest 注入测试用临时 DB，因此需要 async 用例并先落库 User。
 """
 
@@ -13,7 +13,7 @@ from app.schemas.auth import RegisterRequest
 from app.services import quota as quota_service
 
 
-async def _make_user(session, uid="u1", match_quota=3, role="user"):
+async def _make_user(session, uid="u1", credits=50, role="user"):
     u = User(
         id=uid,
         username=uid,
@@ -21,7 +21,7 @@ async def _make_user(session, uid="u1", match_quota=3, role="user"):
         password_hash="x",
         token_version=1,
         role=role,
-        match_quota=match_quota,
+        credits=credits,
         registered_code="",
     )
     session.add(u)
@@ -30,50 +30,69 @@ async def _make_user(session, uid="u1", match_quota=3, role="user"):
 
 
 @pytest.mark.asyncio
-async def test_reserve_consumes_quota(session):
-    u = await _make_user(session, match_quota=3)
-    ok = await quota_service.reserve_match_quota(u.id)
+async def test_consume_deducts_full_cost(session):
+    u = await _make_user(session, credits=10)
+    ok = await quota_service.consume_credits(u.id, 5)
     assert ok is True
     await session.refresh(u)
-    assert u.match_quota == 2
+    assert u.credits == 5
 
 
 @pytest.mark.asyncio
-async def test_reserve_fails_when_exhausted(session):
-    u = await _make_user(session, match_quota=0)
-    ok = await quota_service.reserve_match_quota(u.id)
-    assert ok is False  # WHERE match_quota > 0 不满足，rowcount=0
+async def test_consume_partial_balance(session):
+    # 余额不足以扣满 cost 时扣减 0，返回 False（如 3 < 5）
+    u = await _make_user(session, credits=3)
+    ok = await quota_service.consume_credits(u.id, 5)
+    assert ok is False
     await session.refresh(u)
-    assert u.match_quota == 0  # 不会被扣成负数
+    assert u.credits == 3  # 不会扣成负数
 
 
 @pytest.mark.asyncio
-async def test_refund_restores_quota(session):
-    u = await _make_user(session, match_quota=2)
-    await quota_service.reserve_match_quota(u.id)
-    await quota_service.refund_match_quota(u.id)
+async def test_consume_fails_when_exhausted(session):
+    u = await _make_user(session, credits=4)
+    ok = await quota_service.consume_credits(u.id, 5)
+    assert ok is False  # WHERE credits >= 5 不满足，rowcount=0
     await session.refresh(u)
-    assert u.match_quota == 2
+    assert u.credits == 4  # 不会被扣成负数
 
 
 @pytest.mark.asyncio
-async def test_unlimited_quota_never_exhausted(session):
-    # 管理员账号不被额度限制（业务层应跳过预扣），这里验证负额度账号预扣语义：
-    # 负额度时 WHERE match_quota > 0 不成立 → reserve 返回 False，
+async def test_refund_restores_cost(session):
+    u = await _make_user(session, credits=10)
+    await quota_service.consume_credits(u.id, 5)
+    await quota_service.refund_credits(u.id, 5)
+    await session.refresh(u)
+    assert u.credits == 10
+
+
+@pytest.mark.asyncio
+async def test_unlimited_credits_never_exhausted(session):
+    # 管理员账号不消耗积分（业务层应跳过预扣），这里验证负余额账号预扣语义：
+    # 负余额时 WHERE credits >= cost 不成立 → consume 返回 False，
     # 业务层据此判定「无限制、放行」。
-    u = await _make_user(session, match_quota=-1, role="admin")
-    ok = await quota_service.reserve_match_quota(u.id)
-    assert ok is False  # 负额度不预扣
+    u = await _make_user(session, credits=-1, role="admin")
+    ok = await quota_service.consume_credits(u.id, 5)
+    assert ok is False  # 负余额不预扣
     await session.refresh(u)
-    assert u.match_quota == -1  # 不变
+    assert u.credits == -1  # 不变
+
+
+@pytest.mark.asyncio
+async def test_refund_does_not_touch_unlimited(session):
+    # 归还守卫 credits >= 0：无限账号不会被动 +cost
+    u = await _make_user(session, credits=-1, role="admin")
+    await quota_service.refund_credits(u.id, 5)
+    await session.refresh(u)
+    assert u.credits == -1
 
 
 def test_registration_code_model_fields():
     rc = RegistrationCode(
-        code="ABC-123", grant_matches=10, expires_at=None, created_at=utcnow()
+        code="ABC-123", grant_credits=10, expires_at=None, created_at=utcnow()
     )
     assert rc.code == "ABC-123"
-    assert rc.grant_matches == 10
+    assert rc.grant_credits == 10
     assert hasattr(rc, "redeemed_count")
     assert hasattr(rc, "last_redeemed_at")
 

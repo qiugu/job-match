@@ -2,15 +2,15 @@
   "auth": {
     "title": "登录 JDMatch",
     "subtitle": "登录后即可使用简历匹配与 AI 润色能力",
-    "notice": "本站 AI 能力由服务端统一提供，为避免额度被滥用，需使用注册码注册后登录；注册码决定账号可发起的匹配次数。",
+    "notice": "本站 AI 能力由服务端统一提供，为避免资源被滥用，需使用注册码注册后登录；注册码会为新账号充入积分（简历匹配与话术生成共享）。",
     "username": "用户名",
     "usernamePlaceholder": "3-64 位字母、数字或 _ . -",
     "password": "密码",
     "passwordPlaceholder": "至少 8 位",
     "code": "注册码",
     "codePlaceholder": "向管理员获取，如 ABCD-EFGH-JKLM",
-    "quota": "剩余匹配",
-    "quotaUnlimited": "匹配不限次",
+    "quota": "剩余积分",
+    "quotaUnlimited": "积分不限",
     "submitLogin": "登录",
     "submitRegister": "注册并登录",
     "toRegister": "还没有账号？立即注册",
@@ -77,7 +77,7 @@
     "hero": {
       "badge": "AI 简历 × JD 匹配",
       "title": "用 AI 让简历精准命中岗位",
-      "subtitle": "JDMatch 基于大模型，根据你的简历与目标 JD 自动重写与优化，产出更贴合岗位要求的衍生简历。登录后即可发起匹配，额度由注册码决定。",
+      "subtitle": "JDMatch 基于大模型，根据你的简历与目标 JD 自动重写与优化，产出更贴合岗位要求的衍生简历。登录后即可发起匹配，匹配与话术消耗账号积分。",
       "cta": "立即匹配",
       "secondary": "浏览模板"
     },
@@ -99,8 +99,8 @@
         "description": "登录后即可使用全部 AI 能力，简历与匹配结果统一保存在你的账号下，随时查看与回看历史。",
         "item1": "账号隔离",
         "item1_description": "你的简历与匹配记录仅自己可见",
-        "item2": "匹配额度",
-        "item2_description": "注册码决定账号可发起的匹配次数",
+        "item2": "积分余额",
+        "item2_description": "注册码为新账号充入积分，简历匹配与话术生成按需消耗",
         "item3": "历史可追溯"
       },
       "preview": {
@@ -133,7 +133,7 @@
         },
         {
           "question": "使用需要登录吗？",
-          "answer": "是的。AI 能力由服务端统一提供，为避免额度被滥用，需使用注册码注册并登录后使用。注册码决定账号可发起的匹配次数。",
+          "answer": "是的。AI 能力由服务端统一提供，为避免资源被滥用，需使用注册码注册并登录后使用。注册码会为新账号充入积分。",
           "action": "registration-code"
         },
         {
@@ -145,8 +145,8 @@
           "answer": "你的简历与匹配记录都保存在登录账号下，且与其他账号相互隔离，仅你自己可见。"
         },
         {
-          "question": "匹配额度用完怎么办？",
-          "answer": "匹配次数由注册时使用的注册码授予，额度耗尽后将无法继续发起匹配。如需更多额度，请向管理员获取新的注册码。"
+          "question": "积分用完怎么办？",
+          "answer": "积分由注册时使用的注册码充入；简历匹配每次消耗 5 积分、话术生成每次消耗 1 积分，耗尽后将无法继续发起。如需补充，请向管理员获取新的注册码。"
         }
       ]
     },
@@ -154,7 +154,7 @@
       "button": "获取注册码",
       "dailyHint": "网站每天最多发放 10 个注册账号",
       "dialogTitle": "获取注册码",
-      "dialogDescription": "注册码是注册账号的入场券，决定新账号可发起的匹配次数。每日限量发放。",
+      "dialogDescription": "注册码是注册账号的入场券，会为新账号充入积分（简历匹配扣 5、话术生成扣 1）。每日限量发放。",
       "statusLoading": "正在查询今日名额…",
       "remaining": "今日名额 {total} 个，剩余 {count} 个",
       "resetAt": "{time} 重置",
@@ -162,7 +162,7 @@
       "resetOn": "{date} {time}",
       "exhaustedHint": "今日名额已发完，名额每天 0:00 更新，请明天再来",
       "getCta": "立即领取注册码",
-      "grantMatches": "注册后获得 {count} 次匹配额度",
+      "grantCredits": "注册后获得 {count} 积分",
       "validUntil": "有效期至 {date}",
       "copy": "复制",
       "copied": "已复制",
@@ -388,7 +388,7 @@
     "pitchInterview": "邀约",
     "pitchGenerate": "生成话术",
     "pitchGenerating": "生成中…",
-    "pitchQuotaHint": "生成或重生成将消耗 1 次匹配额度",
+    "pitchQuotaHint": "生成或重生成话术将消耗 1 积分",
     "pitchLoading": "加载中…",
     "pitchEmpty": "尚未生成话术，选择场景后点击「生成话术」",
     "pitchNeedResumeJd": "请先选择简历并填写岗位描述",
@@ -446,8 +446,9 @@
     "taskModePitchDesc": "只生成投递话术，不改简历（通常 1 分钟内出结果）。",
     "taskModeBoth": "一次搞定（进阶）",
     "taskModeBothDesc": "先优化简历，完成后自动生成话术。",
-    "taskModeCost1": "消耗 1 次额度",
-    "taskModeCost2": "消耗 2 次额度",
+    "taskModeCostPitch": "消耗 1 积分",
+    "taskModeCostMatch": "消耗 5 积分",
+    "taskModeCostBoth": "消耗 6 积分（匹配 5 + 话术 1）",
     "pitchScene": "话术场景",
     "startPitch": "生成话术",
     "startBoth": "匹配并生成话术",
@@ -485,7 +486,7 @@
     "jobDetectContinue": "继续这个机会",
     "jobDetectNew": "仍然新建",
     "jobPitchCtaTitle": "对方回复、要简历了？",
-    "jobPitchCtaDesc": "用同一个 JD 生成定制简历（约 2 分钟 · 消耗 1 次额度）",
+    "jobPitchCtaDesc": "用同一个 JD 生成定制简历（约 2 分钟 · 消耗 5 积分）",
     "jobPitchCtaBtn": "生成定制简历",
     "jobPageNewMatch": "发起新投递",
     "jobOpenWorkbench": "打开匹配工作台",

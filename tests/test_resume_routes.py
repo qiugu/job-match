@@ -30,7 +30,7 @@ def _pdf_bytes(text: str = "John Doe resume content") -> bytes:
     return buf.getvalue()
 
 
-async def _ensure_code(session, code, grant_matches=5):
+async def _ensure_code(session, code, grant_credits=50):
     res = await session.execute(
         select(RegistrationCode).where(RegistrationCode.code == code)
     )
@@ -40,7 +40,7 @@ async def _ensure_code(session, code, grant_matches=5):
         session.add(
             RegistrationCode(
                 code=code,
-                grant_matches=grant_matches,
+                grant_credits=grant_credits,
                 expires_at=utcnow() + timedelta(days=1),
             )
         )

@@ -38,8 +38,8 @@ interface AuthStore {
    * 新令牌，因此这里必须落地新令牌——否则改密成功后的每个业务请求都会 401。
    */
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
-  /** 匹配成功后用后端返回的剩余次数刷新本地显示 */
-  applyQuota: (remaining: number) => void;
+  /** 消耗型动作成功后用后端返回的剩余积分刷新本地显示 */
+  applyCredits: (remaining: number) => void;
   clearError: () => void;
   clearCooldown: () => void;
 }
@@ -145,9 +145,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
   },
 
-  applyQuota: (remaining) =>
+  applyCredits: (remaining) =>
     set((state) =>
-      state.user ? { user: { ...state.user, matchQuota: remaining } } : state
+      state.user ? { user: { ...state.user, credits: remaining } } : state
     ),
 
   clearError: () => set({ error: null }),

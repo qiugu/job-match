@@ -47,11 +47,11 @@ class CoverLetterResult(BaseModel):
     updated_at: str
     # 归属岗位卡 id（写链路自动挂载；未命中历史/未开启时为 null）
     job_id: Optional[str] = None
-    # 本次「生成 / 重生成」后剩余的匹配额度（-1 表示无限制）；
+    # 本次「生成 / 重生成」后剩余的积分（-1 表示无限制）；
     # 非消耗型操作（列表 / 详情 / 更新 / 删除）不返回，前端据此判断是否需要刷新配额显示。
-    remaining_quota: Optional[int] = Field(
+    remaining_credits: Optional[int] = Field(
         default=None,
-        description="生成/重生成后剩余匹配额度（-1=无限制）；非消耗操作不返回",
+        description="生成/重生成后剩余积分（-1=无限制）；非消耗操作不返回",
     )
     
 # langgraph state
