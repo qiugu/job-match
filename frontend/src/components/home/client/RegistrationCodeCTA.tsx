@@ -102,7 +102,7 @@ function CodeTicket({ issued }: { issued: RegistrationCodeIssue }) {
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-dashed border-primary/30 pt-3 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             <BadgeCheck className="text-primary" />
-            {t("grantMatches", { count: issued.grantMatches })}
+            {t("grantCredits", { count: issued.grantCredits })}
           </span>
           <span>{t("validUntil", { date: formatDate(new Date(issued.expiresAt)) })}</span>
         </div>

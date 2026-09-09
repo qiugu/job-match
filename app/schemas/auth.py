@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 
 class RegisterRequest(BaseModel):
-    """注册：用户名 + 口令 + 注册码（注册码决定该账号获得多少匹配次数）。"""
+    """注册：用户名 + 口令 + 注册码（注册码决定该账号获得多少积分）。"""
 
     username: str
     password: str
@@ -31,8 +31,8 @@ class UserOut(BaseModel):
     username: str
     nickname: str
     role: str
-    # 剩余可发起的「简历匹配 JD」次数，-1 表示无限制
-    matchQuota: int
+    # 剩余积分（JD 简历匹配扣 5、JD 话术生成扣 1），-1 表示无限制
+    credits: int
     createdAt: str
     lastLoginAt: str | None = None
 
@@ -54,7 +54,8 @@ class RegistrationCodeStatusOut(BaseModel):
     dailyLimit: int
     # 全站口径：今日全网还可发放的注册码数量 = 剩余可注册的账号数
     remaining: int
-    grantMatches: int
+    # 用该注册码注册后获得的积分（全站统一默认值）
+    grantCredits: int
     validityDays: int
     # ISO8601（UTC），前端转本地时区渲染
     nextResetAt: str
@@ -64,7 +65,7 @@ class RegistrationCodeOut(BaseModel):
     """成功领取的一枚注册码及领取后的剩余名额。"""
 
     code: str
-    grantMatches: int
+    grantCredits: int
     expiresAt: str
     remaining: int
     nextResetAt: str

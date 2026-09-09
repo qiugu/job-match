@@ -65,14 +65,14 @@ async def create_code(
     db: AsyncSession,
     *,
     days: int = 30,
-    matches: int | None = None,
+    credits: int | None = None,
     note: str = "",
 ) -> RegistrationCode:
     """生成并写入一枚注册码（不提交事务，提交时机由调用方决定）。"""
     record = RegistrationCode(
         code=generate_code(),
-        grant_matches=(
-            matches if matches is not None else settings.registration_default_matches
+        grant_credits=(
+            credits if credits is not None else settings.registration_default_credits
         ),
         expires_at=utcnow() + timedelta(days=days),
         note=note,

@@ -25,7 +25,6 @@ dependencies = [
     "alembic>=1.13",
     "langchain-deepseek>=1.1.0",
     "pyjwt>=2.13.0",
-    "markitdown[pdf]>=0.1.7",
     # 服务端 PDF 矢量导出（headless Chromium 渲染打印版 HTML）；chromium 二进制
     # 由 Dockerfile 内 `playwright install chromium --with-deps` 提供
     "playwright>=1.45",

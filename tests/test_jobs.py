@@ -25,7 +25,7 @@ from app.models.derived_resume import DerivedResume
 import app.core.database as database_module
 
 
-async def _ensure_code(code, grant_matches=20):
+async def _ensure_code(code, grant_credits=50):
     from app.core.timeutils import utcnow
     from datetime import timedelta
     from app.models.registration_code import RegistrationCode
@@ -41,7 +41,7 @@ async def _ensure_code(code, grant_matches=20):
             s.add(
                 RegistrationCode(
                     code=code,
-                    grant_matches=grant_matches,
+                    grant_credits=grant_credits,
                     expires_at=utcnow() + timedelta(days=1),
                 )
             )
@@ -75,7 +75,7 @@ async def _direct_login(session, username, password="Pass#1234") -> str:
         token_version=1,
         is_active=True,
         role="user",
-        match_quota=20,
+        credits=50,
     )
     session.add(user)
     await session.commit()

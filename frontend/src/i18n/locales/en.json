@@ -2,15 +2,15 @@
   "auth": {
     "title": "Sign in to JDMatch",
     "subtitle": "Sign in to use resume matching and AI polishing",
-    "notice": "AI features are served by the backend. A registration code is required to sign up; it sets how many matches your account can run.",
+    "notice": "AI features are served by the backend. A registration code is required to sign up; it credits your account (shared between resume matching and pitch generation).",
     "username": "Username",
     "usernamePlaceholder": "3-64 chars: letters, digits, _ . -",
     "password": "Password",
     "passwordPlaceholder": "At least 8 characters",
     "code": "Registration code",
     "codePlaceholder": "Ask the admin, e.g. ABCD-EFGH-JKLM",
-    "quota": "Matches left",
-    "quotaUnlimited": "Unlimited matches",
+    "quota": "Credits left",
+    "quotaUnlimited": "Unlimited credits",
     "submitLogin": "Sign in",
     "submitRegister": "Sign up",
     "toRegister": "No account yet? Sign up",
@@ -77,7 +77,7 @@
     "hero": {
       "badge": "AI Resume × JD Matching",
       "title": "Let AI Make Your Resume Hit the Job",
-      "subtitle": "JDMatch uses large language models to automatically rewrite and optimize your resume against a target job description, producing a derived resume that better fits the role. Log in to start matching — your quota is set by your registration code.",
+      "subtitle": "JDMatch uses large language models to automatically rewrite and optimize your resume against a target job description, producing a derived resume that better fits the role. Log in to start matching — matching and pitches consume account credits.",
       "cta": "Start Matching",
       "secondary": "Browse Templates"
     },
@@ -99,8 +99,8 @@
         "description": "Log in to unlock all AI features. Your resumes and match results are saved under your account, always available to review and revisit.",
         "item1": "Account Isolation",
         "item1_description": "Your resumes and matches are visible only to you",
-        "item2": "Match Quota",
-        "item2_description": "Your registration code grants how many matches you can run",
+        "item2": "Credits Balance",
+        "item2_description": "Your registration code credits the account; matching and pitches consume them",
         "item3": "Revisable History"
       },
       "preview": {
@@ -132,7 +132,7 @@
         },
         {
           "question": "Do I need to log in?",
-          "answer": "Yes. AI capabilities are served centrally to prevent quota abuse, so you must register with a registration code and log in. The code determines how many matches your account can run.",
+          "answer": "Yes. AI capabilities are served centrally to prevent resource abuse, so you must register with a registration code and log in. The code credits the new account.",
           "action": "registration-code"
         },
         {
@@ -144,8 +144,8 @@
           "answer": "Your resumes and match records are stored under your logged-in account and isolated from other accounts — visible only to you."
         },
         {
-          "question": "What if my match quota runs out?",
-          "answer": "The number of matches is granted by the registration code used at sign-up. Once exhausted, no further matches can be started. To get more quota, ask an admin for a new registration code."
+          "question": "What if my credits run out?",
+          "answer": "Credits are granted by the registration code used at sign-up. A resume match costs 5 credits and a pitch generation costs 1 credit. Once exhausted, no further requests can be started. To top up, ask an admin for a new registration code."
         }
       ]
     },
@@ -153,7 +153,7 @@
       "button": "Get a registration code",
       "dailyHint": "The site issues at most 10 registration codes per day",
       "dialogTitle": "Get a registration code",
-      "dialogDescription": "A registration code is your ticket to sign up — it decides how many matches the new account can run. Daily supply is limited.",
+      "dialogDescription": "A registration code is your ticket to sign up — it credits the new account (a match costs 5 credits, a pitch costs 1). Daily supply is limited.",
       "statusLoading": "Checking today's availability…",
       "remaining": "{count} of {total} codes left today",
       "resetAt": "Resets {time}",
@@ -161,7 +161,7 @@
       "resetOn": "on {date} at {time}",
       "exhaustedHint": "Today's codes are all claimed. The quota updates daily at midnight — please come back tomorrow.",
       "getCta": "Claim my code",
-      "grantMatches": "{count} matches granted on registration",
+      "grantCredits": "{count} credits granted on registration",
       "validUntil": "Valid until {date}",
       "copy": "Copy",
       "copied": "Copied",
@@ -387,7 +387,7 @@
     "pitchInterview": "Interview",
     "pitchGenerate": "Generate Pitch",
     "pitchGenerating": "Generating…",
-    "pitchQuotaHint": "Generating or regenerating consumes 1 match quota",
+    "pitchQuotaHint": "Generating or regenerating consumes 1 credit",
     "pitchLoading": "Loading…",
     "pitchEmpty": "No pitch yet. Pick a scene and click Generate Pitch.",
     "pitchNeedResumeJd": "Please select a resume and fill the JD first",
@@ -445,8 +445,9 @@
     "taskModePitchDesc": "Generate the outreach pitch only — your resume is untouched (usually under a minute).",
     "taskModeBoth": "All-in-one (Advanced)",
     "taskModeBothDesc": "Optimize the resume first, then generate the pitch automatically.",
-    "taskModeCost1": "1 credit",
-    "taskModeCost2": "2 credits",
+    "taskModeCostPitch": "1 credit",
+    "taskModeCostMatch": "5 credits",
+    "taskModeCostBoth": "6 credits (5 match + 1 pitch)",
     "pitchScene": "Pitch scenario",
     "startPitch": "Generate pitch",
     "startBoth": "Match and generate pitch",
@@ -484,7 +485,7 @@
     "jobDetectContinue": "Continue this opportunity",
     "jobDetectNew": "Start new anyway",
     "jobPitchCtaTitle": "Got a reply asking for your resume?",
-    "jobPitchCtaDesc": "Generate a tailored resume for the same JD (about 2 min · 1 credit).",
+    "jobPitchCtaDesc": "Generate a tailored resume for the same JD (about 2 min · 5 credits).",
     "jobPitchCtaBtn": "Generate tailored resume",
     "jobPageNewMatch": "Start a new application",
     "jobOpenWorkbench": "Open match workbench",

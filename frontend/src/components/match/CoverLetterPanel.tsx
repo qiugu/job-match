@@ -1,6 +1,6 @@
 // 话术面板：与简历匹配解耦的独立资源。
 // 支持多场景（打招呼 / 跟进 / 邀约）生成、列表查看、二次编辑、重生成、删除。
-// 话术与匹配共享「匹配额度」：每次生成 / 重生成消耗 1 次，编辑 / 删除不消耗。
+// 话术与匹配共享「积分」：每次生成 / 重生成消耗 1 积分，编辑 / 删除不消耗。
 import { useEffect, useState } from "react";
 import { useTranslations } from "@/i18n/compat/client";
 import { toast } from "sonner";
@@ -53,7 +53,7 @@ export default function CoverLetterPanel({
   jobId,
 }: CoverLetterPanelProps) {
   const t = useTranslations("jobmatch");
-  const applyQuota = useAuthStore((s) => s.applyQuota);
+  const applyCredits = useAuthStore((s) => s.applyCredits);
 
   const [scene, setScene] = useState<CoverLetterScene>("greeting");
   const [letters, setLetters] = useState<CoverLetter[]>([]);
@@ -111,16 +111,16 @@ export default function CoverLetterPanel({
         scene,
         derived_resume_id: derivedResumeId,
       });
-      // 生成消耗 1 次共享额度：用后端返回的剩余次数刷新侧边栏
-      if (typeof created.remaining_quota === "number") {
-        applyQuota(created.remaining_quota);
+      // 生成消耗积分：用后端返回的剩余积分刷新侧边栏
+      if (typeof created.remaining_credits === "number") {
+        applyCredits(created.remaining_credits);
       }
       setLetters((prev) => [created, ...prev]);
       setActiveId(created.id);
       toast.success(t("pitchGenerated"));
     } catch (err) {
       const status = (err as Error & { status?: number }).status;
-      // 403=匹配次数已用完；其余走通用文案
+      // 403=积分不足；其余走通用文案
       toast.error(
         status === 403 ? (err as Error).message : t("pitchGenerateError")
       );
@@ -133,8 +133,8 @@ export default function CoverLetterPanel({
     setBusyId(id);
     try {
       const updated = await regenerateCoverLetter(id, { scene });
-      if (typeof updated.remaining_quota === "number") {
-        applyQuota(updated.remaining_quota);
+      if (typeof updated.remaining_credits === "number") {
+        applyCredits(updated.remaining_credits);
       }
       setLetters((prev) => prev.map((l) => (l.id === id ? updated : l)));
       setActiveId(id);

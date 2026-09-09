@@ -12,16 +12,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.logging import get_logger
 from app.models.derived_resume import DerivedResume
 from app.models.job import Job, JOB_STATUS_RESUME_READY
 from app.models.master_resume import MasterResume
-from app.models.user import UNLIMITED_QUOTA, User
+from app.models.user import UNLIMITED_CREDITS, User
 from app.schemas.resume import ResumeData
 from app.services.agent import run_match
 from app.services.job import attach_or_create_job, promote_for_action
-from app.services.quota import refund_match_quota, reserve_match_quota
+from app.services.quota import consume_credits, refund_credits
 
 logger = get_logger("match")
 
@@ -61,6 +62,18 @@ def _ensure_owner(r: DerivedResume | None, user: User) -> DerivedResume:
     return r
 
 
+async def _remaining_credits(db: AsyncSession, user: User) -> int:
+    """本次消耗动作后回查最新剩余积分（-1 表示无限制）。
+
+    扣减发生在独立短事务（quota 服务），当前请求会话里的 user.credits
+    是过期快照，本地估算不可靠，因此落库后以 populate_existing 重读。
+    """
+    fresh = await db.get(User, user.id, populate_existing=True)
+    if fresh.unlimited_credits:
+        return UNLIMITED_CREDITS
+    return max(int(fresh.credits), 0)
+
+
 class MatchRequest(BaseModel):
     # 匹配基准简历文本（用户从已上传简历中选择的 markdown 文本，直接传入）
     resumeText: str
@@ -77,14 +90,18 @@ async def create_match(
     if not req.resumeText.strip():
         raise HTTPException(status_code=400, detail="简历文本不能为空")
 
-    # 匹配会消耗 LLM 额度：调用前原子预扣，失败则归还。
-    # 管理员与无限制账号（match_quota < 0）不参与扣减。
+    # 匹配会消耗积分：调用前原子预扣，失败则归还。
+    # 管理员与无限制账号（credits < 0）不参与扣减。
     reserved = False
-    if not user.unlimited_match_quota:
-        if not await reserve_match_quota(user.id):
+    if not user.unlimited_credits:
+        if not await consume_credits(user.id, settings.resume_match_cost):
             raise HTTPException(
                 status_code=403,
-                detail="匹配次数已用完，请联系管理员获取新的注册码额度",
+                detail=(
+                    f"积分不足，无法进行简历匹配"
+                    f"（每次消耗 {settings.resume_match_cost} 积分）。"
+                    "请联系管理员获取新的注册码或调整积分"
+                ),
             )
         reserved = True
 
@@ -97,12 +114,12 @@ async def create_match(
         # LLM 未配置、超时、LLM 调用失败等可预期错误，返回 503 而非 500
         # 完整 traceback 已在 agent.run_match 内记录，此处仅记录简要原因便于检索
         if reserved:
-            await refund_match_quota(user.id)
+            await refund_credits(user.id, settings.resume_match_cost)
         logger.warning("创建匹配失败（503）: %s", e)
         raise HTTPException(status_code=503, detail=str(e))
     except Exception:
         if reserved:
-            await refund_match_quota(user.id)
+            await refund_credits(user.id, settings.resume_match_cost)
         raise
 
     did = uuid.uuid4().hex
@@ -144,11 +161,12 @@ async def create_match(
         await db.commit()
         await db.refresh(derived)
     except Exception:
-        # 落库失败：这次匹配没产出可用结果，归还预扣额度
+        # 落库失败：这次匹配没产出可用结果，归还预扣积分
         if reserved:
-            await refund_match_quota(user.id)
+            await refund_credits(user.id, settings.resume_match_cost)
         raise
 
+    remaining = await _remaining_credits(db, user)
     return {
         "id": derived.id,
         "title": derived.title,
@@ -159,12 +177,8 @@ async def create_match(
         "accepted": bool(derived.accepted),
         "jobId": derived.job_id,
         "createdAt": derived.created_at.isoformat(),
-        # 本次匹配后剩余的次数：-1 表示无限制
-        "remainingQuota": (
-            UNLIMITED_QUOTA
-            if user.unlimited_match_quota
-            else max(int(user.match_quota) - 1, 0)
-        ),
+        # 本次匹配后剩余的积分：-1 表示无限制
+        "remainingCredits": remaining,
     }
 
 

@@ -1,15 +1,15 @@
 """话术（JD 话术）API：与简历匹配解耦的独立资源。
 
 端点前缀 /api/cover-letters：
-  POST   /               生成话术（调 run_cover_letter，落库；生成前预扣共享匹配额度）
+  POST   /               生成话术（调 run_cover_letter，落库；生成前预扣积分）
   GET    /               话术列表（可按 derived_resume_id 过滤）
   GET    /{id}           话术详情
-  PUT    /{id}           更新正文（用户二次编辑，不消耗额度）
+  PUT    /{id}           更新正文（用户二次编辑，不消耗积分）
   DELETE /{id}           删除话术
-  POST   /{id}/regenerate 换措辞重新生成（再次预扣额度）
+  POST   /{id}/regenerate 换措辞重新生成（再次预扣积分）
 
-话术与简历匹配共享 match_quota：每次生成 / 重生成都预扣 1 次，失败归还，
-与 create_match 的额度策略一致。关联衍生简历时必须为本人的记录。
+话术与简历匹配共享 users.credits：每次生成 / 重生成预扣 cover_letter_cost（默认 1）
+积分，失败归还，与 create_match 的积分策略一致。关联衍生简历时必须为本人的记录。
 """
 from __future__ import annotations
 
@@ -28,16 +28,13 @@ from app.core.prompts import COVER_LETTER_SCENES
 from app.models.cover_letter import CoverLetter
 from app.models.derived_resume import DerivedResume
 from app.models.job import JOB_STATUS_DEFAULT
-from app.models.user import User
+from app.models.user import UNLIMITED_CREDITS, User
 from app.schemas.agent import CoverLetterRequest, CoverLetterResult
 from app.services.agent import run_cover_letter
 from app.services.job import attach_or_create_job, promote_for_action
-from app.services.quota import refund_match_quota, reserve_match_quota
+from app.services.quota import consume_credits, refund_credits
 
 logger = get_logger("cover_letter")
-
-# 无限制额度的哨兵值（与 match.py 保持一致）
-UNLIMITED_QUOTA = -1
 
 router = APIRouter(prefix="/api/cover-letters", tags=["cover-letters"])
 
@@ -55,11 +52,11 @@ class CoverLetterRegenerate(BaseModel):
 
 
 def _to_result(
-    c: CoverLetter, remaining_quota: int | None = None, job_id: str | None = None
+    c: CoverLetter, remaining_credits: int | None = None, job_id: str | None = None
 ) -> CoverLetterResult:
     """ORM 行 → 响应模型（datetime 转 iso 字符串）。
 
-    remaining_quota 仅由「生成 / 重生成」端点填充（消耗共享额度后回查的最新剩余次数），
+    remaining_credits 仅由「生成 / 重生成」端点填充（消耗积分后回查的最新余额），
     其余非消耗型操作传 None，前端据此不刷新配额显示。
     job_id 缺省取 c.job_id（写链路已挂载）；调用方亦可直接覆盖传入。
     """
@@ -70,17 +67,17 @@ def _to_result(
         model=c.model,
         created_at=c.created_at.isoformat(),
         updated_at=c.updated_at.isoformat(),
-        remaining_quota=remaining_quota,
+        remaining_credits=remaining_credits,
         job_id=job_id if job_id is not None else c.job_id,
     )
 
 
-async def _remaining_quota(db: AsyncSession, user: User) -> int:
-    """扣额后回查用户最新剩余匹配次数（绕过 identity map 强制从 DB 重读）。"""
+async def _remaining_credits(db: AsyncSession, user: User) -> int:
+    """扣额后回查用户最新剩余积分（绕过 identity map 强制从 DB 重读）。"""
     fresh = await db.get(User, user.id, populate_existing=True)
-    if fresh.unlimited_match_quota:
-        return UNLIMITED_QUOTA
-    return max(int(fresh.match_quota), 0)
+    if fresh.unlimited_credits:
+        return UNLIMITED_CREDITS
+    return max(int(fresh.credits), 0)
 
 
 def _ensure_owner(c: CoverLetter | None, user: User) -> CoverLetter:
@@ -93,12 +90,12 @@ def _ensure_owner(c: CoverLetter | None, user: User) -> CoverLetter:
 async def _generate_text(
     user: User, jd_text: str, resume_text: str, scene: str
 ) -> str:
-    """预扣共享匹配额度后调用 LLM 生成话术；失败归还额度并转 503。
+    """预扣积分后调用 LLM 生成话术；失败归还积分并转 503。
 
-    抽取为内部函数，供「生成」与「重生成」复用同一套额度 + 错误处理。
+    抽取为内部函数，供「生成」与「重生成」复用同一套积分 + 错误处理。
     """
     # 场景白名单校验：非法 scene 会让 prompt 静默退化为默认场景，
-    # 与用户预期不符，因此在扣额度之前直接拒绝。
+    # 与用户预期不符，因此在扣积分之前直接拒绝。
     if scene not in COVER_LETTER_SCENES:
         raise HTTPException(
             status_code=400,
@@ -106,11 +103,15 @@ async def _generate_text(
         )
 
     reserved = False
-    if not user.unlimited_match_quota:
-        if not await reserve_match_quota(user.id):
+    if not user.unlimited_credits:
+        if not await consume_credits(user.id, settings.cover_letter_cost):
             raise HTTPException(
                 status_code=403,
-                detail="匹配次数已用完，请联系管理员获取新的注册码额度",
+                detail=(
+                    f"积分不足，无法生成话术"
+                    f"（每次消耗 {settings.cover_letter_cost} 积分）。"
+                    "请联系管理员获取新的注册码或调整积分"
+                ),
             )
         reserved = True
     try:
@@ -120,13 +121,13 @@ async def _generate_text(
     except RuntimeError as e:
         # LLM 未配置 / 超时 / 调用失败等可预期错误 → 503
         if reserved:
-            await refund_match_quota(user.id)
+            await refund_credits(user.id, settings.cover_letter_cost)
         logger.warning("话术生成失败（503）: %s", e)
         raise HTTPException(status_code=503, detail=str(e))
     except Exception:
-        # 未预期异常：归还额度后按原样抛出（全局兜底转 500）
+        # 未预期异常：归还积分后按原样抛出（全局兜底转 500）
         if reserved:
-            await refund_match_quota(user.id)
+            await refund_credits(user.id, settings.cover_letter_cost)
         raise
 
 
@@ -172,13 +173,13 @@ async def create_cover_letter(
         await db.commit()
         await db.refresh(cover)
     except Exception:
-        # 落库失败：这次生成没产出可保存结果，归还预扣额度
-        if not user.unlimited_match_quota:
-            await refund_match_quota(user.id)
+        # 落库失败：这次生成没产出可保存结果，归还预扣积分
+        if not user.unlimited_credits:
+            await refund_credits(user.id, settings.cover_letter_cost)
         raise
-    # 生成消耗了 1 次共享额度：回查最新剩余次数供前端刷新侧边栏显示
-    remaining = await _remaining_quota(db, user)
-    return _to_result(cover, remaining_quota=remaining)
+    # 生成消耗了积分：回查最新余额供前端刷新侧边栏显示
+    remaining = await _remaining_credits(db, user)
+    return _to_result(cover, remaining_credits=remaining)
 
 
 @router.get("", summary="话术列表")
@@ -258,9 +259,9 @@ async def regenerate_cover_letter(
         await db.commit()
         await db.refresh(cover)
     except Exception:
-        if not user.unlimited_match_quota:
-            await refund_match_quota(user.id)
+        if not user.unlimited_credits:
+            await refund_credits(user.id, settings.cover_letter_cost)
         raise
-    # 重生成同样消耗 1 次共享额度：回查最新剩余次数供前端刷新
-    remaining = await _remaining_quota(db, user)
-    return _to_result(cover, remaining_quota=remaining)
+    # 重生成同样消耗积分：回查最新余额供前端刷新
+    remaining = await _remaining_credits(db, user)
+    return _to_result(cover, remaining_credits=remaining)
