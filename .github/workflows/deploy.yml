@@ -248,7 +248,7 @@ jobs:
 
           if [[ "$NO_BUILD" == "true" ]]; then
             ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
-              docker compose --project-directory "$RP" up -d --wait 2>/dev/null \
+              docker compose --project-directory "$RP" up -d --wait --wait-timeout 120 2>/dev/null \
               || ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
               docker compose --project-directory "$RP" up -d
           else
@@ -259,7 +259,7 @@ jobs:
             ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
               docker compose --project-directory "$RP" build frontend
             ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
-              docker compose --project-directory "$RP" up -d --wait 2>/dev/null \
+              docker compose --project-directory "$RP" up -d --wait --wait-timeout 120 2>/dev/null \
               || ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
               docker compose --project-directory "$RP" up -d
           fi
@@ -267,13 +267,30 @@ jobs:
       # ---------- 部署后健康验证 ----------
       - name: Health check
         run: |
-          set -euo pipefail
+          set -uo pipefail
           REMOTE="${REMOTE_DEPLOY_TARGET}"
           REMOTE_HOST="${REMOTE%%:*}"
+          REMOTE_PATH="${REMOTE#*:}"
           SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
-          if ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "curl -fsS http://localhost/health" >/dev/null 2>&1; then
-            echo "::notice::后端健康检查通过 (http://localhost/health)"
-          else
-            echo "::warning::后端健康检查未通过，请查看日志排查"
-            exit 1
+          # 多次重试：2G 机冷启动可能超过 compose --wait 兜底窗口，up 回退非 wait 模式，
+          # 导致单次 curl 过早判失败。带退避重试避免误报。
+          ok=0
+          for i in $(seq 1 10); do
+            if ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "curl -fsS http://localhost/health" >/dev/null 2>&1; then
+              echo "::notice::后端健康检查通过 (http://localhost/health)（第 ${i} 次）"
+              ok=1
+              break
+            fi
+            echo "  第 ${i} 次探活未通过，3s 后重试..."
+            sleep 3
+          done
+
+          if [[ $ok -eq 1 ]]; then
+            exit 0
           fi
+
+          # 失败时直接打印后端日志，定位真因（替代原先「请查看日志排查」的空话）。
+          echo "::error::后端健康检查未通过，打印后端日志以便排查："
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+            "docker compose --project-directory ${REMOTE_PATH} logs --tail=80 backend" || true
+          exit 1

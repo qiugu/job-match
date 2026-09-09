@@ -9,13 +9,20 @@ FROM python:3.12-slim
 # 固定 uv 版本（升级时手动改此标签，改完依赖层会重建一次属预期）
 COPY --from=ghcr.io/astral-sh/uv:0.12.9 /uv /usr/local/bin/uv
 
+# Playwright 浏览器二进制镜像源：国内服务器（腾讯云）访问官方 CDN（azureedge）极慢，
+# 改用 npmmirror 二进制镜像可把 Chromium 下载从「小时级」降到「分钟级」。
+# 若部署到海外，可覆盖为空：docker compose build --build-arg PLAYWRIGHT_DOWNLOAD_HOST=
+ARG PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.npmmirror.com/binaries/playwright
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_CACHE_DIR=/root/.cache/uv \
     # 防御性兜底：放宽依赖下载超时，避免 CI/远端构建在拉取较大 wheel 时因
     # 瞬时网络抖动而失败（默认仅 30s，曾导致 pypdfium2 下载超时阻断构建）。
-    UV_HTTP_TIMEOUT=300
+    UV_HTTP_TIMEOUT=300 \
+    # Playwright 镜像源（见上方 ARG）：加速 Chromium 下载。
+    PLAYWRIGHT_DOWNLOAD_HOST=$PLAYWRIGHT_DOWNLOAD_HOST
 # 注意：未开启 UV_COMPILE_BYTECODE。该选项会在 uv sync 阶段就地编译所有 wheel 的
 # 字节码，langchain/pymupdf 等大包编译时内存峰值极高，在 2G 小内存服务器上极易
 # 触发 OOM（表现为构建卡死）。关闭后仅首次启动略慢，换取构建稳定。
@@ -34,10 +41,19 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 #     （镜像体积 +~200MB，属一次性成本；渲染在首次请求时懒加载）
 #   - fonts-noto-cjk：中文字体兜底。若 EXPORT_FONT_ORIGIN 指向的前端字体源
 #     不可达，Chromium 仍能渲染中文，避免豆腐块（主字体仍走站点字体源）
-RUN .venv/bin/playwright install --with-deps chromium \
-    && apt-get update \
+# 系统依赖 + 中文字体兜底（仅安装一次；apt 缓存挂载加速重装，已装库仍写入镜像层）
+RUN --mount=type=cache,target=/var/cache/apt,id=apt \
+    --mount=type=cache,target=/var/lib/apt/lists,id=apt-lists \
+    apt-get update \
     && apt-get install -y --no-install-recommends fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
+
+# Playwright Chromium：浏览器二进制直接装入镜像层（注意：不可用 BuildKit cache mount 缓存
+# ms-playwright，否则运行时容器内不包含浏览器）。下载走 PLAYWRIGHT_DOWNLOAD_HOST 镜像源
+# （国内腾讯云可达），把原本小时级的官方 CDN 下载降到分钟级；该层在 playwright 版本
+# 不变时由 Docker 层缓存复用，日常重建不会重下。--with-deps 所需系统库走上方 apt 缓存。
+RUN --mount=type=cache,target=/var/cache/apt,id=apt \
+    .venv/bin/playwright install --with-deps chromium
 
 # 拷贝后端代码
 COPY app ./app
