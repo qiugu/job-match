@@ -5,8 +5,8 @@
 - 用 Base.metadata.create_all 直接建表，比跑 Alembic 更快且隔离。
 - 依赖 LLM 的路由（匹配/润色）由各测试按需 monkeypatch
   `app.api.match.run_match` 注入确定性结果，避免真实网络 / API key。
-- 禁用注册/登录限流（内存计数器跨测试共享），以及对 quota / auth_bootstrap
-  模块注入测试用 session factory（它们以 `from ... import AsyncSessionLocal`
+- 禁用注册/登录限流（内存计数器跨测试共享），以及对 quota / auth_bootstrap /
+  usage 模块注入测试用 session factory（它们以 `from ... import AsyncSessionLocal`
   绑定了原 factory，需在测试期重定向）。
 - 跳过应用 lifespan（内含 Alembic 迁移子进程），避免对真实库执行迁移。
 """
@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 import app.core.database as database_module
 import app.services.auth_bootstrap as boot_module
 import app.services.quota as quota_module
+import app.services.usage as usage_module
 from app.main import app
 
 
@@ -70,6 +71,9 @@ def _test_isolation(monkeypatch, session_factory):
     monkeypatch.setattr(database_module, "AsyncSessionLocal", session_factory)
     monkeypatch.setattr(quota_module, "AsyncSessionLocal", session_factory)
     monkeypatch.setattr(boot_module, "AsyncSessionLocal", session_factory)
+    # 用量台账（app.services.usage）同样以 `from ... import AsyncSessionLocal`
+    # 绑定原 factory，不重定向会把测试期的台账写进真实 jobmatch.db。
+    monkeypatch.setattr(usage_module, "AsyncSessionLocal", session_factory)
 
     # 禁用注册/登录限流（内存计数器跨请求/跨测试累积，干扰回归）。
     import app.api.auth as auth_module

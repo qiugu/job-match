@@ -61,16 +61,38 @@ export default function HeroSection() {
         <AnimatedFeature delay={0.3}>
           <div className="mt-20 relative px-4 sm:px-0">
             <div className="absolute -inset-4 bg-gradient-to-b from-primary/5 to-transparent rounded-[3rem] blur-2xl -z-10" />
-            <div className="relative rounded-3xl border border-border/50 bg-secondary/30 p-2 sm:p-4 backdrop-blur-sm shadow-2xl overflow-hidden group">
+          <div className="relative rounded-3xl border border-border/50 bg-secondary/30 p-2 sm:p-4 backdrop-blur-sm shadow-2xl overflow-hidden group">
+            {/*
+              首屏 LCP 图片：原为单张 2560×1440 / 326KB 的 jpg，手机端也下载全量。
+              改为 AVIF → WebP → jpg 三级回退 + 两档宽度（产物由
+              scripts/generate-hero-images.mjs 生成）：
+              1200w 的 avif 仅 25KB，比原图省约 92%。
+              fetchpriority=high 让浏览器把它排在预载队列最前；width/height 保留
+              以避免布局抖动（CLS）。
+            */}
+            <picture>
+              <source
+                type="image/avif"
+                sizes="(max-width: 1024px) 100vw, 1200px"
+                srcSet="/web-shot-1200.avif 1200w, /web-shot-1920.avif 1920w"
+              />
+              <source
+                type="image/webp"
+                sizes="(max-width: 1024px) 100vw, 1200px"
+                srcSet="/web-shot-1200.webp 1200w, /web-shot-1920.webp 1920w"
+              />
               <Image
                 src="/web-shot.jpg"
-                alt="Resume Editor Preview"
+                alt={t("hero.imageAlt")}
                 width={1200}
                 height={800}
                 className="rounded-2xl shadow-sm group-hover:scale-[1.01] transition-transform duration-700"
+                fetchpriority="high"
+                decoding="async"
                 priority
               />
-            </div>
+            </picture>
+          </div>
           </div>
         </AnimatedFeature>
       </div>

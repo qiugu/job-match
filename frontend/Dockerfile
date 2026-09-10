@@ -29,6 +29,9 @@ FROM deps AS builder
 # 默认值指向容器网络内的 backend 服务
 ARG VITE_JOBMATCH_API=http://backend:8000
 ENV VITE_JOBMATCH_API=$VITE_JOBMATCH_API
+# 站点基址（canonical / hreflang / OG / sitemap 的唯一来源，必须带 https）
+ARG VITE_SITE_URL=https://jdmatch.site
+ENV VITE_SITE_URL=$VITE_SITE_URL
 COPY . .
 RUN pnpm run build
 

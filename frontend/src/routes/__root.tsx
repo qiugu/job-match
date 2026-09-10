@@ -1,6 +1,7 @@
 import {
   createRootRoute,
   HeadContent,
+  Link,
   Outlet,
   Scripts,
   useLocation
@@ -16,24 +17,12 @@ import { Providers } from "@/app/providers";
 import { Toaster } from "@/components/ui/sonner";
 import { getPreferredLocale } from "@/i18n/runtime";
 import { ReactGrab } from "@/components/dev/ReactGrab";
+import { SITE_NAME } from "@/lib/seo/site";
 
-const defaultFontPreloadLinks = [
-  {
-    rel: "preload",
-    href: "/fonts/AlibabaPuHuiTi-3-55-Regular.ttf",
-    as: "font",
-    type: "font/ttf",
-    crossOrigin: "anonymous" as const
-  },
-  {
-    rel: "preload",
-    href: "/fonts/AlibabaPuHuiTi-3-85-Bold.ttf",
-    as: "font",
-    type: "font/ttf",
-    crossOrigin: "anonymous" as const
-  }
-];
-
+// 首屏不再预载 Alibaba PuHuiTi 的两个 TTF（8.1MB + 7.9MB）。
+// 该字体仅用于简历编辑器与 PDF 导出（src/utils/fonts.ts、components/Document.tsx），
+// 落地页字体栈为 Inter / Noto Sans SC / system-ui，预载它等于让每个访客白下载 16MB，
+// 直接拖垮 LCP。编辑器侧保持按需加载即可。
 export const Route = createRootRoute({
   head: () => ({
     meta: [
@@ -42,7 +31,9 @@ export const Route = createRootRoute({
         name: "viewport",
         content: "width=device-width, initial-scale=1"
       },
-      { title: "JDMatch" }
+      { title: SITE_NAME },
+      { name: "theme-color", content: "#ffffff", media: "(prefers-color-scheme: light)" },
+      { name: "theme-color", content: "#0b0b0f", media: "(prefers-color-scheme: dark)" }
     ],
     links: [
       {
@@ -57,7 +48,8 @@ export const Route = createRootRoute({
         rel: "stylesheet",
         href: tiptapCss
       },
-      ...defaultFontPreloadLinks
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icon.png" }
     ]
   }),
   component: RootComponent,
@@ -101,9 +93,27 @@ function RootComponent() {
 }
 
 function RootNotFound() {
+  const pathname = useLocation({
+    select: (location) => location.pathname
+  });
+  const locale = getPreferredLocale(pathname);
+  const isEnglish = locale === "en";
+
   return (
-    <main className="min-h-screen flex items-center justify-center">
-      <p className="text-muted-foreground">页面不存在</p>
+    <main className="min-h-screen flex flex-col items-center justify-center gap-6">
+      <div className="text-center space-y-2">
+        <p className="text-3xl font-serif text-foreground/80">404</p>
+        <p className="text-muted-foreground">
+          {isEnglish ? "Page not found" : "页面不存在"}
+        </p>
+      </div>
+      <Link
+        to="/$locale"
+        params={{ locale }}
+        className="text-sm text-primary hover:underline"
+      >
+        {isEnglish ? "Back to home" : "返回首页"}
+      </Link>
     </main>
   );
 }

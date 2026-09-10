@@ -43,7 +43,18 @@ export default function FAQSection() {
                   <AccordionTrigger className="text-left text-lg font-medium py-6 hover:no-underline">
                     <span className="pr-4">{item.question}</span>
                   </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground leading-relaxed text-base pb-6 font-light">
+                  {/*
+                    forceMount：Radix 默认在收起态不渲染 Content，答案文本完全不进
+                    SSR HTML，爬虫只能看到一个空壳。forceMount 后内容恒定在 DOM，
+                    再用 data-[state=closed]:hidden 保持视觉收起。
+                    这样 HTML 里始终有完整问答，且用户点击后看到的内容与之一致
+                    （非 cloaking）。
+                  */}
+                  <AccordionContent
+                    forceMount
+                    contentClassName="data-[state=closed]:hidden"
+                    className="text-muted-foreground leading-relaxed text-base pb-6 font-light"
+                  >
                     {item.answer}
                     {item.action === "registration-code" && <RegistrationCodeCTA />}
                   </AccordionContent>

@@ -1,5 +1,9 @@
 User-agent: *
 Allow: /
 
+Disallow: /app/
+Disallow: /api/
+Disallow: /image-proxy
+
 # Sitemap
-Sitemap: http://jdmatch.site/sitemap.xml
+Sitemap: https://jdmatch.site/sitemap.xml

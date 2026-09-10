@@ -14,8 +14,14 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import get_current_user
 from app.core.logging import get_logger
+from app.models.llm_usage import (
+    ENDPOINT_AI_GRAMMAR,
+    ENDPOINT_AI_POLISH,
+    ENDPOINT_AI_RESUME_IMPORT,
+)
 from app.models.user import User
 from app.services import ai_proxy
+from app.services.usage import track_llm
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -48,8 +54,11 @@ async def polish(req: PolishRequest, user: User = Depends(get_current_user)):
 
     async def event_stream():
         try:
-            async for chunk in ai_proxy.stream_polish(req.content, req.customInstructions):
-                yield chunk
+            # 用量台账（Plan.md R1）：流式接口的 token 取决于厂商是否在流末回传 usage，
+            # 缺失时 token 记 0，但调用次数与耗时仍会留痕（够 R2 按次限流用）。
+            async with track_llm(ENDPOINT_AI_POLISH, user_id=user.id):
+                async for chunk in ai_proxy.stream_polish(req.content, req.customInstructions):
+                    yield chunk
         except RuntimeError as e:
             logger.warning("润色失败（可预期）: %s", e)
             yield f"[错误] {e}"
@@ -69,7 +78,8 @@ async def grammar(req: GrammarRequest, user: User = Depends(get_current_user)):
     if not req.content or not req.content.strip():
         return {"choices": [{"message": {"content": json.dumps({"errors": []}, ensure_ascii=False)}}]}
     try:
-        text = await ai_proxy.grammar_check(req.content)
+        async with track_llm(ENDPOINT_AI_GRAMMAR, user_id=user.id):
+            text = await ai_proxy.grammar_check(req.content)
     except RuntimeError as e:
         logger.warning("语法检查失败（可预期）: %s", e)
         return {"error": {"message": str(e), "code": "ConfigError"}}
@@ -90,7 +100,8 @@ async def resume_import(
     if not req.content and not req.images:
         return {"error": "Missing resume content or images"}
     try:
-        parsed = await ai_proxy.resume_import(req.content, req.images, req.locale)
+        async with track_llm(ENDPOINT_AI_RESUME_IMPORT, user_id=user.id):
+            parsed = await ai_proxy.resume_import(req.content, req.images, req.locale)
     except RuntimeError as e:
         logger.warning("简历导入失败（可预期）: %s", e)
         return {"error": str(e)}

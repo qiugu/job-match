@@ -49,7 +49,9 @@
   "common": {
     "title": "JDMatch",
     "subtitle": "AI Driven Resume × JD Matching",
-    "description": "JDMatch is an AI-powered resume matching tool: upload your resume and a target JD, and it automatically rewrites and optimizes the resume to fit the role. Log in to unlock all AI features — your resumes and match results are saved under your account.",
+    "description": "Upload your resume and a target job description. JDMatch scores the match, rewrites your resume to fit the role, and drafts a tailored cover letter. 50 free credits on signup.",
+    "seoTitle": "JDMatch - AI Resume Matcher & Tailoring for Any JD",
+    "seoImageAlt": "JDMatch resume editor preview",
     "dashboard": "Dashboard",
     "edit": "Edit",
     "delete": "Delete",
@@ -79,7 +81,8 @@
       "title": "Let AI Make Your Resume Hit the Job",
       "subtitle": "JDMatch uses large language models to automatically rewrite and optimize your resume against a target job description, producing a derived resume that better fits the role. Log in to start matching — matching and pitches consume account credits.",
       "cta": "Start Matching",
-      "secondary": "Browse Templates"
+      "secondary": "Browse Templates",
+      "imageAlt": "JDMatch resume editor: edit content on the left, live layout preview on the right"
     },
     "features": {
       "title": "Why Choose JDMatch?",

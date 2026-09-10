@@ -17,12 +17,14 @@ from app.core.database import get_db
 from app.core.logging import get_logger
 from app.models.derived_resume import DerivedResume
 from app.models.job import Job, JOB_STATUS_RESUME_READY
+from app.models.llm_usage import ENDPOINT_MATCH
 from app.models.master_resume import MasterResume
 from app.models.user import UNLIMITED_CREDITS, User
 from app.schemas.resume import ResumeData
 from app.services.agent import run_match
 from app.services.job import attach_or_create_job, promote_for_action
 from app.services.quota import consume_credits, refund_credits
+from app.services.usage import track_llm
 
 logger = get_logger("match")
 
@@ -106,10 +108,13 @@ async def create_match(
         reserved = True
 
     try:
-        keywords, resume_md, analysis = await run_match(
-            master_text=req.resumeText,
-            jd_text=req.jdText,
-        )
+        # 用量台账（Plan.md R1）：整段匹配工作流的 token 与耗时留痕；
+        # 内部多节点 LLM 调用会被汇总成一条记录，失败同样记 status=error。
+        async with track_llm(ENDPOINT_MATCH, user_id=user.id):
+            keywords, resume_md, analysis = await run_match(
+                master_text=req.resumeText,
+                jd_text=req.jdText,
+            )
     except RuntimeError as e:
         # LLM 未配置、超时、LLM 调用失败等可预期错误，返回 503 而非 500
         # 完整 traceback 已在 agent.run_match 内记录，此处仅记录简要原因便于检索
