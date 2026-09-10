@@ -17,6 +17,15 @@ services:
       - frontend
       - backend
     restart: unless-stopped
+    # 健康检查：经 nginx 自身探 /health（反代至 backend）。
+    # nginx 崩溃循环（如证书损坏导致 cannot load certificate）时 up --wait 直接失败，
+    # 不再「容器反复重启、对外永不监听」的静默故障。
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # 后端：Python FastAPI 简历匹配服务
   # 注意：不再直接映射宿主端口，仅经 nginx 在容器网络内可达，提升安全性
