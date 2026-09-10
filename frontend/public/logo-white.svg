@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  JDMatch 主标识 · 深底反白（深色背景形态）
+  与 logo.svg 共用同一份几何，仅主脊与碗形转为纸白 #FFFFFF，钩形保留品牌强调色。
+  规范见 docs/BRAND.md。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" fill="none">
+  <path d="M53 16V84" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round"/>
+  <path d="M53 16A34 34 0 0 1 53 84" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round"/>
+  <path d="M53 64A20 20 0 1 1 18.86 49.86" stroke="#5E6AD2" stroke-width="14" stroke-linecap="round"/>
+</svg>

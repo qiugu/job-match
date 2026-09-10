@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  JDMatch 主标识 · 单色黑
+  钩形与主脊同色（#0A0A0B），不使用强调色。用于单色印刷、印章、传真等受限场景。
+  规范见 docs/BRAND.md。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" fill="none">
+  <path d="M53 16V84" stroke="#0A0A0B" stroke-width="14" stroke-linecap="round"/>
+  <path d="M53 16A34 34 0 0 1 53 84" stroke="#0A0A0B" stroke-width="14" stroke-linecap="round"/>
+  <path d="M53 64A20 20 0 1 1 18.86 49.86" stroke="#0A0A0B" stroke-width="14" stroke-linecap="round"/>
+</svg>

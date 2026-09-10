@@ -71,7 +71,8 @@ function RootComponent() {
     <html lang={locale} suppressHydrationWarning>
       <head>
         <HeadContent />
-        <link rel="icon" href="/favicon.ico?v=2" />
+        {/* 版本号用于强制刷新 favicon 缓存，标识更换时需同步递增 */}
+        <link rel="icon" href="/favicon.ico?v=3" />
         <link rel="icon" href="/icon.png" />
       </head>
       <body>
