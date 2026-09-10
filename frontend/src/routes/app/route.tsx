@@ -10,6 +10,11 @@ import { useAuthStore } from "@/store/useAuthStore";
 // 整个 /app 是纯客户端应用（所有子路由均 ssr:false），鉴权只在客户端判定。
 export const Route = createFileRoute("/app")({
   ssr: false,
+  // 登录态页面统一不参与索引：声明在布局路由上，新增子路由自动继承，
+  // 避免逐个文件补 noindex 时遗漏（此前就漏了 5 个）。
+  head: () => ({
+    meta: [{ name: "robots", content: "noindex,nofollow" }]
+  }),
   beforeLoad: async ({ location }) => {
     const { status, initialize } = useAuthStore.getState();
     // 刷新页面时本地令牌还没向后端确认过身份：先确认，避免把已登录用户误踢出去

@@ -9,6 +9,7 @@ const port = Number(process.env.PORT || 3005);
 const host = process.env.HOSTNAME || "0.0.0.0";
 
 const MIME_TYPES = {
+  ".avif": "image/avif",
   ".css": "text/css; charset=utf-8",
   ".gif": "image/gif",
   ".html": "text/html; charset=utf-8",
@@ -22,6 +23,7 @@ const MIME_TYPES = {
   ".svg": "image/svg+xml",
   ".txt": "text/plain; charset=utf-8",
   ".ttf": "font/ttf",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
   ".webp": "image/webp",
   ".woff": "font/woff",
   ".woff2": "font/woff2",

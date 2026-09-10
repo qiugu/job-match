@@ -67,6 +67,9 @@ services:
         # 经 nginx 同源代理，前端直接以相对路径调用 /api，无需直连 backend 端口，
         # 也彻底消除跨域，CORS 仅作同源兜底。
         VITE_JOBMATCH_API: ""
+        # 站点基址：canonical / hreflang / OG / sitemap 全部由此派生，必须与对外
+        # 域名与协议一致（生产为 https://jdmatch.site）。
+        VITE_SITE_URL: "https://jdmatch.site"
     expose:
       - "3005"
     environment:

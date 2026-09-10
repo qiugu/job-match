@@ -28,11 +28,13 @@ from app.core.prompts import COVER_LETTER_SCENES
 from app.models.cover_letter import CoverLetter
 from app.models.derived_resume import DerivedResume
 from app.models.job import JOB_STATUS_DEFAULT
+from app.models.llm_usage import ENDPOINT_COVER_LETTER
 from app.models.user import UNLIMITED_CREDITS, User
 from app.schemas.agent import CoverLetterRequest, CoverLetterResult
 from app.services.agent import run_cover_letter
 from app.services.job import attach_or_create_job, promote_for_action
 from app.services.quota import consume_credits, refund_credits
+from app.services.usage import track_llm
 
 logger = get_logger("cover_letter")
 
@@ -115,9 +117,11 @@ async def _generate_text(
             )
         reserved = True
     try:
-        return await run_cover_letter(
-            jd_text=jd_text, resume_text=resume_text, scene=scene
-        )
+        # 用量台账（Plan.md R1）：生成与重新生成共用此函数，故埋点放这里一次覆盖
+        async with track_llm(ENDPOINT_COVER_LETTER, user_id=user.id):
+            return await run_cover_letter(
+                jd_text=jd_text, resume_text=resume_text, scene=scene
+            )
     except RuntimeError as e:
         # LLM 未配置 / 超时 / 调用失败等可预期错误 → 503
         if reserved:

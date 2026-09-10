@@ -49,7 +49,9 @@
   "common": {
     "title": "JDMatch",
     "subtitle": "AI 驱动的简历 × JD 匹配",
-    "description": "JDMatch 是一款基于 AI 的简历匹配工具：上传你的简历与目标 JD，系统自动重写并优化简历，使其更贴合岗位要求。登录后即可使用全部 AI 能力，简历与匹配结果保存在你的账号下。",
+    "description": "上传简历与目标 JD，JDMatch 用 AI 分析岗位要求并重写简历，输出匹配度评分与优化建议，一键生成定制简历与求职话术。注册即送 50 积分。",
+    "seoTitle": "JDMatch - AI 简历匹配与优化工具 | 按 JD 自动定制简历",
+    "seoImageAlt": "JDMatch 简历编辑器界面预览",
     "dashboard": "仪表盘",
     "edit": "编辑",
     "delete": "删除",
@@ -79,7 +81,8 @@
       "title": "用 AI 让简历精准命中岗位",
       "subtitle": "JDMatch 基于大模型，根据你的简历与目标 JD 自动重写与优化，产出更贴合岗位要求的衍生简历。登录后即可发起匹配，匹配与话术消耗账号积分。",
       "cta": "立即匹配",
-      "secondary": "浏览模板"
+      "secondary": "浏览模板",
+      "imageAlt": "JDMatch 简历编辑器界面：左侧编辑内容，右侧实时预览排版"
     },
     "features": {
       "title": "为什么选择 JDMatch？",

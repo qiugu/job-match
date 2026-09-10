@@ -1,0 +1,25 @@
+{
+  "name": "JDMatch - AI 简历匹配与优化工具",
+  "short_name": "JDMatch",
+  "description": "上传简历与目标 JD，JDMatch 用 AI 分析岗位要求并重写简历，输出匹配度评分与优化建议。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

@@ -39,13 +39,24 @@ const AccordionTrigger = React.forwardRef<
 ))
 AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
 
+/**
+ * 与 shadcn 原版唯一的差异：新增 contentClassName，用于给 Content 根元素追加类。
+ * 原实现把 className 全给了内层 padding div，调用方无法控制根元素 —— 而 FAQ
+ * 需要给根元素加 `data-[state=closed]:hidden`（配合 forceMount 让答案进入 SSR
+ * HTML 同时保持收起态），故开一个口子。
+ */
 const AccordionContent = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content> & {
+    contentClassName?: string;
+  }
+>(({ className, contentClassName, children, ...props }, ref) => (
   <AccordionPrimitive.Content
     ref={ref}
-    className="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
+    className={cn(
+      "overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down",
+      contentClassName
+    )}
     {...props}
   >
     <div className={cn("pb-4 pt-0", className)}>{children}</div>

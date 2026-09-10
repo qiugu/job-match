@@ -4,10 +4,8 @@ import WorkbenchPage from "@/app/app/workbench/[id]/page";
 import { useResumeStore } from "@/store/useResumeStore";
 import { getMasterResume } from "@/lib/jobmatch";
 
+// noindex 统一由父布局路由 /app（routes/app/route.tsx）声明，此处不再重复。
 export const Route = createFileRoute("/app/workbench/$id")({
-  head: () => ({
-    meta: [{ name: "robots", content: "noindex,nofollow" }]
-  }),
   ssr: false,
   component: WorkbenchRoutePage
 });

@@ -6,7 +6,10 @@
   "packageManager": "pnpm@8.14.3",
   "scripts": {
     "dev": "vite dev",
+    "prebuild": "node scripts/generate-sitemap.mjs",
     "build": "vite build",
+    "generate:sitemap": "node scripts/generate-sitemap.mjs",
+    "generate:assets": "node scripts/generate-hero-images.mjs",
     "start": "node server.mjs",
     "preview": "vite preview",
     "release": "bumpp",

@@ -5,6 +5,7 @@ from app.models.master_resume import MasterResume
 from app.models.derived_resume import DerivedResume
 from app.models.cover_letter import CoverLetter
 from app.models.job import Job
+from app.models.llm_usage import LlmUsage
 
 __all__ = [
     "User",
@@ -13,4 +14,5 @@ __all__ = [
     "DerivedResume",
     "CoverLetter",
     "Job",
+    "LlmUsage",
 ]
