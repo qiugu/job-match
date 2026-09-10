@@ -11,6 +11,16 @@
 #   SSH_PRIVATE_KEY       : 服务器登录私钥（PEM 内容，注意 *.pem 已被 .gitignore 忽略，需手动在 Secrets 配置）
 #   KNOWN_HOSTS           : （可选）ssh-keyscan 输出，留空则自动 accept-new
 #   DEPLOY_REQUIRED_VARS  : （可选）覆盖 .env 必填项检查，逗号分隔，默认 LLM_API_KEY,AUTH_SECRET_KEY,AUTH_BOOTSTRAP_PASSWORD
+#   TLS_CERT              : （推荐）TLS 证书全文（fullchain PEM，即本地 jdmatch.site_bundle.crt 的完整内容，
+#                           含 leaf + 中间证书的所有 BEGIN/END CERTIFICATE 块）
+#   TLS_KEY               : （推荐）TLS 私钥全文（PEM，即本地 jdmatch.site.key 的完整内容）
+#
+#   TLS_CERT / TLS_KEY 说明（路径 B）：
+#     证书与私钥被 .gitignore 忽略（jdmatch.site* / *.pem），actions/checkout 取不到，
+#     rsync 上传也不会包含 —— 服务器上的证书此前只能人工放置，一旦损坏或缺失
+#     （如被误传为 CSR、或挂载失败时被 Docker 自动建成目录），Actions 无法自愈。
+#     两者同时配置时，部署会在启动前把证书写入服务器并做 openssl 解析 + 配对校验
+#     （fail-fast，不带病启动）；任一缺失则跳过注入，沿用服务器上已有证书。
 #
 # 设计说明（与 deploy.sh 对齐）：
 #   - .env 不随代码上传：服务器侧的 .env 才是生产配置唯一真相（避免本地 .env 覆盖线上已轮换密钥）。
@@ -223,6 +233,63 @@ jobs:
           echo "    迁移完成"
           EOF
 
+      # ---------- 第 4.5 步：注入 TLS 证书（路径 B：证书经 Secrets 管理，而非 git） ----------
+      #
+      # 背景：jdmatch.site* / *.pem 被 .gitignore 忽略，actions/checkout 取不到证书，
+      #       rsync 上传也不包含它们 —— 服务器上的证书此前只能人工放置，一旦损坏/缺失
+      #       （如被误传为 CSR、或挂载失败时被 Docker 自动建成目录），Actions 无法自愈。
+      # 本步骤：Secrets 读取 → base64 传输（避免多行 PEM 被 shell/ssh 引号破坏）→
+      #         服务器落盘 → openssl 解析 + 私钥配对校验（fail-fast，不带病启动）。
+      - name: Write TLS certificates from Secrets
+        run: |
+          set -euo pipefail
+          REMOTE="${REMOTE_DEPLOY_TARGET}"
+          REMOTE_HOST="${REMOTE%%:*}"
+          REMOTE_PATH="${REMOTE#*:}"
+          SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
+          RP=$(printf '%q' "$REMOTE_PATH")
+
+          if [[ -z "${TLS_CERT:-}" || -z "${TLS_KEY:-}" ]]; then
+            echo "::warning::未配置 Secrets TLS_CERT / TLS_KEY，跳过证书注入（沿用服务器上已有证书）。强烈建议配置，否则服务器证书损坏时 Actions 无法自愈（见 deploy.yml 头部说明）。"
+            exit 0
+          fi
+
+          # base64 单行传输：PEM 多行内容经 ssh 管道最安全，绕开引号/换行破坏
+          printf '%s' "${TLS_CERT}" | base64 -w0 | ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "cat > ${RP}/.tls_cert.b64"
+          printf '%s' "${TLS_KEY}"  | base64 -w0 | ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "cat > ${RP}/.tls_key.b64"
+
+          # 服务器侧落盘 + 校验；传 REMOTE_PATH 作位置参数，避免路径拼接进脚本体
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" bash -s "$REMOTE_PATH" <<'EOF'
+          set -euo pipefail
+          RP="$1"
+          cd "$RP"
+          # 若证书路径曾被 Docker 在挂载失败时自动建成目录（典型报错
+          # 「mount a directory onto a file」），必须先删除目录才能写文件
+          [[ -d jdmatch.site_bundle.crt ]] && rm -rf jdmatch.site_bundle.crt
+          [[ -d jdmatch.site.key ]] && rm -rf jdmatch.site.key
+          base64 -d .tls_cert.b64 > jdmatch.site_bundle.crt
+          base64 -d .tls_key.b64  > jdmatch.site.key
+          rm -f .tls_cert.b64 .tls_key.b64
+          chmod 644 jdmatch.site_bundle.crt
+          chmod 600 jdmatch.site.key
+          # fail-fast：证书可解析、私钥可解析、且两者配对（公钥指纹一致）。
+          # 用 pubkey 比对而非 modulus：openssl pkey -modulus 在 OpenSSL 1.1 不存在，
+          # 且 modulus 方案不适用于非 RSA 密钥；pubout 全版本可用。
+          openssl x509 -in jdmatch.site_bundle.crt -noout >/dev/null
+          openssl pkey -in jdmatch.site.key -noout >/dev/null
+          C="$(openssl x509 -in jdmatch.site_bundle.crt -noout -pubkey | openssl md5)"
+          # 注意：pkey 的 -noout 会连 -pubout 输出一起抑制（x509 无此问题），故这里不能加 -noout
+          K="$(openssl pkey -in jdmatch.site.key -pubout | openssl md5)"
+          if [[ "$C" != "$K" ]]; then
+            echo "✗ TLS_CERT 与 TLS_KEY 不配对（公钥指纹不一致），请检查两个 Secrets 的内容是否属于同一证书对" >&2
+            exit 1
+          fi
+          echo "    TLS 证书已写入并通过 openssl 配对校验（subject: $(openssl x509 -in jdmatch.site_bundle.crt -noout -subject | sed 's/^subject=//')）"
+          EOF
+        env:
+          TLS_CERT: ${{ secrets.TLS_CERT }}
+          TLS_KEY: ${{ secrets.TLS_KEY }}
+
       # ---------- 第 5 步：docker compose 启动（对应 deploy.sh [5/5]） ----------
       #
       # 2G 小内存服务器构建约束（已实测：依赖下载/前端 build 时卡死的根因）：
@@ -272,12 +339,12 @@ jobs:
           REMOTE_HOST="${REMOTE%%:*}"
           REMOTE_PATH="${REMOTE#*:}"
           SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
-          # 多次重试：2G 机冷启动可能超过 compose --wait 兜底窗口，up 回退非 wait 模式，
-          # 导致单次 curl 过早判失败。带退避重试避免误报。
+          # 直连 backend 容器内部探活（复用 compose 内部 healthcheck 同源探针），
+          # 绕过 nginx 反代与宿主机 curl 依赖；带退避重试避免瞬时抖动误报。
           ok=0
           for i in $(seq 1 10); do
-            if ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "curl -fsS http://localhost/health" >/dev/null 2>&1; then
-              echo "::notice::后端健康检查通过 (http://localhost/health)（第 ${i} 次）"
+            if ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${REMOTE_PATH} exec -T backend python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8005/health').status==200 else 1)\"" >/dev/null 2>&1; then
+              echo "::notice::后端健康检查通过（容器内直连 backend:8005/health，第 ${i} 次）"
               ok=1
               break
             fi
@@ -285,12 +352,20 @@ jobs:
             sleep 3
           done
 
+          # 后端探活通过即视为部署成功；额外探测 nginx 反代路径（用户可达性），
+          # 失败仅告警不阻断，避免掩盖真实问题（如 nginx 容器未起 / 80 端口冲突）。
+          if ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "curl -fsS http://localhost/health" >/dev/null 2>&1; then
+            echo "::notice::nginx 反代 /health 探针通过"
+          else
+            echo "::warning::nginx 反代路径 http://localhost/health 不可达：后端本身健康，但用户可能无法经 nginx 访问，请检查 nginx 容器状态与 80/443 端口占用"
+          fi
+
           if [[ $ok -eq 1 ]]; then
             exit 0
           fi
 
-          # 失败时直接打印后端日志，定位真因（替代原先「请查看日志排查」的空话）。
-          echo "::error::后端健康检查未通过，打印后端日志以便排查："
+          # 后端直连探活失败：打印后端与 nginx 日志定位真因。
+          echo "::error::后端健康检查未通过，打印后端与 nginx 日志以便排查："
           ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
-            "docker compose --project-directory ${REMOTE_PATH} logs --tail=80 backend" || true
+            "docker compose --project-directory ${REMOTE_PATH} logs --tail=60 backend nginx" || true
           exit 1
