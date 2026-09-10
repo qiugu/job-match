@@ -10,6 +10,7 @@
     "build": "vite build",
     "generate:sitemap": "node scripts/generate-sitemap.mjs",
     "generate:assets": "node scripts/generate-hero-images.mjs",
+    "generate:brand-icons": "node scripts/generate-brand-icons.mjs",
     "start": "node server.mjs",
     "preview": "vite preview",
     "release": "bumpp",

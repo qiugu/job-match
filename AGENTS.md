@@ -70,6 +70,10 @@ pnpm install
 pnpm dev          # 开发服务器 http://localhost:3005
 pnpm build        # 产出 dist/
 pnpm start        # 生产服务器 node server.mjs（PORT=3005）
+
+pnpm generate:assets       # 重新生成首屏图多尺寸版本与 og-image
+pnpm generate:brand-icons  # 由 public/logo.svg 重新生成 icon.png / favicon.ico
+pnpm generate:sitemap      # 重新生成 sitemap.xml
 ```
 
 ### 一键启动
@@ -133,5 +137,6 @@ docker compose ps / logs -f / down
 - **数据持久化**：不要将 `jobmatch.db`、`.env` 提交进仓库（见 `.gitignore`）。
 - **数据库迁移**：schema 变更必须走 Alembic 迁移（`uv run alembic revision --autogenerate`），禁止改模型后不写迁移；应用启动会自动 `upgrade head`，因此**重启后端前先备份** `jobmatch.db`。
 - **LLM 调用**：统一经由 `app/core` 中的客户端封装，便于切换厂商（DeepSeek / 通义 / 智谱等）。
+- **品牌标识**：改标只改 `frontend/public/logo.svg`（唯一几何源），随后执行 `pnpm generate:brand-icons` 同步 `icon.png` / `favicon.ico`，并递增 `src/routes/__root.tsx` 中 favicon 的 `?v=` 版本号以刷新浏览器缓存。完整规范见 `docs/BRAND.md`。
 - **前端构建产物**：`frontend/dist/` 为构建输出，勿手动编辑。
 - **提交前**：确保 linter/类型检查通过；新增脚本（如 `start.sh`）需 `chmod +x`。
