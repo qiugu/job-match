@@ -1,6 +1,7 @@
 import { useTranslations } from "@/i18n/compat/client";
 import Logo from "@/components/shared/Logo";
 import { IcpFilingLink } from "@/components/shared/IcpFiling";
+import { PublicSecurityFilingLink } from "@/components/shared/PublicSecurityFiling";
 
 export default function Footer() {
   const t = useTranslations("home");
@@ -19,7 +20,10 @@ export default function Footer() {
           </div>
 
           <div className="md:justify-self-center">
-            <IcpFilingLink />
+            <div className="flex flex-col items-center gap-1.5">
+              <IcpFilingLink />
+              <PublicSecurityFilingLink />
+            </div>
           </div>
 
           <div className="text-sm text-muted-foreground/60 font-light md:justify-self-end">

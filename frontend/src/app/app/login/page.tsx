@@ -6,6 +6,7 @@ import { formatCountdown } from "@/utils/countdown";
 
 import Logo from "@/components/shared/Logo";
 import { IcpFilingLink } from "@/components/shared/IcpFiling";
+import { PublicSecurityFilingLink } from "@/components/shared/PublicSecurityFiling";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -185,9 +186,10 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
         </CardContent>
       </Card>
 
-      {/* 合规悬挂位：备案号居中展示，并链接至工信部备案管理系统 */}
-      <div className="relative mt-12 flex justify-center">
+      {/* 合规悬挂位：备案号居中展示，并链接至工信部备案管理系统 / 全国互联网安全管理服务平台 */}
+      <div className="relative mt-12 flex flex-col items-center gap-1.5">
         <IcpFilingLink />
+        <PublicSecurityFilingLink />
       </div>
     </div>
   );
