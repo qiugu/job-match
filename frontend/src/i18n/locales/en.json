@@ -2,18 +2,20 @@
   "auth": {
     "title": "Sign in to JDMatch",
     "subtitle": "Sign in to use resume matching and AI polishing",
-    "notice": "AI features are served by the backend. A registration code is required to sign up; it credits your account (shared between resume matching and pitch generation).",
+    "notice": "Sign-up needs a registration code; it is auto-filled once claimed. New accounts get 50 credits (shared by matching and pitch generation).",
     "username": "Username",
     "usernamePlaceholder": "3-64 chars: letters, digits, _ . -",
     "password": "Password",
     "passwordPlaceholder": "At least 8 characters",
     "code": "Registration code",
-    "codePlaceholder": "Ask the admin, e.g. ABCD-EFGH-JKLM",
+    "codePlaceholder": "Paste your claimed code, e.g. ABCD-EFGH-JKLM",
     "quota": "Credits left",
     "quotaUnlimited": "Unlimited credits",
     "submitLogin": "Sign in",
     "submitRegister": "Sign up",
     "toRegister": "No account yet? Sign up",
+    "getCodeCta": "No code? Claim one free",
+    "codeAutoFilled": "Code claimed and auto-filled",
     "toLogin": "Already have an account? Sign in",
     "loginSuccess": "Signed in",
     "registerSuccess": "Account created",
@@ -148,7 +150,7 @@
         },
         {
           "question": "What if my credits run out?",
-          "answer": "Credits are granted by the registration code used at sign-up. A resume match costs 5 credits and a pitch generation costs 1 credit. Once exhausted, no further requests can be started. To top up, ask an admin for a new registration code."
+          "answer": "Credits are granted by the registration code used at sign-up. A resume match costs 5 credits and a pitch generation costs 1 credit. Once exhausted, no further requests can be started. To top up, click 'Get a registration code' above to claim a new code for free."
         }
       ]
     },

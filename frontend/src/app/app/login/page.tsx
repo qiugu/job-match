@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Ticket } from "lucide-react";
 import { toast } from "sonner";
 
 import { formatCountdown } from "@/utils/countdown";
@@ -7,6 +7,7 @@ import { formatCountdown } from "@/utils/countdown";
 import Logo from "@/components/shared/Logo";
 import { IcpFilingLink } from "@/components/shared/IcpFiling";
 import { PublicSecurityFilingLink } from "@/components/shared/PublicSecurityFiling";
+import RegistrationCodeCTA from "@/components/home/client/RegistrationCodeCTA";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -133,6 +134,27 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
                   placeholder={t("codePlaceholder")}
                   autoComplete="off"
                   required
+                  className={code.trim() ? "border-primary/50" : undefined}
+                />
+                {/* 自助领取入口：紧贴注册码输入框，无码用户一眼可见并可随手领取，
+                    领取成功后由 onIssued 回填并提示，弹框自动关闭 */}
+                <RegistrationCodeCTA
+                  hideGoRegisterHint
+                  noVerticalMargin
+                  onIssued={(issue) => {
+                    setCode(issue.code);
+                    toast.success(t("codeAutoFilled"));
+                  }}
+                  trigger={(open) => (
+                    <Button
+                      type="button"
+                      className="w-full rounded-full"
+                      onClick={open}
+                    >
+                      <Ticket />
+                      {t("getCodeCta")}
+                    </Button>
+                  )}
                 />
               </div>
             )}
@@ -181,7 +203,7 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
           </div>
 
           <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
-            {t("notice")}
+            {t("noticeShort")}
           </p>
         </CardContent>
       </Card>

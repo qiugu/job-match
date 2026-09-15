@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   BadgeCheck,
   Check,
@@ -58,7 +58,14 @@ function describeResetTime(iso: string, t: Translator): string {
 }
 
 /** 成功领取后的票券：注册码=入场券。撕票线（虚线）+ 两侧缺口为纯 CSS。 */
-function CodeTicket({ issued }: { issued: RegistrationCodeIssue }) {
+function CodeTicket({
+  issued,
+  hideHint = false,
+}: {
+  issued: RegistrationCodeIssue;
+  /** 登录页等已内嵌领取流程的场景隐藏底部「前往登录页」链接 */
+  hideHint?: boolean;
+}) {
   const t = useTranslations("home.registrationCode");
   const [copied, setCopied] = useState(false);
 
@@ -108,26 +115,48 @@ function CodeTicket({ issued }: { issued: RegistrationCodeIssue }) {
         </div>
       </div>
 
-      <p className="mt-4 text-center text-sm text-muted-foreground">
-        {t("goRegisterHint")}
-        <a
-          href="/login"
-          className="font-medium text-primary underline-offset-4 hover:underline"
-        >
-          {t("goRegister")}
-        </a>
-      </p>
+      {!hideHint && (
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          {t("goRegisterHint")}
+          <a
+            href="/login"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            {t("goRegister")}
+          </a>
+        </p>
+      )}
     </div>
   );
 }
 
 /**
- * FAQ「使用需要登录吗」答案里的自助入口：
- * 按钮 + 每日限量提示，点击打开「获取注册码」弹框。
+ * 注册码自助领取入口：按钮 + 每日限量提示，点击打开「获取注册码」弹框。
  * 弹框顶部展示今日剩余名额与下次重置时间（来自 GET status），
  * 领取成功后以票券样式展示注册码并提供复制。
+ *
+ * 默认用于首页 FAQ 折叠面板。登录页通过 props 复用：
+ * - `trigger` 自定义打开触发器（避免重复「获取注册码」按钮文案）
+ * - `onIssued` 领取成功后回调（用于自动回填注册表单的注册码）
+ * - `hideGoRegisterHint` 隐藏票券底部「前往登录页」链接
  */
-export default function RegistrationCodeCTA() {
+export interface RegistrationCodeCTAProps {
+  /** 自定义触发器：传入后由调用方渲染打开按钮，缺省走组件内置「获取注册码」按钮 */
+  trigger?: (open: () => void) => ReactNode;
+  /** 领取成功回调：登录页用于把注册码自动回填到表单 */
+  onIssued?: (issue: RegistrationCodeIssue) => void;
+  /** 隐藏票券底部「前往登录页」链接（登录页已内嵌领取流程时） */
+  hideGoRegisterHint?: boolean;
+  /** 外层容器去掉上间距（登录页已用 space-y 统一控制时） */
+  noVerticalMargin?: boolean;
+}
+
+export default function RegistrationCodeCTA({
+  trigger,
+  onIssued,
+  hideGoRegisterHint = false,
+  noVerticalMargin = false,
+}: RegistrationCodeCTAProps) {
   const t = useTranslations("home.registrationCode");
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<RegistrationCodeStatus | null>(null);
@@ -186,6 +215,11 @@ export default function RegistrationCodeCTA() {
       if (status) {
         setStatus({ ...status, remaining: data.remaining, nextResetAt: data.nextResetAt });
       }
+      // 登录页等内嵌场景：回填回调后顺滑关闭弹框，由调用方提示已填入
+      if (onIssued) {
+        onIssued(data);
+        setOpen(false);
+      }
     } catch (err) {
       const message = (err as Error).message || t("issueFailed");
       setError(message);
@@ -201,14 +235,23 @@ export default function RegistrationCodeCTA() {
 
   return (
     <>
-      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Button size="sm" className="rounded-full" onClick={() => setOpen(true)}>
-          <Ticket />
-          {t("button")}
-        </Button>
-        <span className="text-sm font-light text-muted-foreground">
-          {t("dailyHint")}
-        </span>
+      <div
+        className={`${noVerticalMargin ? "" : "mt-5"} flex flex-wrap items-center gap-x-4 gap-y-2`}
+      >
+        {trigger ? (
+          // 自定义触发器（登录页等）：由调用方决定打开按钮的文案与样式
+          trigger(() => setOpen(true))
+        ) : (
+          <>
+            <Button size="sm" className="rounded-full" onClick={() => setOpen(true)}>
+              <Ticket />
+              {t("button")}
+            </Button>
+            <span className="text-sm font-light text-muted-foreground">
+              {t("dailyHint")}
+            </span>
+          </>
+        )}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -239,7 +282,7 @@ export default function RegistrationCodeCTA() {
 
             <div className="mt-5">
               {issued ? (
-                <CodeTicket issued={issued} />
+                <CodeTicket issued={issued} hideHint={hideGoRegisterHint} />
               ) : (
                 <div className="space-y-3">
                   <Button
