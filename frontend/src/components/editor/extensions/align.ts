@@ -29,6 +29,13 @@ declare module "@tiptap/core" {
  *   :::center
  *   # 宋哈娜
  *   :::
+ *
+ * 解析侧处理的三种标记形态（对应 markdownRender.ts 的三条产出路径）：
+ *   1. 块容器        <div class="md-align-*"><p>…</p></div>   → 块级 align 属性
+ *   2. 单段内联      <p><span class="md-align-*">X</span></p> → 段落 align 属性
+ *   3. 多段内联配对  <p><span class="md-align-left">A</span><span class="md-align-right">B</span></p>
+ *                     → 拆成两个对齐段落（Tiptap 无「同行左右分列」节点，
+ *                       不拆就会被压平丢结构，见 splitInlineAlignPair）
  */
 const ALIGN_NAMES = ["left", "center", "right"] as const;
 type AlignName = (typeof ALIGN_NAMES)[number];
@@ -45,6 +52,77 @@ const alignFromClass = (className: string): AlignName | null => {
 const BLOCK_SELECTOR = ":scope > p, :scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6";
 const INLINE_SPAN_SELECTOR =
   ":scope > span.md-align-left, :scope > span.md-align-center, :scope > span.md-align-right";
+
+/** 是否为「对齐段落里的内联段」：直接子级的 <span class="md-align-*"> */
+const isAlignSpan = (node: any): boolean =>
+  node?.nodeType === 1 && node.tagName === "SPAN" && alignFromClass(node.className || "") !== null;
+
+/**
+ * 段落里除对齐 span 与空白外是否还有其它内容。
+ *
+ * 用于判断配对段落能否**安全**拆分：拆分过程中原段落会被移除，若其中还混有
+ * 未被搬运的内容（裸文本、其它元素、注释），那些内容会随之消失。因此这里
+ * 采用「白名单」判定 —— 只承认对齐 span 与纯空白文本，其余一律视为内容，
+ * 遇到就放弃拆分（宁可维持现状，也不静默丢弃用户内容）。
+ */
+const hasOtherInlineContent = (paragraph: any): boolean =>
+  Array.prototype.some.call(paragraph.childNodes, (node: any) => {
+    if (isAlignSpan(node)) return false;
+    if (node.nodeType === 3) return (node.textContent || "").trim() !== "";
+    return true;
+  });
+
+/**
+ * 把「同一行内多个对齐段」的段落拆成多个各自带 align 的段落。
+ *
+ * 背景：紧凑单行配对 `:::left A ::: :::right B :::` 经预览管线渲染为
+ *   <p class="md-align-inline-pair"><span class="md-align-left">A</span>
+ *   <span class="md-align-right">B</span></p>
+ * 而 Tiptap 的文档模型里**没有**「同一行内左右分列」的节点 —— 多段 span 在
+ * ProseMirror 解析时会被当无意义包装剥掉，子文本按文档顺序**无分隔符粘连**，
+ * 容器与两侧对齐全部丢失（实测：`modern` 模板往返后 10 个 `:::` 容器变为 0 个，
+ * 「138-0013-8000 · zhangsan@example.com」与「北京市朝阳区」粘连成一行）。
+ *
+ * 处理方式：在「markdown 渲染成 HTML 之后、交给 ProseMirror 之前」把配对段落
+ * 拆成两个各自带 align 的段落。结构信息不再丢失；序列化时由
+ * wrapAlignSerializer 输出为 `:::left` 块 + `:::right` 块，预览侧的
+ * alignPairRow 规则会把相邻的 `:::left` / `:::right` 块**重新合并为同一行**
+ * —— 与紧凑形式的渲染结果一致（`left-right` 模板本就原生使用块形式）。
+ *
+ * 取舍：Markdown 源会由紧凑形式变为块形式，且编辑器内该行显示为上下两段
+ * （编辑器无「同行左右分列」节点，这是已知的 WYSIWYG 折中，非数据丢失）。
+ *
+ * @returns 是否发生了拆分
+ */
+const splitInlineAlignPair = (paragraph: any): boolean => {
+  const spans = Array.prototype.filter.call(paragraph.childNodes, isAlignSpan);
+  if (spans.length < 2) return false;
+  if (hasOtherInlineContent(paragraph)) return false;
+
+  const parent = paragraph.parentNode;
+  const ownerDocument = paragraph.ownerDocument;
+  if (!parent || !ownerDocument) return false;
+
+  // 先校验齐备再改动 DOM：任一 span 取不出对齐名就整体放弃，
+  // 避免「改了一半」把前半段搬走、后半段留在被移除的原段落里丢掉。
+  const aligns: AlignName[] = [];
+  for (const span of spans) {
+    const align = alignFromClass(span.className || "");
+    if (!align) return false;
+    aligns.push(align);
+  }
+
+  spans.forEach((span: any, index: number) => {
+    const block = ownerDocument.createElement("p");
+    block.setAttribute("align", aligns[index]);
+    // 搬运 span 的**子节点**而非文本：保留 strong / em / a 等行内标记
+    while (span.firstChild) block.appendChild(span.firstChild);
+    // 逐个插在原段落之前 ⇒ 顺序与源码一致
+    parent.insertBefore(block, paragraph);
+  });
+  paragraph.remove();
+  return true;
+};
 
 /**
  * 包装 tiptap-markdown 已有的段落/标题序列化器：带 align 属性的块输出成
@@ -176,23 +254,38 @@ export const Align = Extension.create({
                 div.remove();
               });
 
-            // 单行内联：<p><span class="md-align-left">X</span></p>
+            // 单行内联：<p><span class="md-align-left">X</span>…</p>
             // 直接从 span 反查，不依赖 <p> 上是否有额外 class，
             // 这样预览侧的标记结构怎么调整都不会影响编辑器解析。
-            // 仅处理单段（left+right 双段无法映射为单一块属性，保持原样不改）
+            // 同一段落可能被多个 span 命中，先按段落去重，避免重复处理。
+            const inlineParents: any[] = [];
+            const seenParents = new Set<any>();
             element
               .querySelectorAll("span.md-align-left, span.md-align-center, span.md-align-right")
               .forEach((span: any) => {
                 const p = span.parentElement;
-                if (!p || p.tagName !== "P") return;
-                const siblings = p.querySelectorAll(INLINE_SPAN_SELECTOR);
-                if (siblings.length !== 1) return;
-                const align = alignFromClass(span.className || "");
-                if (!align) return;
-                p.setAttribute("align", align);
-                while (span.firstChild) p.insertBefore(span.firstChild, span);
-                span.remove();
+                if (!p || p.tagName !== "P" || seenParents.has(p)) return;
+                seenParents.add(p);
+                inlineParents.push(p);
               });
+
+            inlineParents.forEach((paragraph: any) => {
+              const spans = paragraph.querySelectorAll(INLINE_SPAN_SELECTOR);
+
+              // 单段：整段对齐，去掉 span 外壳即可
+              if (spans.length === 1) {
+                const align = alignFromClass(spans[0].className || "");
+                if (!align) return;
+                paragraph.setAttribute("align", align);
+                while (spans[0].firstChild) paragraph.insertBefore(spans[0].firstChild, spans[0]);
+                spans[0].remove();
+                return;
+              }
+
+              // 多段（同一行内的左右配对等）：拆成多个各自带 align 的段落，
+              // 避免被 ProseMirror 压平后丢失容器与对齐。详见 splitInlineAlignPair。
+              splitInlineAlignPair(paragraph);
+            });
           },
         },
       },

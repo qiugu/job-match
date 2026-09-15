@@ -160,23 +160,30 @@ const EditorToolbar = ({ editor }: { editor: Editor }) => {
       </ToolbarGroup>
 
       <ToolbarGroup>
+        {/* 对齐按钮的高亮判定必须用「只给属性」的 isActive 形式。
+            不能用 isActive("align", { align })：align 是挂在 paragraph/heading 上的
+            全局属性，schema 里并不存在名为 align 的节点或标记类型，Tiptap 的
+            getSchemaTypeNameByName("align") 返回 null 后直接 return false
+            —— 结果是三个按钮永远不高亮，用户看不出当前对齐状态（2026-09-11 实测确认）。
+            对齐本身是块级的（text-align 无行内语义），高亮态由「光标所在块的 align 属性」
+            决定，因此这里只需属性匹配。 */}
         <ToolbarButton
           title={t("toolbar.alignLeft")}
-          active={editor.isActive("align", { align: "left" })}
+          active={editor.isActive({ align: "left" })}
           onClick={() => editor.chain().focus().setAlign("left").run()}
         >
           <AlignLeft className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
           title={t("toolbar.alignCenter")}
-          active={editor.isActive("align", { align: "center" })}
+          active={editor.isActive({ align: "center" })}
           onClick={() => editor.chain().focus().setAlign("center").run()}
         >
           <AlignCenter className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
           title={t("toolbar.alignRight")}
-          active={editor.isActive("align", { align: "right" })}
+          active={editor.isActive({ align: "right" })}
           onClick={() => editor.chain().focus().setAlign("right").run()}
         >
           <AlignRight className="w-4 h-4" />
