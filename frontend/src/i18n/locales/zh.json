@@ -2,18 +2,20 @@
   "auth": {
     "title": "登录 JDMatch",
     "subtitle": "登录后即可使用简历匹配与 AI 润色能力",
-    "notice": "本站 AI 能力由服务端统一提供，为避免资源被滥用，需使用注册码注册后登录；注册码会为新账号充入积分（简历匹配与话术生成共享）。",
+    "notice": "注册需使用注册码，领取后可自动填入；新账号默认获得 50 积分（简历匹配与话术生成共享）。",
     "username": "用户名",
     "usernamePlaceholder": "3-64 位字母、数字或 _ . -",
     "password": "密码",
     "passwordPlaceholder": "至少 8 位",
     "code": "注册码",
-    "codePlaceholder": "向管理员获取，如 ABCD-EFGH-JKLM",
+    "codePlaceholder": "粘贴你领取的注册码，如 ABCD-EFGH-JKLM",
     "quota": "剩余积分",
     "quotaUnlimited": "积分不限",
     "submitLogin": "登录",
     "submitRegister": "注册并登录",
     "toRegister": "还没有账号？立即注册",
+    "getCodeCta": "还没有注册码？免费领取",
+    "codeAutoFilled": "注册码已领取并自动填入",
     "toLogin": "已有账号？返回登录",
     "loginSuccess": "登录成功",
     "registerSuccess": "注册成功",
@@ -149,7 +151,7 @@
         },
         {
           "question": "积分用完怎么办？",
-          "answer": "积分由注册时使用的注册码充入；简历匹配每次消耗 5 积分、话术生成每次消耗 1 积分，耗尽后将无法继续发起。如需补充，请向管理员获取新的注册码。"
+          "answer": "积分由注册时使用的注册码充入；简历匹配每次消耗 5 积分、话术生成每次消耗 1 积分，耗尽后将无法继续发起。如需补充，可点击上方「获取注册码」免费领取新的注册码。"
         }
       ]
     },
