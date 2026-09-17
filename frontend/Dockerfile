@@ -33,6 +33,10 @@ ENV VITE_JOBMATCH_API=$VITE_JOBMATCH_API
 ARG VITE_SITE_URL=https://jdmatch.site
 ENV VITE_SITE_URL=$VITE_SITE_URL
 COPY . .
+# node:22-alpine（musl）下 Node 探测不到真实内存，默认堆仅约 1GB；
+# echarts 等大依赖会把 vite client+SSR 双份打包的模块图推过该上限，
+# 显式抬高到 4GB（GHA ubuntu-latest 内存充足）。
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN pnpm run build
 
 FROM base AS runner
