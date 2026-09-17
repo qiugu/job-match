@@ -17,6 +17,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppDashboardRouteImport } from './routes/app/dashboard'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
+import { Route as AppDashboardAnalyticsRouteImport } from './routes/app/dashboard/analytics'
 import { Route as AppDashboardJobsRouteImport } from './routes/app/dashboard/jobs'
 import { Route as AppDashboardMatchRouteImport } from './routes/app/dashboard/match'
 import { Route as AppDashboardResumesRouteImport } from './routes/app/dashboard/resumes'
@@ -64,6 +65,11 @@ const AppDashboardIndexRoute = AppDashboardIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppDashboardRoute,
 } as any)
+const AppDashboardAnalyticsRoute = AppDashboardAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AppDashboardRoute,
+} as any)
 const AppDashboardJobsRoute = AppDashboardJobsRouteImport.update({
   id: '/jobs',
   path: '/jobs',
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/app/dashboard': typeof AppDashboardRouteWithChildren
   '/app/': typeof AppIndexRoute
+  '/app/dashboard/analytics': typeof AppDashboardAnalyticsRoute
   '/app/dashboard/jobs': typeof AppDashboardJobsRoute
   '/app/dashboard/match': typeof AppDashboardMatchRoute
   '/app/dashboard/resumes': typeof AppDashboardResumesRoute
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/image-proxy': typeof ImageProxyRoute
   '/login': typeof LoginRoute
   '/app': typeof AppIndexRoute
+  '/app/dashboard/analytics': typeof AppDashboardAnalyticsRoute
   '/app/dashboard/jobs': typeof AppDashboardJobsRoute
   '/app/dashboard/match': typeof AppDashboardMatchRoute
   '/app/dashboard/resumes': typeof AppDashboardResumesRoute
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/app/dashboard': typeof AppDashboardRouteWithChildren
   '/app/': typeof AppIndexRoute
+  '/app/dashboard/analytics': typeof AppDashboardAnalyticsRoute
   '/app/dashboard/jobs': typeof AppDashboardJobsRoute
   '/app/dashboard/match': typeof AppDashboardMatchRoute
   '/app/dashboard/resumes': typeof AppDashboardResumesRoute
@@ -152,6 +161,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/dashboard'
     | '/app/'
+    | '/app/dashboard/analytics'
     | '/app/dashboard/jobs'
     | '/app/dashboard/match'
     | '/app/dashboard/resumes'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/image-proxy'
     | '/login'
     | '/app'
+    | '/app/dashboard/analytics'
     | '/app/dashboard/jobs'
     | '/app/dashboard/match'
     | '/app/dashboard/resumes'
@@ -182,6 +193,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app/dashboard'
     | '/app/'
+    | '/app/dashboard/analytics'
     | '/app/dashboard/jobs'
     | '/app/dashboard/match'
     | '/app/dashboard/resumes'
@@ -257,6 +269,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardIndexRouteImport
       parentRoute: typeof AppDashboardRoute
     }
+    '/app/dashboard/analytics': {
+      id: '/app/dashboard/analytics'
+      path: '/analytics'
+      fullPath: '/app/dashboard/analytics'
+      preLoaderRoute: typeof AppDashboardAnalyticsRouteImport
+      parentRoute: typeof AppDashboardRoute
+    }
     '/app/dashboard/jobs': {
       id: '/app/dashboard/jobs'
       path: '/jobs'
@@ -303,6 +322,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppDashboardRouteChildren {
+  AppDashboardAnalyticsRoute: typeof AppDashboardAnalyticsRoute
   AppDashboardJobsRoute: typeof AppDashboardJobsRoute
   AppDashboardMatchRoute: typeof AppDashboardMatchRoute
   AppDashboardResumesRoute: typeof AppDashboardResumesRoute
@@ -311,6 +331,7 @@ interface AppDashboardRouteChildren {
 }
 
 const AppDashboardRouteChildren: AppDashboardRouteChildren = {
+  AppDashboardAnalyticsRoute: AppDashboardAnalyticsRoute,
   AppDashboardJobsRoute: AppDashboardJobsRoute,
   AppDashboardMatchRoute: AppDashboardMatchRoute,
   AppDashboardResumesRoute: AppDashboardResumesRoute,

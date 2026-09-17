@@ -466,3 +466,100 @@ export async function detectJob(jdText: string): Promise<JobDetectResult> {
     body: JSON.stringify({ jd_text: jdText }),
   });
 }
+
+// ---------- 投递统计（Delivery Analytics） ----------
+/**
+ * 统计区间与汇总：字段与后端 `app/schemas/job.py::JobStats` 严格对齐。
+ * 口径的权威说明见 `docs/ANALYTICS.md`；此处只做类型映射，不在前端二次计算。
+ */
+export interface JobStatsRange {
+  days: number;
+  /** 本地日历日 YYYY-MM-DD（闭区间起点） */
+  start: string;
+  end: string;
+  /** 后端实际生效的时区偏移（分钟） */
+  tz_offset: number;
+}
+
+export interface JobStatsTotals {
+  jobs: number;
+  active: number;
+  /** 当前状态仍为「已投递」的卡数（存量视角，与岗位列表页一致） */
+  applied_now: number;
+  closed_now: number;
+  /** 历史上曾投递过的卡数（含后来归档的）；漏斗与投递率用此口径 */
+  applied_ever: number;
+  closed_ever: number;
+  applied_in_range: number;
+  created_in_range: number;
+  closed_in_range: number;
+  /** applied_ever / jobs，0~1 */
+  applied_rate: number;
+  /** 建卡 → 首次确认投递 的平均天数；无投递记录为 null */
+  avg_days_to_apply: number | null;
+  /** 每张已投递卡平均产出多少份定制简历；无投递记录为 null */
+  avg_derived_per_applied: number | null;
+  cover_letters: number;
+  cover_letter_jobs: number;
+  derived_resumes: number;
+  /** 日期为近似值（迁移按 updated_at 回填）的岗位卡数 */
+  backfilled_jobs: number;
+}
+
+export interface JobDailyPoint {
+  date: string;
+  created: number;
+  greeting: number;
+  resume_ready: number;
+  applied: number;
+  closed: number;
+  /** 当日含回填事件 ⇒ 日期为近似值，图表以斜纹底纹区分 */
+  backfill: boolean;
+}
+
+export interface JobFunnelStage {
+  key: "created" | "resume_ready" | "applied";
+  count: number;
+  rate: number;
+}
+
+export interface JobStreak {
+  current: number;
+  best: number;
+}
+
+export interface JobStats {
+  range: JobStatsRange;
+  totals: JobStatsTotals;
+  /** 当前存量状态分布，键恒为四个状态的并集 */
+  status_distribution: Record<JobStatus, number>;
+  /** 累计到达口径，单调不增 */
+  funnel: JobFunnelStage[];
+  /** 区间内每一天（缺日补零，按日期升序） */
+  daily: JobDailyPoint[];
+  /** 周一…周日（长度恒为 7） */
+  weekday: number[];
+  streak: JobStreak;
+}
+
+/** 统计区间白名单，与后端 `app/services/job_stats.py::ALLOWED_DAYS` 保持一致 */
+export const ANALYTICS_DAYS = [7, 14, 30, 90, 180, 365] as const;
+export type AnalyticsDays = (typeof ANALYTICS_DAYS)[number];
+
+/**
+ * 拉取投递统计。
+ *
+ * `tzOffset` 传 **分钟且东为正**（与后端一致），浏览器可直接用
+ * `-new Date().getTimezoneOffset()` 得到；不传则后端按 UTC+8 处理。
+ * 必须显式传：库里存 UTC，若由后端假定时区，跨时区用户的「某天」会被算错。
+ */
+export async function getJobStats(
+  days: AnalyticsDays | number = 30,
+  tzOffset?: number
+): Promise<JobStats> {
+  const params = new URLSearchParams({ days: String(days) });
+  const offset =
+    tzOffset ?? (typeof window !== "undefined" ? -new Date().getTimezoneOffset() : 480);
+  params.set("tz_offset", String(offset));
+  return request(`/api/jobs/stats?${params.toString()}`);
+}

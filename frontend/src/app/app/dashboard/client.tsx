@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Briefcase, KeyRound } from "lucide-react";
+import { BarChart3, Briefcase, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import {
   IconChevronDown,
@@ -70,6 +70,12 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       title: t("sidebar.jobs"),
       url: "/app/dashboard/jobs",
       icon: Briefcase,
+    },
+    {
+      // 投递分析：按日趋势 / 漏斗 / 状态分布，与「我的投递」并列的报表入口
+      title: t("sidebar.analytics"),
+      url: "/app/dashboard/analytics",
+      icon: BarChart3,
     },
     {
       title: t("sidebar.resumes"),

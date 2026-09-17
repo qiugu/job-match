@@ -86,3 +86,89 @@ class JobMarkPayload(BaseModel):
 
 class JobDetectResponse(BaseModel):
     job_id: Optional[str] = None
+
+
+# ---------- 投递统计（Delivery Analytics） ----------
+# 口径与公式的权威说明见 docs/ANALYTICS.md；此处只做结构定义。
+# 全部字段用 snake_case，与 JobSummary / JobDetail 保持一致，前端直接映射。
+
+
+class JobStatsRange(BaseModel):
+    """统计区间：按调用方时区折算后的本地日历日（闭区间 [start, end]）。"""
+
+    days: int
+    start: str  # YYYY-MM-DD（本地日）
+    end: str  # YYYY-MM-DD（本地日）
+    tz_offset: int  # 生效的时区偏移（分钟）
+
+
+class JobStatsTotals(BaseModel):
+    """汇总指标。
+
+    `applied_now` 与 `applied_ever` 的区别是刻意的：
+    - now：当前状态仍为「已投递」的卡（存量视角，与岗位列表页一致）
+    - ever：历史上曾确认投递过的卡（含后来归档的），漏斗与投递率用此口径
+    """
+
+    jobs: int
+    active: int
+    applied_now: int
+    closed_now: int
+    applied_ever: int
+    closed_ever: int
+    # 区间内发生的事件数
+    applied_in_range: int
+    created_in_range: int
+    closed_in_range: int
+    # applied_ever / jobs，0~1；分母为 0 时为 0.0
+    applied_rate: float
+    # 建卡 → 首次确认投递 的平均天数；无投递记录时为 None
+    avg_days_to_apply: Optional[float] = None
+    # 挂在现存岗位卡上的定制简历数 / applied_ever；无投递时为 None
+    avg_derived_per_applied: Optional[float] = None
+    # 产出计数（仅统计 job_id 非空、即挂在现存岗位卡上的产出）
+    cover_letters: int
+    cover_letter_jobs: int
+    derived_resumes: int
+    # 含回填事件（日期为近似值）的岗位卡数
+    backfilled_jobs: int
+
+
+class JobDailyPoint(BaseModel):
+    """单日事件计数（缺日补零，保证前端图表连续）。"""
+
+    date: str  # YYYY-MM-DD（本地日）
+    created: int  # 建卡（from_status 为 NULL 的事件）
+    greeting: int  # 推进到 greeting_sent（含归档卡重新激活）
+    resume_ready: int  # 推进到 resume_ready
+    applied: int  # 推进到 applied（= 当日确认投递数）
+    closed: int  # 推进到 closed
+    # 当日含迁移回填事件 ⇒ 日期为近似值，前端以斜纹底纹区分
+    backfill: bool
+
+
+class JobFunnelStage(BaseModel):
+    """漏斗单级：累计到达口径（曾达到该级或更后一级的卡数），故必单调不增。"""
+
+    key: str  # created | resume_ready | applied
+    count: int
+    rate: float  # count / jobs
+
+
+class JobStreak(BaseModel):
+    """连续投递天数（区间内计算；今天尚未投递时允许以昨天为终点）。"""
+
+    current: int
+    best: int
+
+
+class JobStats(BaseModel):
+    range: JobStatsRange
+    totals: JobStatsTotals
+    # 当前存量状态分布，键恒为 JOB_STATUSES 全集（缺项为 0）
+    status_distribution: dict[str, int]
+    funnel: list[JobFunnelStage]
+    daily: list[JobDailyPoint]
+    # 周一…周日 的区间内投递数（长度恒为 7）
+    weekday: list[int]
+    streak: JobStreak

@@ -11,6 +11,9 @@
   - closed 视为终态，但新的内容操作视为「重新激活」：按动作语义与是否已有简历回阶段。
 - get_job_aggregates：聚合单张岗位卡的子记录统计，供列表/详情返回，避免 N+1。
 - detect_job：按归一化 JD 查重，供前端重复 JD 防御提示。
+- transition / record_status_event：状态事件台账的读写。**transition 是全项目唯一的
+  `job.status` 写入口**——改状态与落事件是不可分割的一对动作，任何绕过它的直接赋值
+  都会让投递统计失去时间基准（详见 app/models/job_event.py 的说明）。
 
 所有函数均操作 async session（FastAPI 依赖注入的 AsyncSession）。
 """
@@ -32,6 +35,13 @@ from app.models.job import (
     JOB_STATUS_DEFAULT,
     JOB_STATUS_RESUME_READY,
     _id,
+)
+from app.models.job_event import (
+    EVENT_SOURCE_AUTO,
+    EVENT_SOURCE_CREATE,
+    EVENT_SOURCE_REOPEN,
+    JobStatusEvent,
+    _id as _event_id,
 )
 
 # 标题兜底长度：jd 首行截断 40 字
@@ -67,6 +77,82 @@ async def _has_derived(db: AsyncSession, job_id: str) -> bool:
     return int(n) > 0
 
 
+def _utc_naive(dt: datetime) -> datetime:
+    """归一为 UTC naive，供事件表存储。
+
+    `jobs` 等既有表写入的是 aware UTC，SQLite 的 DATETIME 会丢弃 tzinfo、落库为
+    同一 UTC 时刻的朴素字符串；读回来则是 naive。事件表显式做这一步，使「写进去的」
+    与「读出来的」在比较时类型一致，避免统计层出现 aware/naive 混算。
+    """
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+
+async def record_status_event(
+    db: AsyncSession,
+    *,
+    job_id: str,
+    user_id: str,
+    from_status: str | None,
+    to_status: str,
+    source: str,
+    occurred_at: datetime | None = None,
+) -> None:
+    """登记一条状态变更事实（append-only）。
+
+    仅登记进会话、不在此处 commit：状态变更与事件必须同事务落地，
+    由调用方统一提交（与 `attach_or_create_job` 的既有约定一致）。
+
+    occurred_at 为「事实发生时刻」，一旦写入永不更新——这正是本表存在的理由：
+    `jobs.updated_at` 会被元数据编辑覆盖，不能作为统计时间基准。
+    """
+    db.add(
+        JobStatusEvent(
+            id=_event_id(),
+            user_id=user_id or "",
+            job_id=job_id,
+            from_status=from_status,
+            to_status=to_status,
+            source=source,
+            occurred_at=_utc_naive(occurred_at or _now()),
+        )
+    )
+
+
+async def transition(
+    db: AsyncSession, job: Job, new_status: str, source: str = EVENT_SOURCE_AUTO
+) -> bool:
+    """**全项目唯一的状态写入口**：改 `job.status` 的同时落一条事件。
+
+    任何绕过本函数直接赋值 `job.status` 的写法都会造成「状态变了但没事件」，
+    统计随之失真。业务规则（只前进不回退、终态不可覆盖等）仍由调用方判断，
+    本函数只负责「变更 + 记账」这对不可分割的动作。
+
+    幂等：new_status 与当前一致时不做任何写入，返回 False
+    （因此重复点「确认投递」不会污染投递日统计）。
+
+    返回是否真的发生了状态变化。
+    """
+    if job.status == new_status:
+        return False
+
+    previous = job.status
+    occurred = _now()
+    job.status = new_status
+    job.updated_at = occurred
+    await record_status_event(
+        db,
+        job_id=job.id,
+        user_id=job.user_id,
+        from_status=previous,
+        to_status=new_status,
+        source=source,
+        occurred_at=occurred,
+    )
+    return True
+
+
 async def promote_for_action(
     db: AsyncSession, job: Job, action_status: str
 ) -> bool:
@@ -78,19 +164,24 @@ async def promote_for_action(
     规则：
     1. job 已 closed：新的内容操作视为「重新激活」——回到 resume_ready（卡下已有
        定制简历时）或动作阶段（仅话术动作且无简历时回到 greeting_sent）。
+       该路径由内容操作隐式触发，事件来源记为 auto（用户显式复活走 reopen_job）。
     2. job 为 applied：终态，内容操作不再覆盖（返回 False）。
     3. 否则仅当动作阶段高于当前阶段时推进（只前进不回退）。
 
-    返回是否发生了状态变化（供调用方决定是否需要回写 updated_at / 响应提示）。
+    状态变更统一经 transition() 落地，保证「状态变了必有事件」。
     """
     if job.status == JOB_STATUS_CLOSED:
         # 重新激活：有简历就回投递准备，否则按动作语义回对应阶段
-        if await _has_derived(db, job.id):
-            job.status = JOB_STATUS_RESUME_READY
-        else:
-            job.status = action_status if action_status in JOB_STATUS_ACTIVE else JOB_STATUS_DEFAULT
-        job.updated_at = _now()
-        return True
+        target = (
+            JOB_STATUS_RESUME_READY
+            if await _has_derived(db, job.id)
+            else (
+                action_status
+                if action_status in JOB_STATUS_ACTIVE
+                else JOB_STATUS_DEFAULT
+            )
+        )
+        return await transition(db, job, target, EVENT_SOURCE_AUTO)
 
     if job.status == JOB_STATUS_APPLIED:
         return False
@@ -98,9 +189,7 @@ async def promote_for_action(
     cur = _STATUS_RANK.get(job.status, 0)
     target = _STATUS_RANK.get(action_status, 0)
     if target > cur:
-        job.status = action_status
-        job.updated_at = _now()
-        return True
+        return await transition(db, job, action_status, EVENT_SOURCE_AUTO)
     return False
 
 
@@ -108,16 +197,16 @@ async def reopen_job(db: AsyncSession, job: Job) -> str:
     """把已结束（closed）的岗位卡重新开启，返回新状态。
 
     目标态按现有产出反推：卡下已有定制简历 → resume_ready；否则 → greeting_sent。
-    非 closed 卡调用为幂等空操作（返回当前状态，不抛错）。
+    非 closed 卡调用为幂等空操作（返回当前状态，不抛错，也不产生事件）。
     """
     if job.status != JOB_STATUS_CLOSED:
         return job.status
-    job.status = (
+    target = (
         JOB_STATUS_RESUME_READY
         if await _has_derived(db, job.id)
         else JOB_STATUS_DEFAULT
     )
-    job.updated_at = _now()
+    await transition(db, job, target, EVENT_SOURCE_REOPEN)
     return job.status
 
 
@@ -164,6 +253,17 @@ async def attach_or_create_job(
     # 与「预扣共享额度」使用独立会话的写操作在 SQLite 下争锁（database is locked）。
     # 调用方在挂好子记录后统一 commit，由 SQLAlchemy 依 FK 依赖顺序先插 jobs 再插子表。
     db.add(job)
+    # 建卡事实：from_status 为 NULL（无前驱），occurred_at 取建卡时刻。
+    # 与 jobs 同事务提交，故此处同样不 flush。
+    await record_status_event(
+        db,
+        job_id=job.id,
+        user_id=user_id,
+        from_status=None,
+        to_status=job.status,
+        source=EVENT_SOURCE_CREATE,
+        occurred_at=job.created_at,
+    )
     return job
 
 

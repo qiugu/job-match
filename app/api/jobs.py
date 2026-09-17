@@ -2,6 +2,8 @@
 
 端点前缀 /api/jobs：
   GET    /               当前用户活跃岗位列表（含聚合，按最近活跃 desc；归档 closed 不出现）
+  GET    /stats          投递统计（事件台账聚合；days / tz_offset 可调）
+                         ⚠ 必须声明在 /{job_id} 之前，否则会被 {job_id} 吞掉按「岗位不存在」404
   GET    /{job_id}      岗位详情（含子记录：话术列表 + 定制简历及匹配分析；非本人 404）
   POST   /              手动建档（罕见，供检测 UI 的「仍然新建」兜底；归一化查重复用）
   PATCH  /{job_id}      仅改 title/company（extra=forbid，传 status 直接 422）
@@ -41,6 +43,7 @@ from app.models.job import (
     JOB_STATUS_CLOSED,
     JOB_STATUS_RESUME_READY,
 )
+from app.models.job_event import EVENT_SOURCE_MANUAL, JobStatusEvent
 from app.models.user import User
 from app.schemas.job import (
     CoverLetterBrief,
@@ -48,6 +51,7 @@ from app.schemas.job import (
     JobDetail,
     JobDetectResponse,
     JobMarkPayload,
+    JobStats,
     JobSummary,
     JobUpdate,
 )
@@ -56,6 +60,12 @@ from app.services.job import (
     detect_job,
     get_job_aggregates,
     reopen_job,
+    transition,
+)
+from app.services.job_stats import (
+    ALLOWED_DAYS,
+    DEFAULT_TZ_OFFSET,
+    compute_job_stats,
 )
 
 logger = get_logger("jobs")
@@ -150,6 +160,33 @@ async def list_jobs(
     return [await _to_summary(db, j) for j in rows]
 
 
+@router.get("/stats", summary="投递统计（状态事件台账聚合）")
+async def job_stats(
+    days: int = Query(
+        30,
+        description=(
+            f"统计区间天数，取值 {'/'.join(str(d) for d in ALLOWED_DAYS)}；"
+            "非白名单值就近收敛（等距取较大者），超额上限 365"
+        ),
+    ),
+    tz_offset: int = Query(
+        DEFAULT_TZ_OFFSET,
+        description="时区偏移（分钟）。UTC+8 传 480；前端传 -new Date().getTimezoneOffset()",
+    ),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """按用户本地日历日聚合投递情况。
+
+    参数收敛（白名单 / 上限 / 偏移范围）统一由 `compute_job_stats` 负责，
+    本层不重复实现，避免两处口径分叉。返回结构见 `JobStats`。
+    """
+    data = await compute_job_stats(
+        db, user.id, days=days, tz_offset=tz_offset
+    )
+    return JobStats(**data)
+
+
 @router.get("/{job_id}", summary="岗位详情（含话术 / 定制简历与匹配分析）")
 async def get_job(
     job_id: str,
@@ -212,9 +249,11 @@ async def mark_job(
 
     if payload.outcome == JOB_STATUS_APPLIED:
         if job.status == JOB_STATUS_APPLIED:
-            pass  # 幂等：已确认过投递成功
+            # 幂等：已确认过投递成功。transition 同态不写事件，
+            # 因此重复点击不会把投递日改到「最近一次点击那天」。
+            pass
         elif job.status == JOB_STATUS_RESUME_READY:
-            job.status = JOB_STATUS_APPLIED
+            await transition(db, job, JOB_STATUS_APPLIED, EVENT_SOURCE_MANUAL)
         else:
             raise HTTPException(
                 status_code=400,
@@ -224,9 +263,10 @@ async def mark_job(
         if job.status == JOB_STATUS_CLOSED:
             pass  # 幂等：已归档
         else:
-            job.status = JOB_STATUS_CLOSED
+            await transition(db, job, JOB_STATUS_CLOSED, EVENT_SOURCE_MANUAL)
 
-    job.updated_at = datetime.now(timezone.utc)
+    # updated_at 由 transition 在真正发生变更时写入；幂等调用不再刷新它，
+    # 避免「无操作的重复点击把卡片顶到列表最前」。
     await db.commit()
     await db.refresh(job)
     return await _to_summary(db, job)
@@ -281,6 +321,16 @@ async def delete_job(
             .where(DerivedResume.job_id == job_id)
             .values(job_id=None)
         )
+
+    # 状态事件随卡删除（两种模式都清理）：统计口径恒等于「当前存在的岗位卡的行为」，
+    # 与岗位列表页数字保持一致，避免「列表 3 张卡、统计却说 10 次投递」的认知冲突。
+    events = (
+        await db.execute(
+            select(JobStatusEvent).where(JobStatusEvent.job_id == job_id)
+        )
+    ).scalars().all()
+    for e in events:
+        await db.delete(e)
 
     await db.delete(job)
     await db.commit()
