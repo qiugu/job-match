@@ -137,6 +137,9 @@ dependencies:
   dayjs:
     specifier: ^1.11.12
     version: 1.11.23
+  echarts:
+    specifier: ^6.1.0
+    version: 6.1.0
   framer-motion:
     specifier: ^11.11.10
     version: 11.18.2(react-dom@18.3.1)(react@18.3.1)
@@ -9088,6 +9091,13 @@ packages:
     engines: {node: '>=12'}
     dev: true
 
+  /echarts@6.1.0:
+    resolution: {integrity: sha512-q0yaFPggC9FUdsWH4blavRWFmxdrIodbkoKNAjJudAI6CA9gNPxHtV2RcZNEepZVlk4yvBYkOkbk6HIVpIyHZA==}
+    dependencies:
+      tslib: 2.3.0
+      zrender: 6.1.0
+    dev: false
+
   /electron-to-chromium@1.5.412:
     resolution: {integrity: sha512-z4rMe3esBzlzovKHj4gxJnsCGZRK5l4baUvm+gCGJBPE+gsyUMKsuU9tnEUtI1dOebXz1ytAPGjvXhmQ7rIPwA==}
 
@@ -12458,6 +12468,10 @@ packages:
       typescript: 5.9.3
     dev: true
 
+  /tslib@2.3.0:
+    resolution: {integrity: sha512-N82ooyxVNm6h1riLCoyS9e3fuJ3AMG2zIZs2Gd1ATcSFjSA23Q0fzjjZeh0jbJvWVDZ0cJT8yaNNaaXHzueNjg==}
+    dev: false
+
   /tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
@@ -13119,6 +13133,12 @@ packages:
 
   /zod@4.4.3:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
+    dev: false
+
+  /zrender@6.1.0:
+    resolution: {integrity: sha512-oEGMDB6pOP2S6OwRR4PdVv610zrjnA3Bh+JnSG12fYJlBKjtNAoEb5fSUoCOOINlH96I2fU38/A2UpRKs67xYQ==}
+    dependencies:
+      tslib: 2.3.0
     dev: false
 
   /zustand@4.5.7(@types/react@18.3.31)(react@18.3.1):
