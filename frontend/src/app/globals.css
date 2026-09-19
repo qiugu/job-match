@@ -189,6 +189,66 @@
     font-family: var(--xai-font-sans);
   }
 
+  /* 投递分析是需要快速扫读的工作台：保留深色导航，分析内容切到高对比纸张色，
+     用墨蓝正文 + 珊瑚/青绿语义色，避免数据和背景黏在一起。 */
+  .theme-xai .analytics-page {
+    --xai-canvas: #f7f4ee;
+    --xai-surface: #fffdf8;
+    --xai-surface-2: #f1eee7;
+    --xai-hairline: #ddd7cc;
+    --xai-hairline-soft: #eae5dc;
+    --xai-hairline-strong: #c9c0b2;
+    --xai-text: #17233c;
+    --xai-text-mid: #435069;
+    --xai-mute: #6d7788;
+    --xai-eyebrow: #7f6b5a;
+    --xai-success: #147d78;
+    --xai-add: #147d78;
+    --xai-add-bg: #e2f1ed;
+    --xai-del: #c64b3d;
+    --xai-del-bg: #fbe9e4;
+    --background: 40 25% 95%;
+    --foreground: 220 45% 16%;
+    --card: 45 100% 99%;
+    --card-foreground: 220 45% 16%;
+    --border: 36 19% 83%;
+    --primary: 220 45% 16%;
+    --primary-foreground: 45 100% 99%;
+  }
+
+  .analytics-page .analytics-header {
+    background: linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(247, 244, 238, 0.88));
+  }
+
+  .analytics-page .analytics-panel {
+    box-shadow: 0 1px 0 rgba(23, 35, 60, 0.04), 0 14px 34px rgba(23, 35, 60, 0.045);
+  }
+
+  .analytics-page .analytics-kpi {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .analytics-page .analytics-kpi::after {
+    position: absolute;
+    right: 16px;
+    bottom: 12px;
+    width: 38px;
+    height: 3px;
+    border-radius: 99px;
+    background: var(--xai-hairline);
+    content: "";
+  }
+
+  .analytics-page .analytics-kpi:first-child::after,
+  .analytics-page .analytics-kpi:nth-child(2)::after {
+    background: #e85d4a;
+  }
+
+  .analytics-page .analytics-kpi:nth-child(3)::after {
+    background: #147d78;
+  }
+
   /* 作用域内标题回到正体（xAI 风格不用衬线展示字） */
   .theme-xai h1,
   .theme-xai h2,

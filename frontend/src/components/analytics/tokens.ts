@@ -13,11 +13,10 @@
 import type { JobStatus } from "@/lib/jobmatch";
 
 /**
- * 品牌唯一强调色（靛蓝）。占比应 ≤10%，用于「投递」这一最重要的语义，
- * 其余阶段用同色不同明度构成**单色阶**——阶段是有序量，单色阶比多色分类更准确。
- * 定义见 docs/BRAND.md。
+ * 投递分析的主强调色：珊瑚橙。它只标记「已投递」与峰值，和纸张底色形成
+ * 清晰的阅读锚点；其余阶段继续用同色不同明度构成单色阶。
  */
-export const BRAND_ACCENT = "#5E6AD2";
+export const BRAND_ACCENT = "#E85D4A";
 
 export interface ChartTokens {
   /** 面板底色（用于把强调色朝底色混合出同色阶） */
@@ -33,16 +32,16 @@ export interface ChartTokens {
   fontMono: string;
 }
 
-/** 无 DOM（SSR / 单测）时的兜底：取深色主题的值，保证函数在任何环境都可用。 */
+/** 无 DOM（SSR / 单测）时的兜底：使用分析页纸张主题的值，保证函数在任何环境都可用。 */
 export const FALLBACK_TOKENS: ChartTokens = {
-  surface: "#131418",
-  surface2: "#1a1c21",
-  hairline: "#292b33",
-  hairlineSoft: "#1f2126",
-  text: "#ffffff",
-  textMid: "#e7e9ec",
-  mute: "#8a8f98",
-  eyebrow: "#6b727b",
+  surface: "#FFFDF8",
+  surface2: "#F1EEE7",
+  hairline: "#DDD7CC",
+  hairlineSoft: "#EAE5DC",
+  text: "#17233C",
+  textMid: "#435069",
+  mute: "#6D7788",
+  eyebrow: "#7F6B5A",
   fontSans: 'Inter, "Noto Sans SC", system-ui, sans-serif',
   fontMono: '"Geist Mono", ui-monospace, SFMono-Regular, monospace',
 };

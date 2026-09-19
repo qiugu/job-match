@@ -484,10 +484,11 @@ export interface JobStatsRange {
 export interface JobStatsTotals {
   jobs: number;
   active: number;
-  /** 当前状态仍为「已投递」的卡数（存量视角，与岗位列表页一致） */
+  /** 所选时间段新建的岗位 cohort 中，当前状态仍为「已投递」的卡数 */
   applied_now: number;
+  /** 所选时间段新建的岗位 cohort 中，当前状态为「已结束」的卡数 */
   closed_now: number;
-  /** 历史上曾投递过的卡数（含后来归档的）；漏斗与投递率用此口径 */
+  /** 全部现存岗位历史上曾投递过的卡数；保留用于总览 KPI */
   applied_ever: number;
   closed_ever: number;
   applied_in_range: number;
@@ -531,7 +532,7 @@ export interface JobStreak {
 export interface JobStats {
   range: JobStatsRange;
   totals: JobStatsTotals;
-  /** 当前存量状态分布，键恒为四个状态的并集 */
+  /** 所选时间段新建岗位 cohort 的当前存量状态分布，键恒为四个状态的并集 */
   status_distribution: Record<JobStatus, number>;
   /** 累计到达口径，单调不增 */
   funnel: JobFunnelStage[];

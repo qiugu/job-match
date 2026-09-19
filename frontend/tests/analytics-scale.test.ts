@@ -166,9 +166,15 @@ describe("scale / 口径与格式化", () => {
 });
 
 describe("tokens / 单色阶", () => {
+  it("投递分析使用高对比珊瑚强调色，而不是低辨识度靛蓝", () => {
+    expect(TOKENS.surface).toBe("#FFFDF8");
+    expect(TOKENS.text).toBe("#17233C");
+    expect(stageColor("applied", TOKENS)).toBe("#E85D4A");
+  });
+
   it("mixHex 端点与中点", () => {
-    expect(mixHex("#5E6AD2", "#131418", 0)).toBe("#5e6ad2");
-    expect(mixHex("#5E6AD2", "#131418", 1)).toBe("#131418");
+    expect(mixHex("#E85D4A", "#17233C", 0)).toBe("#e85d4a");
+    expect(mixHex("#E85D4A", "#17233C", 1)).toBe("#17233c");
     expect(mixHex("#ffffff", "#000000", 0.5)).toBe("#808080");
   });
 
@@ -177,7 +183,7 @@ describe("tokens / 单色阶", () => {
   });
 
   it("阶段色：applied 为满强调色，closed 为中性色（不参与色阶）", () => {
-    expect(stageColor("applied", TOKENS)).toBe("#5E6AD2");
+    expect(stageColor("applied", TOKENS)).toBe("#E85D4A");
     expect(stageColor("closed", TOKENS)).not.toBe("#5E6AD2");
   });
 });
@@ -244,8 +250,8 @@ describe("options / 结构契约", () => {
       peakIndex: 2,
       labels: ["周一", "周二", "周三", "周四", "周五", "周六", "周日"],
     }) as { series: { data: { itemStyle: { color: string } }[] }[] };
-    expect(opt.series[0].data[2].itemStyle.color).toBe("#5E6AD2");
-    expect(opt.series[0].data[0].itemStyle.color).not.toBe("#5E6AD2");
+    expect(opt.series[0].data[2].itemStyle.color).toBe("#E85D4A");
+    expect(opt.series[0].data[0].itemStyle.color).not.toBe("#E85D4A");
   });
 });
 

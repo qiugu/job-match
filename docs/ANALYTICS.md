@@ -72,13 +72,13 @@ GET /api/jobs/stats?days=30&tz_offset=480
 | 指标 | 公式 | 说明 |
 | --- | --- | --- |
 | `totals.jobs` | 当前存在的岗位卡总数 | 一切口径的基数 |
-| `totals.applied_now` | 当前状态 = applied 的卡数 | 存量视角，与列表页一致 |
-| `totals.applied_ever` | 曾发生过 `→ applied` 事件的卡数 | 含后来归档的；**漏斗与投递率用它** |
+| `totals.applied_now` | 所选区间新建岗位 cohort 中当前状态 = applied 的卡数 | 随 `days` 变化；存量视角 |
+| `totals.applied_ever` | 全部现存岗位曾发生过 `→ applied` 事件的卡数 | 含后来归档的，总览 KPI 口径 |
 | `totals.applied_rate` | `applied_ever / jobs` | 0~1 |
 | `totals.avg_days_to_apply` | `mean(首次 applied 事件 − 建卡事件)` | 按本地日历日差；无投递为 `null` |
 | `totals.avg_derived_per_applied` | `derived_resumes / applied_ever` | 「投一个岗平均改几版简历」 |
 | `totals.backfilled_jobs` | 有 `source=backfill` 事件的卡数 | 前端据此展示回填说明 |
-| `funnel[n]` | 每级 = 曾达到**该级或更后一级**的卡数 | 3 级：created → resume_ready → applied；单调不增；`closed` 是终态分支不计入 |
+| `funnel[n]` | 所选区间新建岗位 cohort 中，曾达到**该级或更后一级**的卡数 | 3 级：created → resume_ready → applied；单调不增；`closed` 是终态分支不计入 |
 | `daily[d].*` | 当日 `to_status` 命中数 | 分桶见 §4；缺日补零、日期升序 |
 | `daily[d].backfill` | 当日含 backfill 事件 | 日期为近似值 |
 | `weekday[i]` | 周一…周日的 applied 事件数 | 恒为长度 7 |
@@ -87,6 +87,7 @@ GET /api/jobs/stats?days=30&tz_offset=480
 
 **范围口径**：恒为「当前存在的岗位卡」。删卡（两种模式）同步删除其事件，
 未归类（`job_id` 为空）的话术/简历不计入——**统计页数字与「我的投递」列表页永远一致**。
+其中漏斗与存量状态分布按所选区间内新建岗位 cohort 统计，日趋势与星期分布按区间内事件统计。
 
 ---
 
