@@ -467,6 +467,32 @@ async def test_funnel_is_cumulative_and_monotonic(client, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_funnel_and_status_distribution_follow_selected_cohort(client):
+    """漏斗与存量分布按所选区间内新建的岗位 cohort 变化，而非固定读全量岗位。"""
+    token = await _login(client, "statc1", "SC1")
+    h = auth_headers(token)
+    user_id = await _current_user_id("statc1")
+    today_local = _local_today(480)
+
+    for job_id, delta in (("jc-old", 20), ("jc-new", 0)):
+        created_at = datetime.combine(today_local - timedelta(days=delta), time(9, 0))
+        await _add_job(job_id, user_id, status="applied")
+        await _add_event(job_id, user_id, None, "greeting_sent", created_at, EVENT_SOURCE_CREATE)
+        await _add_event(job_id, user_id, "greeting_sent", "resume_ready", created_at + timedelta(hours=1))
+        await _add_event(job_id, user_id, "resume_ready", "applied", created_at + timedelta(hours=2))
+
+    short = (await client.get("/api/jobs/stats?days=7&tz_offset=480", headers=h)).json()
+    long = (await client.get("/api/jobs/stats?days=30&tz_offset=480", headers=h)).json()
+
+    assert short["funnel"][0]["count"] == 1
+    assert short["funnel"][-1]["count"] == 1
+    assert short["status_distribution"]["applied"] == 1
+    assert long["funnel"][0]["count"] == 2
+    assert long["funnel"][-1]["count"] == 2
+    assert long["status_distribution"]["applied"] == 2
+
+
+@pytest.mark.asyncio
 async def test_totals_metrics_and_production_counts(client, monkeypatch):
     """投递周期、每岗简历版本数、话术/简历产出计数。"""
     monkeypatch.setattr("app.api.cover_letter.run_cover_letter", _fake_run_cover_letter)

@@ -44,10 +44,10 @@ function KpiCard({
   hint?: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="analytics-kpi analytics-panel rounded-2xl border border-border bg-card p-5">
       <p className="xai-eyebrow text-[10px]">{label}</p>
       <p className="mt-2 flex items-baseline gap-1">
-        <span className="font-mono text-[26px] leading-none tracking-tight text-xai-text">
+        <span className="font-mono text-[30px] font-semibold leading-none tracking-[-0.06em] text-xai-text">
           {value}
         </span>
         {unit && (
@@ -55,7 +55,7 @@ function KpiCard({
         )}
       </p>
       {hint && (
-        <p className="mt-2 truncate text-[11px] text-xai-mute" title={hint}>
+        <p className="mt-3 truncate text-[11px] leading-5 text-xai-mute" title={hint}>
           {hint}
         </p>
       )}
@@ -72,9 +72,12 @@ function ChartPanel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-border bg-card p-4">
-      <p className="xai-eyebrow text-[10px]">{title}</p>
-      <div className="mt-3">{children}</div>
+    <section className="analytics-panel rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-center gap-2">
+        <span className="h-1.5 w-1.5 rounded-full bg-[#E85D4A]" aria-hidden="true" />
+        <p className="xai-eyebrow text-[10px]">{title}</p>
+      </div>
+      <div className="mt-4">{children}</div>
     </section>
   );
 }
@@ -140,6 +143,9 @@ export default function AnalyticsPage() {
   const series = stats ? buildDailySeries(stats.daily) : null;
   const weekday = normalizeWeekday(stats?.weekday);
   const weekdayPeak = weekdayPeakIndex(weekday);
+  const cohortJobs = stats
+    ? Object.values(stats.status_distribution).reduce((sum, count) => sum + count, 0)
+    : 0;
 
   const rangeBar = (
     <div className="flex items-center gap-2">
@@ -175,26 +181,27 @@ export default function AnalyticsPage() {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="analytics-page flex h-full min-h-0 flex-col overflow-hidden bg-xai-canvas text-xai-text">
       {/* 顶部：标题 + 区间切换 + 刷新 */}
-      <header className="flex h-[66px] shrink-0 items-center justify-between gap-4 border-b border-xai-hairline-soft px-6">
+      <header className="analytics-header flex min-h-[82px] shrink-0 items-center justify-between gap-4 border-b border-xai-hairline-soft px-6 py-4 lg:px-8">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-primary">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#17233C] text-[#FFFDF8] shadow-[4px_4px_0_#E85D4A]">
             <BarChart3 className="size-4.5" />
           </span>
           <div className="min-w-0">
-            <h1 className="truncate text-[15px] font-medium text-xai-text">
+            <p className="xai-eyebrow mb-1 text-[10px]">DELIVERY DESK</p>
+            <h1 className="truncate text-[17px] font-semibold tracking-[-0.03em] text-xai-text">
               {t("analyticsTitle")}
             </h1>
-            <p className="truncate text-[11px] text-xai-mute">
+            <p className="truncate text-[12px] text-xai-mute">
               {t("analyticsSubtitle")}
             </p>
           </div>
         </div>
-        <div className="shrink-0">{rangeBar}</div>
+        <div className="max-w-full shrink-0 overflow-x-auto pb-0.5">{rangeBar}</div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-5 sm:px-6 lg:px-8">
         {loading && !stats ? (
           <div className="flex h-full items-center justify-center gap-2 text-[13px] text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
@@ -235,7 +242,7 @@ export default function AnalyticsPage() {
         ) : (
           <div className="space-y-4">
             {/* KPI 条 */}
-            <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
               <KpiCard
                 label={t("kpiAppliedEver")}
                 value={formatCount(stats.totals.applied_ever, locale)}
@@ -346,7 +353,7 @@ export default function AnalyticsPage() {
                       style={{ top: "44%" }}
                     >
                       <p className="font-mono text-[22px] leading-none tracking-tight text-xai-text">
-                        {formatCount(stats.totals.jobs, locale)}
+                        {formatCount(cohortJobs, locale)}
                       </p>
                       <p className="mt-1 text-[10px] text-xai-mute">
                         {t("chartStatusCenter")}

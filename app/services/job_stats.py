@@ -10,8 +10,9 @@
   的话术/简历不计入，因此本页数字与「我的投递」列表页一致。
 - **日历日**：按调用方传入的 `tz_offset` 折算为用户本地日再分桶。库里存的是
   UTC naive，必须先加偏移再取日期，否则「UTC 23:30 投的简历」会落到前一天。
-- **漏斗**：累计到达口径。某级计数 = 曾达到该级或更后一级的卡数（按阶段等级取最大值），
-  因此漏斗必单调不增；已归档卡的历史进度不会被漏掉。
+- **漏斗 / 存量分布**：按所选区间内新建岗位的 cohort 统计；漏斗仍是累计到达口径，
+  某级计数 = 该 cohort 中曾达到该级或更后一级的卡数，因此漏斗必单调不增。
+  这样切换 7/30/90 天时，转化漏斗与状态分布会和当前分析区间一致。
   `closed` 是终态分支而非漏斗级，不计入。
 - **回填数据**：`source == "backfill"` 的事件由迁移按 `updated_at` 近似重建，
   其日期不精确；对应日期在 `daily[].backfill` 标为 true，前端以斜纹区分。
@@ -200,9 +201,22 @@ async def compute_job_stats(
 
     daily_list = [daily[d] for d in ordered_dates]
 
-    # ---- 存量状态分布 ----
+    # 统计页的 cohort 以「区间内新建」为边界。事件表是唯一可靠的建卡时间来源，
+    # 同一张卡后续状态事件即使落在更晚区间，也仍归属于它首次出现的 cohort。
+    current_job_ids = {j.id for j in rows}
+    cohort_job_ids = {
+        job_id
+        for job_id, created_at in first_create_at.items()
+        if job_id in current_job_ids
+        and window_start_utc <= created_at < window_end_utc
+    }
+    cohort_jobs = len(cohort_job_ids)
+
+    # ---- 存量状态分布（所选 cohort 在当前时刻的状态） ----
     status_distribution = {s: 0 for s in JOB_STATUSES}
     for j in rows:
+        if j.id not in cohort_job_ids:
+            continue
         if j.status in status_distribution:
             status_distribution[j.status] += 1
         else:  # 防御：未知状态归入默认态，避免口径漏计
@@ -216,10 +230,12 @@ async def compute_job_stats(
     closed_now = status_distribution.get(JOB_STATUS_CLOSED, 0)
     applied_ever = len(applied_ever_ids)
 
-    # ---- 漏斗：累计到达（单调不增） ----
-    # 某卡达到的阶段 = 其事件中出现过的最高阶段；无事件时回落到当前状态
+    # ---- 漏斗：cohort 内累计到达（单调不增） ----
+    # 某卡达到的阶段 = 其事件中出现过的最高阶段；无事件时回落到当前状态。
     reached_rank: dict[str, int] = {}
     for j in rows:
+        if j.id not in cohort_job_ids:
+            continue
         r = max_rank.get(j.id)
         if r is None:
             r = _STAGE_RANK.get(j.status, 0)
@@ -232,10 +248,10 @@ async def compute_job_stats(
     funnel = []
     for key, threshold in funnel_spec:
         if threshold is None:
-            count = total_jobs
+            count = cohort_jobs
         else:
             count = sum(1 for r in reached_rank.values() if r >= threshold)
-        funnel.append({"key": key, "count": count, "rate": _rate(count, total_jobs)})
+        funnel.append({"key": key, "count": count, "rate": _rate(count, cohort_jobs)})
 
     # ---- 产出计数（仅统计挂在现存岗位卡上的产出） ----
     cover_letters = 0

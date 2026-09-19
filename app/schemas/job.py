@@ -106,8 +106,8 @@ class JobStatsTotals(BaseModel):
     """汇总指标。
 
     `applied_now` 与 `applied_ever` 的区别是刻意的：
-    - now：当前状态仍为「已投递」的卡（存量视角，与岗位列表页一致）
-    - ever：历史上曾确认投递过的卡（含后来归档的），漏斗与投递率用此口径
+    - now：所选时间段新建岗位 cohort 中当前状态仍为「已投递」的卡
+    - ever：全部现存岗位历史上曾确认投递过的卡（含后来归档的）
     """
 
     jobs: int
