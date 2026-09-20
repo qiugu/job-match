@@ -219,6 +219,23 @@ async def _layout_to_global_settings(data: bytes) -> dict[str, Any] | None:
     return settings
 
 
+async def _run_async_parser_in_thread(parser, data: bytes):
+    """在线程池中运行现有 async 解析器，避免其同步 PDF 工作阻塞事件循环。"""
+    return await asyncio.to_thread(asyncio.run, parser(data))
+
+
+async def _extract_upload_artifacts(
+    data: bytes,
+) -> tuple[str, str, dict[str, Any] | None]:
+    """并发提取上传接口需要的文本、Markdown 骨架和版式设置。"""
+    text, markdown_structure, global_settings = await asyncio.gather(
+        _run_async_parser_in_thread(extract_pdf_text, data),
+        asyncio.to_thread(extract_markdown_via_pymupdf, data),
+        _run_async_parser_in_thread(_layout_to_global_settings, data),
+    )
+    return text, markdown_structure, global_settings
+
+
 def _ensure_owner(r: MasterResume | None, user: User) -> MasterResume:
     """校验记录归属当前用户：非本人记录返回 404，不暴露资源是否存在。"""
     if r is None or r.user_id != user.id:
@@ -274,7 +291,7 @@ async def upload_master_resume(
             detail=f"简历名称「{base_title}」已存在，请重命名文件后重新上传",
         )
     data = await file.read()
-    text = await extract_pdf_text(data)
+    text, markdown_structure, global_settings = await _extract_upload_artifacts(data)
     if not text.strip():
         raise HTTPException(status_code=422, detail="无法从 PDF 提取文本内容")
 
@@ -283,7 +300,6 @@ async def upload_master_resume(
     # 中文字体、自动还原标题层级），失败回退自研 span 级提取，再回退纯文本。
     # pymupdf4llm.to_markdown 是 CPU 密集型同步调用（且需遍历全文档预扫描标题），
     # 必须用 to_thread 卸载到线程池，否则会阻塞整个 asyncio 事件循环、卡死所有并发请求。
-    markdown_structure = await asyncio.to_thread(extract_markdown_via_pymupdf, data)
     if not markdown_structure:
         try:
             markdown_structure = extract_markdown_structure(data)
@@ -296,8 +312,6 @@ async def upload_master_resume(
     # 从 PDF 版式元数据（字体/字号/页边距/分栏/主色）反推 globalSettings，
     # 让导入后的简历在字号/间距/分页上贴近原 PDF（否则固定走默认 16px，
     # 与原 PDF 的字号/视觉差异明显）。版面提取失败不应阻断导入，仅记日志。
-    global_settings = await _layout_to_global_settings(data)
-
     rid = uuid.uuid4().hex
     # 简历先以原始文本存储；结构化 JSON 由前端 pdfjs 解析后随请求更新，或留空由编辑补全
     resume_data = ResumeData(

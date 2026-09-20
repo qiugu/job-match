@@ -6,7 +6,9 @@
 - 详情返回 resumeJson（含回填的 markdownContent）。
 """
 
+import asyncio
 import io
+import threading
 
 import pytest
 
@@ -14,6 +16,8 @@ from conftest import auth_headers
 from app.core.timeutils import utcnow
 from app.models.registration_code import RegistrationCode
 from sqlalchemy import select
+
+import app.api.resume as resume_api
 
 
 def _pdf_bytes(text: str = "John Doe resume content") -> bytes:
@@ -160,3 +164,49 @@ async def test_json_created_id_immediately_fetchable(client, session):
     assert detail.json()["id"] == created_id
     assert detail.json()["title"] == "Imported"
     assert "resumeJson" in detail.json()
+
+
+@pytest.mark.asyncio
+async def test_upload_parser_tasks_run_concurrently(monkeypatch):
+    """上传 PDF 的三个独立解析阶段应并发启动，避免耗时线性叠加。"""
+    started = 0
+    started_lock = threading.Lock()
+    all_started = threading.Event()
+    release = threading.Event()
+
+    def mark_started() -> None:
+        nonlocal started
+        with started_lock:
+            started += 1
+            if started == 3:
+                all_started.set()
+
+    async def fake_text(_data: bytes) -> str:
+        mark_started()
+        await asyncio.to_thread(release.wait, 1)
+        return "plain text"
+
+    async def fake_layout_settings(_data: bytes) -> dict:
+        mark_started()
+        await asyncio.to_thread(release.wait, 1)
+        return {"fontSize": 10}
+
+    def fake_markdown(_data: bytes) -> str:
+        mark_started()
+        release.wait(1)
+        return "# Resume"
+
+    monkeypatch.setattr(resume_api, "extract_pdf_text", fake_text)
+    monkeypatch.setattr(resume_api, "_layout_to_global_settings", fake_layout_settings)
+    monkeypatch.setattr(resume_api, "extract_markdown_via_pymupdf", fake_markdown)
+
+    async def release_when_ready() -> None:
+        await asyncio.to_thread(all_started.wait, 1)
+        release.set()
+
+    result, _ = await asyncio.gather(
+        asyncio.wait_for(resume_api._extract_upload_artifacts(b"pdf"), 2),
+        release_when_ready(),
+    )
+
+    assert result == ("plain text", "# Resume", {"fontSize": 10})
