@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import List
+from typing import List, Self
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,7 +35,29 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.deepseek.com/v1"
     llm_model: str = "deepseek-v4-flash"
     llm_temperature: float = 0.3
-    llm_timeout: int = 300  # LLM 单次请求超时（秒），匹配工作流节点/整体统一沿用此配置
+    llm_timeout: int = 300  # 非匹配 LLM 调用的单次请求超时（秒）
+
+    # 匹配工作流独立预算。节点 timeout 未显式配置时继承整体预算，避免三个
+    # 串行节点各自把总耗时扩张到 MATCH_TOTAL_TIMEOUT_SECONDS 的数倍。
+    match_total_timeout_seconds: float = 300
+    match_extract_timeout_seconds: float | None = None
+    match_analyze_timeout_seconds: float | None = None
+    match_optimize_timeout_seconds: float | None = None
+    # 初始值与现有客户端的 4096 输出限制对齐；待采集分位数后再分阶段收紧。
+    match_extract_max_tokens: int = 4096
+    match_analyze_max_tokens: int = 4096
+    match_optimize_max_tokens: int = 4096
+
+    @model_validator(mode="after")
+    def _inherit_match_stage_timeouts(self) -> Self:
+        for field in (
+            "match_extract_timeout_seconds",
+            "match_analyze_timeout_seconds",
+            "match_optimize_timeout_seconds",
+        ):
+            if getattr(self, field) is None:
+                setattr(self, field, self.match_total_timeout_seconds)
+        return self
 
     # ---------- 登录鉴权 ----------
     # JWT 签名密钥。生产必须显式配置 AUTH_SECRET_KEY：留空时进程会生成随机密钥，

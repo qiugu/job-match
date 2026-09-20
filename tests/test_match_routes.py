@@ -13,12 +13,17 @@
 匹配响应不再包含 hasCoverLetter / coverLetter 字段。
 """
 
-import pytest
+from types import SimpleNamespace
 
+import pytest
+from sqlalchemy import select
+
+import app.services.agent as agent
 from conftest import auth_headers
 from app.core.timeutils import utcnow
+from app.models.derived_resume import DerivedResume
 from app.models.registration_code import RegistrationCode
-from sqlalchemy import select
+from app.schemas.agent import JDAnalysis, MatchResult
 
 
 async def _ensure_code(session, code, grant_credits=20):
@@ -292,3 +297,47 @@ async def test_unlimited_user_not_charged(client, session, monkeypatch):
     assert r.status_code == 200, r.text
     # 无限制账号返回 -1
     assert r.json()["remainingCredits"] == -1
+
+
+@pytest.mark.asyncio
+async def test_truncated_optimization_is_not_persisted(client, session, monkeypatch):
+    token = await _login(client, session, "trunc", "TR1")
+    h = auth_headers(token)
+
+    class StageModel:
+        def __init__(self, stage):
+            self.stage = stage
+
+        def with_structured_output(self, schema, method):  # noqa: ARG002
+            return self
+
+        async def ainvoke(self, prompt, config=None):  # noqa: ARG002
+            if self.stage == "extract":
+                return JDAnalysis(
+                    experiences=[],
+                    hard_skills=["Python"],
+                    soft_skills=[],
+                    plus=[],
+                    rigid=[],
+                )
+            if self.stage == "analyze":
+                return MatchResult(
+                    role="Engineer", score=0.8, requirements=[], summary="ok"
+                )
+            return SimpleNamespace(
+                content="# partial resume",
+                response_metadata={"finish_reason": "length"},
+            )
+
+    monkeypatch.setattr(agent, "is_configured", lambda: True)
+    monkeypatch.setattr(agent, "get_match_llm", lambda stage: StageModel(stage))
+
+    response = await client.post(
+        "/api/derived-resumes",
+        json={"resumeText": "# resume", "jdText": "# jd", "title": "truncated"},
+        headers=h,
+    )
+
+    assert response.status_code == 503
+    rows = (await session.execute(select(DerivedResume))).scalars().all()
+    assert rows == []

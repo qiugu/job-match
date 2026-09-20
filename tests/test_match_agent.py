@@ -81,7 +81,7 @@ async def test_real_extract_failure_stops_downstream_nodes(monkeypatch):
         raise AssertionError("upstream failure must stop the graph")
 
     monkeypatch.setattr(agent, "is_configured", lambda: True)
-    monkeypatch.setattr(agent, "model", FakeModel())
+    monkeypatch.setattr(agent, "get_match_llm", lambda stage: FakeModel())
     monkeypatch.setattr(agent, "resume_match", forbidden_match)
     monkeypatch.setattr(agent, "keyword_optimize", forbidden_optimize)
     monkeypatch.setattr(agent.logger, "error", capture_error)
@@ -119,7 +119,7 @@ async def test_real_match_failure_stops_optimize_node(monkeypatch):
 
     monkeypatch.setattr(agent, "is_configured", lambda: True)
     monkeypatch.setattr(agent, "jd_extract", successful_extract)
-    monkeypatch.setattr(agent, "model", FakeModel())
+    monkeypatch.setattr(agent, "get_match_llm", lambda stage: FakeModel())
     monkeypatch.setattr(agent, "keyword_optimize", forbidden_optimize)
 
     with pytest.raises(RuntimeError, match="resume_match"):
