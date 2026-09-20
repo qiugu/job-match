@@ -29,6 +29,13 @@ class MatchResult(BaseModel):
     summary: str = Field(description="总结摘要建议")
 
 
+class MatchAnalysisBundle(BaseModel):
+    """联合分析节点一次返回的 JD 分类与匹配分析。"""
+
+    jd_analysis: JDAnalysis
+    match_result: MatchResult
+
+
 # 话术生成请求（独立链路，输入仅 resume + jd + scene）
 class CoverLetterRequest(BaseModel):
     resume_text: str = Field(description="简历文本")

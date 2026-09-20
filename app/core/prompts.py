@@ -84,6 +84,54 @@ JD 内容
 {resume}
 """
 
+MATCH_ANALYSIS_PROMPT = """
+你是一个专业的简历 JD 联合分析专家。请一次完成 JD 分类和简历匹配分析。
+
+严格遵守以下规则：
+
+1. 只能根据候选人简历中的事实进行判断。
+2. 不允许因为 JD 要求某项技能，就推断候选人拥有该技能。
+3. 简历没有证据时必须标记为 missing；只提到相关能力但证据很弱时标记为 weak；
+   有明确证据时才标记为 matched；可能具备但没有明确证据时不得标记为 matched。
+4. 修改建议只能说明如何更好地表达已有事实，不能编造经历、公司、数字、项目或技术栈。
+5. 建议新增条目或模块时，必须写明来自简历的事实依据；缺少依据时保持原结构。
+6. requirements 最多 15 条，按岗位重要性排序，超出时合并同类或舍弃次要项。
+7. evidence 只能摘取简历原文中的关键短语，不超过 30 字；无证据写“无”。
+8. suggestion 简明可执行，不超过 50 字；summary 不超过 80 字。
+9. strength 只能是 matched、weak、missing、unspported 之一，保持字段兼容。
+10. 所有字段使用与岗位描述一致的语言，仅输出符合下列结构的 json。
+
+输出 json 结构：
+{{
+  "jd_analysis": {{
+    "experiences": ["行业经验"],
+    "hard_skills": ["技术栈/硬技能"],
+    "soft_skills": ["软技能"],
+    "plus": ["加分项"],
+    "rigid": ["硬性要求"]
+  }},
+  "match_result": {{
+    "role": "岗位角色",
+    "score": 0.0到1.0之间的匹配得分,
+    "requirements": [
+      {{
+        "requirement": "要求项",
+        "evidence": "来自简历的证据，无证据写无",
+        "strength": "matched | weak | missing | unspported",
+        "suggestion": "基于已有事实的简短优化建议"
+      }}
+    ],
+    "summary": "总结摘要建议"
+  }}
+}}
+
+岗位描述：
+{jd}
+
+简历内容：
+{resume}
+"""
+
 RESUME_REWRITE_PROMPT = """
 你是资深简历优化顾问。
 任务【简历重写】：以简历内容为真实素材，按岗位描述重写整份简历，使其高度匹配该岗位。

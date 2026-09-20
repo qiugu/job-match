@@ -1,0 +1,17 @@
+[
+  {
+    "case_id": "zh-backend-short",
+    "resume_text": "# 候选人\n\n## 工作经历\n- 使用 Python 和 FastAPI 开发订单 API，补充自动化测试并降低线上故障率。\n\n## 技能\n- Python、FastAPI、SQL",
+    "jd_text": "招聘后端工程师，要求熟悉 Python、FastAPI、SQL，有接口性能优化经验；熟悉 Kubernetes 者优先。"
+  },
+  {
+    "case_id": "zh-product-weak",
+    "resume_text": "# 候选人\n\n## 工作经历\n- 参与内部工具需求整理，与研发协作完成版本上线。\n\n## 技能\n- 原型设计、用户访谈",
+    "jd_text": "招聘高级产品经理，要求独立负责商业化产品、数据分析、跨团队项目管理，并有三年以上 B 端经验。"
+  },
+  {
+    "case_id": "en-data-medium",
+    "resume_text": "# Candidate\n\n## Experience\n- Built Python ETL jobs for daily sales reports.\n- Added data quality checks and reduced failed jobs by 25%.\n\n## Skills\n- Python, SQL, Airflow",
+    "jd_text": "Data Engineer: design reliable batch pipelines with Python and SQL. Experience with Airflow is required; Spark and cloud warehouse experience are preferred."
+  }
+]

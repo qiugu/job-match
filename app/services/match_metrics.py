@@ -94,7 +94,7 @@ def match_stage(
         usage = usage_callback.usage_for(stage_run_id) if usage_callback else None
         payload = {
             "request_id": request_id,
-            "pipeline_version": "legacy-v1",
+            "pipeline_version": settings.match_pipeline_version,
             "stage": stage,
             "attempt": attempt,
             "effective_model": (

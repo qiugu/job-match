@@ -1,11 +1,10 @@
 """简历匹配 Agent：基于 LangGraph 的多节点工作流。
 
 流程（匹配链路）：
-  1. jd_extract       —— 从 JD 提取关键词（技能/经验/要求），打平为 keywords
-  2. resume_match     —— 基于 JD 分析结果与简历的匹配关系，产出匹配项、优化建议
-                         （MatchResult，已不含话术）
-  3. keyword_optimize —— 关键词/模块级优化：保持简历大结构，在建议指导下
-                         优化措辞，允许有依据时新增/删除条目或模块（markdown）
+  legacy:   jd_extract → resume_match → keyword_optimize
+  combined: analyze_match → keyword_optimize
+
+两条路径最终都产出原有 keywords、MatchResult 和优化后的 markdown。
 
 话术（cover letter）已解耦为独立链路：单次 LLM 调用，不进 LangGraph 图，
 由 `run_cover_letter` 直接产出，支持 greeting/followup/interview 多场景。
@@ -36,10 +35,16 @@ from app.core.prompts import (
     COVER_LETTER_PROMPT,
     COVER_LETTER_SCENES,
     KEYWORDS_OPTIMIZE,
+    MATCH_ANALYSIS_PROMPT,
     RESUME_MATCHER_PROMPT,
 )
 from app.schemas.resume import GlobalSettings, MenuSection, ResumeData
-from app.schemas.agent import AgentState, JDAnalysis, MatchResult
+from app.schemas.agent import (
+    AgentState,
+    JDAnalysis,
+    MatchAnalysisBundle,
+    MatchResult,
+)
 from app.services.match_metrics import MatchStageError, match_request, match_stage
 
 logger = get_logger("agent")
@@ -127,6 +132,7 @@ async def _invoke_match_stage(
     stage_timeout = {
         "jd_extract": settings.match_extract_timeout_seconds,
         "resume_match": settings.match_analyze_timeout_seconds,
+        "analyze_match": settings.match_analyze_timeout_seconds,
         "keyword_optimize": settings.match_optimize_timeout_seconds,
     }[stage_name]
     for attempt in (1, 2):
@@ -232,6 +238,33 @@ async def resume_match(state: AgentState) -> AgentState:
         logger.error("简历匹配节点失败 | error_type=%s", type(e).__name__)
         raise MatchStageError("resume_match", e) from e
     return state
+
+
+async def analyze_match(state: AgentState) -> AgentState:
+    """一次联合提取 JD 分类并生成匹配分析。"""
+
+    prompt = MATCH_ANALYSIS_PROMPT.format(
+        jd=state["jd_text"],
+        resume=state["resume_text"],
+    )
+    try:
+        model_with_structure = get_match_llm("analyze").with_structured_output(
+            MatchAnalysisBundle, method="json_mode"
+        )
+        resp = await _invoke_match_stage(
+            "analyze_match",
+            model_with_structure,
+            prompt,
+            expected_type=MatchAnalysisBundle,
+        )
+        state["jd_analyze_results"] = resp.jd_analysis
+        state["keywords"] = _flatten_keywords(resp.jd_analysis)
+        state["resume_match_results"] = resp.match_result
+    except Exception as e:
+        logger.error("联合匹配分析节点失败 | error_type=%s", type(e).__name__)
+        raise MatchStageError("analyze_match", e) from e
+    return state
+
 
 def _strip(s: str) -> str:
     s = s.strip()
@@ -415,15 +448,17 @@ def build_graph():
     # Pyrefly/ty 无法对 TypedDict 类做结构匹配（langgraph StateT 上界 TypedDictLikeV1/V2，
     # 且其错误码不互通，只能使用无码 ignore）。运行时已验证正常。
     g = StateGraph(AgentState)  # type: ignore
-    g.add_node("jd_extract", jd_extract)
-    g.add_node("resume_match", resume_match)
     g.add_node("keyword_optimize", keyword_optimize)
-
-    g.set_entry_point("jd_extract")
-    g.add_edge("jd_extract", "resume_match")
-    # 已删除 refactor_mode 分支：统一走 keyword_optimize（描述/模块级优化）。
-    # 话术（cover letter）已解耦为独立链路 run_cover_letter，不在此图中路由。
-    g.add_edge("resume_match", "keyword_optimize")
+    if settings.match_pipeline_version == "combined":
+        g.add_node("analyze_match", analyze_match)
+        g.set_entry_point("analyze_match")
+        g.add_edge("analyze_match", "keyword_optimize")
+    else:
+        g.add_node("jd_extract", jd_extract)
+        g.add_node("resume_match", resume_match)
+        g.set_entry_point("jd_extract")
+        g.add_edge("jd_extract", "resume_match")
+        g.add_edge("resume_match", "keyword_optimize")
     g.add_edge("keyword_optimize", END)
     return g.compile()
 

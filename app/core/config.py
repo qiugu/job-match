@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import List, Self
+from typing import List, Literal, Self
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -39,6 +39,7 @@ class Settings(BaseSettings):
 
     # 匹配工作流独立预算。节点 timeout 未显式配置时继承整体预算，避免三个
     # 串行节点各自把总耗时扩张到 MATCH_TOTAL_TIMEOUT_SECONDS 的数倍。
+    match_pipeline_version: Literal["legacy", "combined"] = "legacy"
     match_total_timeout_seconds: float = 300
     match_extract_timeout_seconds: float | None = None
     match_analyze_timeout_seconds: float | None = None
