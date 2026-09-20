@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BarChart3, Briefcase, KeyRound } from "lucide-react";
+import { BarChart3, Briefcase, KeyRound, Shield } from "lucide-react";
 import { toast } from "sonner";
 import {
   IconChevronDown,
@@ -282,6 +282,20 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                     </p>
                   </div>
                   <DropdownMenuSeparator className="bg-xai-hairline-soft" />
+                  {user?.role === "admin" && (
+                    <DropdownMenuItem
+                      onSelect={() => router.push("/app/dashboard/admin")}
+                      className={cn(
+                        "h-9 cursor-pointer gap-2.5 rounded-lg px-2.5 text-[13px] focus:bg-xai-surface-2 focus:text-xai-text",
+                        pathname === "/app/dashboard/admin"
+                          ? "bg-xai-surface-2 font-medium text-xai-text"
+                          : "text-xai-text-mid"
+                      )}
+                    >
+                      <Shield size={15} className="text-xai-mute" />
+                      {t("sidebar.admin")}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onSelect={() => setPasswordOpen(true)}
                     className="h-9 cursor-pointer gap-2.5 rounded-lg px-2.5 text-[13px] text-xai-text-mid focus:bg-xai-surface-2 focus:text-xai-text"

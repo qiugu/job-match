@@ -4,6 +4,8 @@ import { ThemeProvider } from "next-themes";
 import { HeroUIProvider } from "@heroui/react";
 import { useLocale } from "@/i18n/compat/client";
 import { useAuthStore } from "@/store/useAuthStore";
+import { usePathname } from "@/lib/navigation";
+import { trackPageView } from "@/lib/telemetry";
 // 2026-08-29 起本地目录文件同步已停用：简历唯一数据源改为后端 master_resumes，
 // 不再从 Downloads/简历 等本地目录自动扫描并写入 localStorage。
 // import { useResumeDirectorySync } from "@/hooks/useResumeDirectorySync";
@@ -11,6 +13,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 export function Providers({ children }: { children: React.ReactNode }) {
   const locale = useLocale();
   const initializeAuth = useAuthStore((state) => state.initialize);
+  const pathname = usePathname();
   // useResumeDirectorySync();
 
   // 启动/刷新时用本地令牌换取用户信息：过期令牌在这里被清掉，
@@ -18,6 +21,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void initializeAuth();
   }, [initializeAuth]);
+
+  useEffect(() => {
+    void trackPageView(pathname);
+  }, [pathname]);
 
   return (
     <HeroUIProvider locale={locale}>
