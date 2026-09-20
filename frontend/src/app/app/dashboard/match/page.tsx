@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { useLocale, useTranslations } from "@/i18n/compat/client";
 import { toast } from "sonner";
@@ -67,6 +67,11 @@ import {
   type JobSummary,
 } from "@/lib/jobmatch";
 import TaskModePicker, { type TaskMode } from "@/components/match/TaskModePicker";
+import {
+  initialMatchTaskState,
+  isTaskSubmissionLocked,
+  matchTaskReducer,
+} from "@/lib/match-task-state";
 
 // 把毫秒格式化为「秒.十分位」，如 1.2s / 12.3s；超过 60s 显示 m:ss
 function formatElapsed(ms: number): string {
@@ -193,8 +198,14 @@ export default function JobMatchPage() {
   const [masters, setMasters] = useState<MasterResumeSummary[]>([]);
   const [selected, setSelected] = useState<ResumeSource | null>(null);
   const [jdText, setJdText] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
-  const [elapsedMs, setElapsedMs] = useState<number>(0);
+  const [taskState, dispatchTask] = useReducer(
+    matchTaskReducer<MatchResult>,
+    initialMatchTaskState<MatchResult>()
+  );
+  const { result, matchPending, pitchPending, pitchError } = taskState;
+  const loading = isTaskSubmissionLocked(taskState);
+  const [matchElapsedMs, setMatchElapsedMs] = useState<number>(0);
+  const [pitchElapsedMs, setPitchElapsedMs] = useState<number>(0);
   // 任务类型：默认「打招呼话术」（轻操作，先建立机会），重操作（定制简历）留给有正反馈的岗位。
   // 三者是平级入口——话术不再需要先跑完匹配才能进入。
   const [taskMode, setTaskMode] = useState<TaskMode>("pitch");
@@ -209,8 +220,15 @@ export default function JobMatchPage() {
       return null;
     }
   });
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [result, setResult] = useState<MatchResult | null>(null);
+  const timersRef = useRef<
+    Record<"match" | "pitch", { startedAt: number; timer: ReturnType<typeof setInterval> | null }>
+  >({
+    match: { startedAt: 0, timer: null },
+    pitch: { startedAt: 0, timer: null },
+  });
+  const requestSequenceRef = useRef(0);
+  const activeRequestRef = useRef(0);
+  const taskPendingRef = useRef(false);
   const [accepted, setAccepted] = useState<boolean>(false);
   const [accepting, setAccepting] = useState<boolean>(false);
   // 接受后询问「是否立刻编辑简历」的弹窗；pendingMasterId 为落库的 master resume id
@@ -304,29 +322,50 @@ export default function JobMatchPage() {
     router.push("/app/dashboard/resumes");
   };
 
-  // 计时器启停：开始任务时启动，结束（成功/失败）时清理
-  const startTimer = () => {
-    setElapsedMs(0);
-    const startedAt = Date.now();
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setElapsedMs(Date.now() - startedAt);
+  // 匹配与话术分别计时，避免第二阶段继续运行时覆盖第一阶段耗时。
+  const startPhaseTimer = (phase: "match" | "pitch") => {
+    const timerState = timersRef.current[phase];
+    if (timerState.timer) clearInterval(timerState.timer);
+    timerState.startedAt = Date.now();
+    const setElapsed = phase === "match" ? setMatchElapsedMs : setPitchElapsedMs;
+    setElapsed(0);
+    timerState.timer = setInterval(() => {
+      setElapsed(Date.now() - timerState.startedAt);
     }, 100);
   };
-  const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+  const stopPhaseTimer = (phase: "match" | "pitch") => {
+    const timerState = timersRef.current[phase];
+    if (timerState.startedAt) {
+      const setElapsed = phase === "match" ? setMatchElapsedMs : setPitchElapsedMs;
+      setElapsed(Date.now() - timerState.startedAt);
     }
+    if (timerState.timer) clearInterval(timerState.timer);
+    timerState.timer = null;
+    timerState.startedAt = 0;
   };
 
-  /** 生成一次话术（不跑匹配）。返回新话术 id，失败返回 null。 */
+  useEffect(() => {
+    return () => {
+      for (const phase of ["match", "pitch"] as const) {
+        const timer = timersRef.current[phase].timer;
+        if (timer) clearInterval(timer);
+      }
+      activeRequestRef.current = ++requestSequenceRef.current;
+      taskPendingRef.current = false;
+    };
+  }, []);
+
+  const isActiveRequest = (requestId: number) =>
+    activeRequestRef.current === requestId;
+
+  /** 生成一次话术（不跑匹配）；调用方负责更新对应阶段状态。 */
   const generatePitch = async (
     baseText: string,
     scene: CoverLetterScene,
+    requestId: number,
     derivedResumeId?: string,
     jdOverride?: string
-  ): Promise<string | null> => {
+  ): Promise<{ id: string } | { error: string }> => {
     try {
       const letter = await createCoverLetter({
         resume_text: baseText,
@@ -334,41 +373,56 @@ export default function JobMatchPage() {
         scene,
         derived_resume_id: derivedResumeId,
       });
+      if (!isActiveRequest(requestId)) return { error: "stale request" };
       // 写链路自动挂载岗位卡：把返回的 job_id 记入当前上下文
       if (typeof letter.job_id === "string") setCurrentJobId(letter.job_id);
       if (typeof letter.remaining_credits === "number") {
         useAuthStore.getState().applyCredits(letter.remaining_credits);
       }
-      return letter.id;
+      return { id: letter.id };
     } catch (err) {
       console.error("生成话术失败:", err);
       const status = (err as Error & { status?: number }).status;
-      toast.error(
-        status === 403 ? (err as Error).message : t("pitchGenerateError")
-      );
-      return null;
+      const error = status === 403 ? (err as Error).message : t("pitchGenerateError");
+      if (isActiveRequest(requestId)) toast.error(error);
+      return { error };
     }
   };
 
-  /** 仅话术模式：跳过简历优化链路，直接生成话术（约 2 秒，不产出匹配结果）。 */
-  const handlePitchOnly = async (baseText: string, jdOverride?: string) => {
-    setLoading(true);
-    setSoloPitchId(null);
-    startTimer();
+  /** 仅话术模式：跳过简历优化链路，直接生成话术。 */
+  const handlePitchOnly = async (
+    baseText: string,
+    requestId: number,
+    jdOverride?: string
+  ) => {
+    startPhaseTimer("pitch");
     try {
-      const id = await generatePitch(baseText, pitchScene, undefined, jdOverride);
-      if (id) {
-        setSoloPitchId(id);
+      const outcome = await generatePitch(
+        baseText,
+        pitchScene,
+        requestId,
+        undefined,
+        jdOverride
+      );
+      if (!isActiveRequest(requestId)) return;
+      stopPhaseTimer("pitch");
+      if ("id" in outcome) {
+        dispatchTask({ type: "pitch-succeeded", requestId });
+        setSoloPitchId(outcome.id);
         try {
-          localStorage.setItem(STORAGE_KEY_LAST_PITCH, id);
+          localStorage.setItem(STORAGE_KEY_LAST_PITCH, outcome.id);
         } catch {
           /* 忽略 localStorage 不可用的情况 */
         }
         toast.success(t("pitchGenerated"));
+      } else {
+        dispatchTask({ type: "pitch-failed", requestId, error: outcome.error });
       }
     } finally {
-      stopTimer();
-      setLoading(false);
+      if (isActiveRequest(requestId)) {
+        stopPhaseTimer("pitch");
+        taskPendingRef.current = false;
+      }
     }
   };
 
@@ -385,17 +439,25 @@ export default function JobMatchPage() {
       return;
     }
     if (!effJd.trim()) return;
+    // React 状态更新前也同步加锁，拦住同一事件循环内的双击重复扣费。
+    if (taskPendingRef.current) return;
+
+    const requestId = ++requestSequenceRef.current;
+    activeRequestRef.current = requestId;
+    taskPendingRef.current = true;
+    dispatchTask({ type: "task-started", requestId, mode });
+    setMatchElapsedMs(0);
+    setPitchElapsedMs(0);
+    setSoloPitchId(null);
+    setAccepted(false);
 
     // 仅话术：不触发匹配，直接生成（话术与匹配是平级入口）
     if (mode === "pitch") {
-      await handlePitchOnly(baseText, effJd);
+      await handlePitchOnly(baseText, requestId, effJd);
       return;
     }
 
-    setLoading(true);
-    setResult(null);
-    setSoloPitchId(null);
-    startTimer();
+    startPhaseTimer("match");
     try {
       const payload: CreateMatchPayload = {
         resumeText: baseText,
@@ -403,7 +465,15 @@ export default function JobMatchPage() {
         title: selected.title,
       };
       const data = await createMatch(payload);
-      setResult(data);
+      if (!isActiveRequest(requestId)) return;
+      stopPhaseTimer("match");
+      const continueWithPitch = mode === "both" && Boolean(data.id);
+      dispatchTask({
+        type: "match-succeeded",
+        requestId,
+        result: data,
+        continueWithPitch,
+      });
       setAccepted(Boolean(data.accepted));
       // 写链路自动挂载岗位卡：把返回的 jobId 记入当前上下文
       if (typeof data.jobId === "string") setCurrentJobId(data.jobId);
@@ -420,19 +490,39 @@ export default function JobMatchPage() {
       if (typeof data.remainingCredits === "number") {
         useAuthStore.getState().applyCredits(data.remainingCredits);
       }
-      // 「两者都要」：匹配完成后按当前场景接着生成话术（话术约 2 秒，
-      // 失败不回滚已产出的匹配结果，仅提示）。
-      if (mode === "both" && data.id) {
-        await generatePitch(baseText, pitchScene, data.id, effJd);
+      // 「两者都要」仍在匹配成功后生成话术，以保留 derived_resume_id 关联。
+      if (continueWithPitch) {
+        startPhaseTimer("pitch");
+        const outcome = await generatePitch(
+          baseText,
+          pitchScene,
+          requestId,
+          data.id,
+          effJd
+        );
+        if (!isActiveRequest(requestId)) return;
+        stopPhaseTimer("pitch");
+        if ("id" in outcome) {
+          dispatchTask({ type: "pitch-succeeded", requestId });
+          toast.success(t("pitchGenerated"));
+        } else {
+          dispatchTask({ type: "pitch-failed", requestId, error: outcome.error });
+        }
       }
     } catch (err) {
+      if (!isActiveRequest(requestId)) return;
       console.error("Match failed:", err);
       // 403=积分不足：直接展示后端提示，其余错误走通用文案
       const status = (err as Error & { status?: number }).status;
-      toast.error(status === 403 ? (err as Error).message : t("matchError"));
+      const error = status === 403 ? (err as Error).message : t("matchError");
+      dispatchTask({ type: "match-failed", requestId, error });
+      toast.error(error);
     } finally {
-      stopTimer();
-      setLoading(false);
+      if (isActiveRequest(requestId)) {
+        stopPhaseTimer("match");
+        stopPhaseTimer("pitch");
+        taskPendingRef.current = false;
+      }
     }
   };
 
@@ -501,7 +591,7 @@ export default function JobMatchPage() {
   // 「接受」= 把匹配结果采纳并落库为「我的简历」中的一份资产（后端按 markdown 去重复用）。
   // 落库成功后弹窗询问是否立刻打开编辑器微调，用户也可选择稍后。
   const handleAccept = async () => {
-    if (!result) return;
+    if (!result || taskPendingRef.current) return;
     setAccepting(true);
     try {
       const res = await acceptMatch(result.id, true);
@@ -557,6 +647,7 @@ export default function JobMatchPage() {
 
   const hasAnyResume = masters.length > 0;
   const hasAnalysis = !!result?.matchAnalysis;
+  const showTaskSkeleton = !result && (matchPending || pitchPending);
 
   return (
     <div className="h-full w-full">
@@ -753,7 +844,7 @@ export default function JobMatchPage() {
                     <Crosshair className="h-4 w-4 transition-transform group-hover:rotate-90" />
                   )}
                   {loading
-                    ? taskMode === "pitch"
+                    ? pitchPending
                       ? t("generatingPitch")
                       : t("matching")
                     : taskMode === "pitch"
@@ -828,7 +919,7 @@ export default function JobMatchPage() {
             </header>
 
             {/* 结果区 body：滚动区 + sticky 底部 */}
-            {loading ? (
+            {showTaskSkeleton ? (
               <div className="flex-1 space-y-4 px-6 py-5">
                 <div
                   className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"
@@ -839,15 +930,15 @@ export default function JobMatchPage() {
                   }}
                 >
                   <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
-                  {taskMode === "pitch"
+                  {pitchPending
                     ? t("generatingPitchDesc")
                     : t("matchingDesc")}
                   <span className="ml-auto tabular-nums font-medium">
-                    {formatElapsed(elapsedMs)}
+                    {formatElapsed(pitchPending ? pitchElapsedMs : matchElapsedMs)}
                   </span>
                 </div>
-                {taskMode === "pitch" ? (
-                  // 仅话术：约 2 秒出结果，骨架按话术形态给（一段正文 + 操作条）
+                {pitchPending ? (
+                  // 仅话术骨架按话术形态给（一段正文 + 操作条）
                   <div className="space-y-3 rounded-lg border border-border p-4">
                     <Skeleton className="h-5 w-20" />
                     <Skeleton className="h-4 w-full" />
@@ -987,7 +1078,36 @@ export default function JobMatchPage() {
                       </TabsTrigger>
                     )}
                   </TabsList>
+                  <div className="flex items-center gap-3 pb-3 font-mono text-[11px] text-muted-foreground">
+                    <span>
+                      {t("matchAnalysis")} {formatElapsed(matchElapsedMs)}
+                    </span>
+                    {(pitchPending || pitchElapsedMs > 0) && (
+                      <span>
+                        {t("matchAnalysisCoverLetter")} {formatElapsed(pitchElapsedMs)}
+                      </span>
+                    )}
+                  </div>
                 </div>
+
+                {(pitchPending || pitchError) && (
+                  <div
+                    className={cn(
+                      "mx-6 mt-4 flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm",
+                      pitchError
+                        ? "border-destructive/30 bg-destructive/5 text-destructive"
+                        : "border-primary/25 bg-primary/[0.06] text-primary"
+                    )}
+                  >
+                    {pitchPending && <Loader2 className="h-4 w-4 shrink-0 animate-spin" />}
+                    <span>{pitchPending ? t("generatingPitchDesc") : pitchError}</span>
+                    {pitchPending && (
+                      <span className="ml-auto tabular-nums font-medium">
+                        {formatElapsed(pitchElapsedMs)}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 <ScrollArea className="min-h-0 flex-1">
                   <div className="px-6 py-5">
@@ -1047,9 +1167,9 @@ export default function JobMatchPage() {
                                 type="button"
                                 className="xai-pill-primary"
                                 onClick={handleAccept}
-                                disabled={accepting}
+                                disabled={loading || accepting}
                               >
-                                {accepting ? (
+                                {accepting || loading ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
                                   <Check className="h-4 w-4" />
@@ -1329,12 +1449,21 @@ export default function JobMatchPage() {
                         挂载 CoverLetterPanel：按 derivedResumeId 从 DB 加载历史话术，
                         支持多场景生成 / 列表 / 编辑 / 重生成 / 删除。 */}
                     <TabsContent value="pitch" className="mt-4">
-                      <CoverLetterPanel
-                        resumeText={selected ? matchBaseText(selected) : ""}
-                        jdText={jdText}
-                        derivedResumeId={result?.id}
-                        jobId={currentJobId ?? undefined}
-                      />
+                      {pitchPending ? (
+                        <div className="rounded-[10px] border border-border bg-card p-5 text-[13px] text-muted-foreground">
+                          <span className="flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            {t("generatingPitchDesc")}
+                          </span>
+                        </div>
+                      ) : (
+                        <CoverLetterPanel
+                          resumeText={selected ? matchBaseText(selected) : ""}
+                          jdText={jdText}
+                          derivedResumeId={result?.id}
+                          jobId={currentJobId ?? undefined}
+                        />
+                      )}
                     </TabsContent>
                   </div>
                 </ScrollArea>

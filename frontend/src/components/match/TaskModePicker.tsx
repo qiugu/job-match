@@ -1,7 +1,7 @@
 // 任务类型选择器：JD 简历匹配 / JD 话术匹配 / 两者都要。
 //
 // 三者是平级入口——话术不再依附于「先跑完匹配」的二级 tab。
-// 仅话术模式不会触发耗时 2 分钟左右的简历优化链路，直接生成话术（约 2 秒）。
+// 仅话术模式不会触发简历优化链路，直接生成话术。
 import { Check, Crosshair, Mail, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/i18n/compat/client";
