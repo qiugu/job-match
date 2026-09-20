@@ -17,6 +17,7 @@ from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.services.agent as agent
 from conftest import auth_headers
@@ -155,6 +156,53 @@ async def test_create_match_refunds_when_post_llm_persistence_fails(
         )
     ).scalar_one()
     assert credits_after.credits == credits_before
+
+
+@pytest.mark.asyncio
+async def test_create_match_does_not_refund_after_commit_when_refresh_fails(
+    client, session, monkeypatch
+):
+    """结果已提交后即使响应刷新失败，也不能把已消费积分退回。"""
+    token = await _login(client, session, "refresh-fail", "RF1")
+    h = auth_headers(token)
+    monkeypatch.setattr("app.api.match.run_match", _fake_run_match)
+
+    user = (
+        await session.execute(select(User).where(User.username == "refresh-fail"))
+    ).scalar_one()
+    credits_before = user.credits
+    original_refresh = AsyncSession.refresh
+
+    async def fail_derived_refresh(self, instance, *args, **kwargs):
+        if isinstance(instance, DerivedResume):
+            raise RuntimeError("synthetic post-commit refresh failure")
+        return await original_refresh(self, instance, *args, **kwargs)
+
+    monkeypatch.setattr(AsyncSession, "refresh", fail_derived_refresh)
+
+    response = await client.post(
+        "/api/derived-resumes",
+        json={
+            "resumeText": "# resume",
+            "jdText": "# committed refresh failure jd",
+            "title": "committed-before-refresh",
+        },
+        headers=h,
+    )
+
+    assert response.status_code == 503
+    derived = (await session.execute(select(DerivedResume))).scalars().all()
+    jobs = (await session.execute(select(Job))).scalars().all()
+    assert len(derived) == len(jobs) == 1
+    assert derived[0].job_id == jobs[0].id
+    credits_after = (
+        await session.execute(
+            select(User)
+            .where(User.username == "refresh-fail")
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+    assert credits_after.credits == credits_before - 5
 
 
 @pytest.mark.asyncio

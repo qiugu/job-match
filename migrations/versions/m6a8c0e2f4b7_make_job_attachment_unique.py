@@ -36,6 +36,23 @@ def _sort_time(value: datetime | None) -> datetime:
     return value or datetime.max
 
 
+def _newest_non_empty(duplicates: list[sa.RowMapping], field: str) -> str:
+    """按更新时间选择字段最新非空值；同一时刻以 id 做稳定决胜。"""
+    candidates = [
+        row for row in duplicates if str(row[field] or "").strip()
+    ]
+    if not candidates:
+        return ""
+    selected = max(
+        candidates,
+        key=lambda row: (
+            row["updated_at"] or row["created_at"] or datetime.min,
+            row["id"],
+        ),
+    )
+    return selected[field]
+
+
 def _merge_duplicate_jobs() -> None:
     bind = op.get_bind()
     rows = bind.execute(
@@ -74,8 +91,9 @@ def _merge_duplicate_jobs() -> None:
                 ],
             )
 
-        # canonical 使用最强阶段，并保留可用的标题/公司与最大更新时间；ID 和创建时间
-        # 始终来自最早卡，使外部已有链接保持稳定。
+        # canonical 使用最强阶段；标题和公司分别选择最新的非空编辑值，避免一个字段
+        # 为空的最新记录遮蔽另一条记录上的有效编辑。ID 和创建时间始终来自最早卡，
+        # 使外部已有链接保持稳定。
         strongest = max(
             duplicates,
             key=lambda row: (
@@ -83,12 +101,8 @@ def _merge_duplicate_jobs() -> None:
                 row["updated_at"] or row["created_at"] or datetime.min,
             ),
         )
-        latest = max(
-            duplicates,
-            key=lambda row: row["updated_at"] or row["created_at"] or datetime.min,
-        )
-        title = canonical["title"] or latest["title"] or ""
-        company = canonical["company"] or latest["company"] or ""
+        title = _newest_non_empty(duplicates, "title")
+        company = _newest_non_empty(duplicates, "company")
         updated_at = max(
             (
                 row["updated_at"] or row["created_at"]

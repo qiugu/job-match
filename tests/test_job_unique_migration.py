@@ -38,14 +38,27 @@ def test_job_uniqueness_migration_reparents_associated_records(tmp_path: Path) -
         connection.execute(
             "INSERT INTO jobs "
             "(id, user_id, jd_text, title, company, status, created_at, updated_at) "
-            "VALUES ('job-old', 'user-1', 'Python engineer', 'old', '', "
+            "VALUES ('job-old', 'user-1', 'Python engineer', 'original title', "
+            "'original company', "
             "'greeting_sent', '2026-01-01', '2026-01-01')"
         )
         connection.execute(
             "INSERT INTO jobs "
             "(id, user_id, jd_text, title, company, status, created_at, updated_at) "
-            "VALUES ('job-new', 'user-1', 'Python engineer', 'new', '', "
-            "'resume_ready', '2026-02-01', '2026-02-01')"
+            "VALUES ('job-mid-a', 'user-1', 'Python engineer', 'edited title a', '', "
+            "'applied', '2026-01-15', '2026-03-01')"
+        )
+        connection.execute(
+            "INSERT INTO jobs "
+            "(id, user_id, jd_text, title, company, status, created_at, updated_at) "
+            "VALUES ('job-mid-b', 'user-1', 'Python engineer', 'edited title b', '', "
+            "'resume_ready', '2026-01-16', '2026-03-01')"
+        )
+        connection.execute(
+            "INSERT INTO jobs "
+            "(id, user_id, jd_text, title, company, status, created_at, updated_at) "
+            "VALUES ('job-new', 'user-1', 'Python engineer', '', 'latest company', "
+            "'resume_ready', '2026-02-01', '2026-04-01')"
         )
         connection.execute(
             "INSERT INTO derived_resumes "
@@ -60,12 +73,12 @@ def test_job_uniqueness_migration_reparents_associated_records(tmp_path: Path) -
             "(id, derived_resume_id, content, created_at, updated_at, user_id, "
             "resume_text, jd_text, scene, model, job_id) VALUES "
             "('letter-1', NULL, 'hello', '2026-02-01', '2026-02-01', 'user-1', "
-            "'# resume', 'Python engineer', 'greeting', '', 'job-new')"
+            "'# resume', 'Python engineer', 'greeting', '', 'job-mid-a')"
         )
         connection.execute(
             "INSERT INTO job_status_events "
             "(id, user_id, job_id, from_status, to_status, source, occurred_at) "
-            "VALUES ('event-1', 'user-1', 'job-new', NULL, 'resume_ready', "
+            "VALUES ('event-1', 'user-1', 'job-mid-b', NULL, 'resume_ready', "
             "'create', '2026-02-01')"
         )
         connection.commit()
@@ -77,8 +90,18 @@ def test_job_uniqueness_migration_reparents_associated_records(tmp_path: Path) -
             "SELECT version_num FROM alembic_version"
         ).fetchone() == (NEW_HEAD,)
         assert connection.execute(
-            "SELECT id FROM jobs WHERE user_id = 'user-1' AND jd_text = 'Python engineer'"
-        ).fetchall() == [("job-old",)]
+            "SELECT id, title, company, status, created_at, updated_at FROM jobs "
+            "WHERE user_id = 'user-1' AND jd_text = 'Python engineer'"
+        ).fetchall() == [
+            (
+                "job-old",
+                "edited title b",
+                "latest company",
+                "applied",
+                "2026-01-01",
+                "2026-04-01",
+            )
+        ]
         assert connection.execute(
             "SELECT job_id FROM derived_resumes WHERE id = 'derived-1'"
         ).fetchone() == ("job-old",)
