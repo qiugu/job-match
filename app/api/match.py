@@ -96,8 +96,9 @@ async def create_match(
     # 匹配会消耗积分：调用前原子预扣，失败则归还。
     # 管理员与无限制账号（credits < 0）不参与扣减。
     reserved = False
+    user_id = user.id
     if not user.unlimited_credits:
-        if not await consume_credits(user.id, settings.resume_match_cost):
+        if not await consume_credits(user_id, settings.resume_match_cost):
             raise HTTPException(
                 status_code=403,
                 detail=(
@@ -108,69 +109,56 @@ async def create_match(
             )
         reserved = True
 
+    result_committed = False
     try:
         # 用量台账（Plan.md R1）：整段匹配工作流的 token 与耗时留痕；
         # 内部多节点 LLM 调用会被汇总成一条记录，失败同样记 status=error。
         with match_request(uuid.uuid4().hex):
-            async with track_llm(ENDPOINT_MATCH, user_id=user.id):
+            async with track_llm(ENDPOINT_MATCH, user_id=user_id):
                 keywords, resume_md, analysis = await run_match(
                     master_text=req.resumeText,
                     jd_text=req.jdText,
                 )
+
+        did = uuid.uuid4().hex
+        # 标题冲突时自动追加「自动1/自动2…」，确保 JD 生成的简历名称唯一
+        title = await _unique_derived_title(
+            db, req.title or "匹配简历", user_id
+        )
+
+        # 自动挂载岗位卡：归一化 JD 查重，命中复用旧卡，未命中建新卡。
+        job = await attach_or_create_job(
+            db, user_id, req.jdText, initial_status=JOB_STATUS_RESUME_READY
+        )
+        derived = DerivedResume(
+            id=did,
+            user_id=user_id,
+            job_id=job.id,
+            title=title,
+            jd_text=req.jdText,
+            markdown_content=resume_md,
+            keywords=json.dumps(keywords),
+            analysis_json=json.dumps(analysis) if analysis is not None else None,
+        )
+        db.add(derived)
+        await promote_for_action(db, job, JOB_STATUS_RESUME_READY)
+        await db.commit()
+        result_committed = True
+        await db.refresh(derived)
     except RuntimeError as e:
-        # LLM 未配置、超时、LLM 调用失败等可预期错误，返回 503 而非 500
-        # 节点 stage 日志已记录失败位置；这里只记类型，避免异常正文进入日志。
-        if reserved:
-            await refund_credits(user.id, settings.resume_match_cost)
+        # LLM 或提交前持久化失败都没有可用产出：先释放主会话事务/SQLite 写锁，
+        # 再用 quota 的独立短事务退款。commit 成功后的 refresh/响应故障不得退款。
+        if not result_committed:
+            await db.rollback()
+            if reserved:
+                await refund_credits(user_id, settings.resume_match_cost)
         logger.warning("创建匹配失败（503） | error_type=%s", type(e).__name__)
         raise HTTPException(status_code=503, detail=str(e))
     except Exception:
-        if reserved:
-            await refund_credits(user.id, settings.resume_match_cost)
-        raise
-
-    did = uuid.uuid4().hex
-    now = _now_iso()
-    # 标题冲突时自动追加「自动1/自动2…」，确保 JD 生成的简历名称唯一
-    title = await _unique_derived_title(
-        db, req.title or "匹配简历", user.id
-    )
-
-    # 自动挂载岗位卡：归一化 JD 查重，命中复用旧卡，未命中建新卡；
-    # 返回 job.id 写入匹配结果的 job_id（实现「匹配即建档、刷新不丢上下文」）。
-    # V2：首动作定初始态——新建卡（match-first）直接进入 resume_ready；
-    # 复用旧卡不在此处改状态，统一由下方 promote_for_action 决定推进。
-    job = await attach_or_create_job(
-        db, user.id, req.jdText, initial_status=JOB_STATUS_RESUME_READY
-    )
-
-    # 匹配结果即 markdown 简历文本（非结构化 JSON 模块化简历）
-    # 话术已解耦为独立链路（/api/cover-letters），匹配结果不再内联生成求职信。
-    derived = DerivedResume(
-        id=did,
-        user_id=user.id,
-        job_id=job.id,
-        title=title,
-        jd_text=req.jdText,
-        markdown_content=resume_md,
-        keywords=json.dumps(keywords),
-        # V2：匹配分析（MatchResult 结构）随结果一并落库，
-        # 供岗位详情「回看匹配结果」；analysis 为 None（历史/异常）时留空。
-        analysis_json=json.dumps(analysis) if analysis is not None else None,
-        # 话术已解耦为独立资源，DerivedResume 不再持有任何话术关联字段。
-    )
-    db.add(derived)
-    # V2：任何一次成功生成定制简历即自动推进到 resume_ready（生成即触发，
-    # 不再依赖「接受」）；只前进不回退；closed 卡重新生成视为重新激活。
-    await promote_for_action(db, job, JOB_STATUS_RESUME_READY)
-    try:
-        db.add(derived)
-        await db.commit()
-        await db.refresh(derived)
-    except Exception:
-        # 落库失败：这次匹配没产出可用结果，归还预扣积分
-        if reserved:
-            await refund_credits(user.id, settings.resume_match_cost)
+        if not result_committed:
+            await db.rollback()
+            if reserved:
+                await refund_credits(user_id, settings.resume_match_cost)
         raise
 
     remaining = await _remaining_credits(db, user)

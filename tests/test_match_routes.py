@@ -22,7 +22,9 @@ import app.services.agent as agent
 from conftest import auth_headers
 from app.core.timeutils import utcnow
 from app.models.derived_resume import DerivedResume
+from app.models.job import Job
 from app.models.registration_code import RegistrationCode
+from app.models.user import User
 from app.schemas.agent import JDAnalysis, MatchResult
 
 
@@ -109,6 +111,50 @@ async def test_create_match_returns_job_id(client, session, monkeypatch):
     )
     assert r.status_code == 200, r.text
     assert isinstance(r.json().get("jobId"), str) and r.json()["jobId"]
+
+
+@pytest.mark.asyncio
+async def test_create_match_refunds_when_post_llm_persistence_fails(
+    client, session, monkeypatch
+):
+    """预扣后任一结果/岗位持久化失败，都必须回滚主事务并归还积分。"""
+    token = await _login(client, session, "persist-fail", "PF1")
+    h = auth_headers(token)
+    monkeypatch.setattr("app.api.match.run_match", _fake_run_match)
+
+    before = (
+        await session.execute(select(User).where(User.username == "persist-fail"))
+    ).scalar_one()
+    credits_before = before.credits
+
+    async def fail_after_job_and_result_are_pending(db, job, action_status):
+        raise RuntimeError("synthetic persistence failure")
+
+    monkeypatch.setattr(
+        "app.api.match.promote_for_action", fail_after_job_and_result_are_pending
+    )
+
+    response = await client.post(
+        "/api/derived-resumes",
+        json={
+            "resumeText": "# resume",
+            "jdText": "# persistence failure jd",
+            "title": "must-not-persist",
+        },
+        headers=h,
+    )
+
+    assert response.status_code == 503
+    assert (await session.execute(select(DerivedResume))).scalars().all() == []
+    assert (await session.execute(select(Job))).scalars().all() == []
+    credits_after = (
+        await session.execute(
+            select(User)
+            .where(User.username == "persist-fail")
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+    assert credits_after.credits == credits_before
 
 
 @pytest.mark.asyncio

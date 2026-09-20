@@ -22,6 +22,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.text_utils import normalize_jd_text
@@ -63,6 +64,23 @@ def _derive_title(jd_text: str) -> str:
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+async def _ensure_sqlite_write_transaction(db: AsyncSession) -> None:
+    """在 SAVEPOINT 前真正开启 SQLite 外层写事务。
+
+    sqlite3 的 legacy transaction mode 不会因 SELECT / SQLAlchemy autobegin 发出 BEGIN；
+    此时顶层 SAVEPOINT 被 RELEASE 后会直接持久化，随后外层 rollback 无法撤销岗位卡。
+    BEGIN IMMEDIATE 同时让并发建卡先串行取得写锁，避免两个写者在 flush/commit 间
+    相互锁升级。已有真实事务（例如调用方已有未提交子记录）则保持原状。
+    """
+    connection = await db.connection()
+    if connection.dialect.name != "sqlite":
+        return
+    raw = await connection.get_raw_connection()
+    driver_connection = raw.driver_connection
+    if not driver_connection.in_transaction:
+        await connection.exec_driver_sql("BEGIN IMMEDIATE")
 
 
 async def _has_derived(db: AsyncSession, job_id: str) -> bool:
@@ -229,17 +247,6 @@ async def attach_or_create_job(
     归一化与 detect 端点共用 normalize_jd_text，保证语义一致。
     """
     normalized = normalize_jd_text(jd_text)
-    if normalized:
-        existing = (
-            await db.execute(
-                select(Job).where(
-                    Job.user_id == user_id, Job.jd_text == normalized
-                )
-            )
-        ).scalar_one_or_none()
-        if existing is not None:
-            return existing
-
     job = Job(
         id=_id(),
         user_id=user_id,
@@ -249,22 +256,39 @@ async def attach_or_create_job(
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )
-    # 仅登记进会话，不在本次调用内 flush：避免提前开启写事务，
-    # 与「预扣共享额度」使用独立会话的写操作在 SQLite 下争锁（database is locked）。
-    # 调用方在挂好子记录后统一 commit，由 SQLAlchemy 依 FK 依赖顺序先插 jobs 再插子表。
-    db.add(job)
-    # 建卡事实：from_status 为 NULL（无前驱），occurred_at 取建卡时刻。
-    # 与 jobs 同事务提交，故此处同样不 flush。
-    await record_status_event(
-        db,
-        job_id=job.id,
-        user_id=user_id,
-        from_status=None,
-        to_status=job.status,
-        source=EVENT_SOURCE_CREATE,
-        occurred_at=job.created_at,
-    )
-    return job
+    await _ensure_sqlite_write_transaction(db)
+    try:
+        # 唯一约束是并发正确性的最终裁决者。候选岗位卡及其 create 事件放在
+        # SAVEPOINT 内 flush：撞键只回滚本次候选，不会清掉调用方在外层事务中
+        # 已有的子记录/状态事件。SQLite 下第二个写者会等首个事务结束后在此撞键。
+        async with db.begin_nested():
+            db.add(job)
+            await record_status_event(
+                db,
+                job_id=job.id,
+                user_id=user_id,
+                from_status=None,
+                to_status=job.status,
+                source=EVENT_SOURCE_CREATE,
+                occurred_at=job.created_at,
+            )
+            await db.flush()
+        return job
+    except IntegrityError:
+        # begin_nested 已回滚失败候选及其 create 事件，外层 session 仍可继续使用。
+        # order/limit 也让尚未执行迁移的历史重复库安全退化，不再触发
+        # MultipleResultsFound；启动时 Alembic 会将这些重复记录无损收敛。
+        existing = (
+            await db.execute(
+                select(Job)
+                .where(Job.user_id == user_id, Job.jd_text == normalized)
+                .order_by(Job.created_at.asc(), Job.id.asc())
+                .limit(1)
+            )
+        ).scalars().first()
+        if existing is None:
+            raise
+        return existing
 
 
 async def detect_job(db: AsyncSession, user_id: str, jd_text: str) -> str | None:
@@ -277,11 +301,12 @@ async def detect_job(db: AsyncSession, user_id: str, jd_text: str) -> str | None
         return None
     job_id = (
         await db.execute(
-            select(Job.id).where(
-                Job.user_id == user_id, Job.jd_text == normalized
-            )
+            select(Job.id)
+            .where(Job.user_id == user_id, Job.jd_text == normalized)
+            .order_by(Job.created_at.asc(), Job.id.asc())
+            .limit(1)
         )
-    ).scalar_one_or_none()
+    ).scalars().first()
     return job_id
 
 

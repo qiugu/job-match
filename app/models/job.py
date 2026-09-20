@@ -21,7 +21,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Text, DateTime, ForeignKey
+from sqlalchemy import DateTime, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -60,6 +60,11 @@ JOB_STATUS_ACTIVE = ("greeting_sent", "resume_ready")
 
 class Job(Base):
     __tablename__ = "jobs"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "jd_text", name="uq_jobs_user_id_jd_text"
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_id)
     # 归属用户（与项目其他 user_id 一致：String(32)，可空默认空串表示无归属）
