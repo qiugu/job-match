@@ -23,6 +23,7 @@ from app.models.user import UNLIMITED_CREDITS, User
 from app.schemas.resume import ResumeData
 from app.services.agent import run_match
 from app.services.job import attach_or_create_job, promote_for_action
+from app.services.match_metrics import match_request
 from app.services.quota import consume_credits, refund_credits
 from app.services.usage import track_llm
 
@@ -110,17 +111,18 @@ async def create_match(
     try:
         # 用量台账（Plan.md R1）：整段匹配工作流的 token 与耗时留痕；
         # 内部多节点 LLM 调用会被汇总成一条记录，失败同样记 status=error。
-        async with track_llm(ENDPOINT_MATCH, user_id=user.id):
-            keywords, resume_md, analysis = await run_match(
-                master_text=req.resumeText,
-                jd_text=req.jdText,
-            )
+        with match_request(uuid.uuid4().hex):
+            async with track_llm(ENDPOINT_MATCH, user_id=user.id):
+                keywords, resume_md, analysis = await run_match(
+                    master_text=req.resumeText,
+                    jd_text=req.jdText,
+                )
     except RuntimeError as e:
         # LLM 未配置、超时、LLM 调用失败等可预期错误，返回 503 而非 500
-        # 完整 traceback 已在 agent.run_match 内记录，此处仅记录简要原因便于检索
+        # 节点 stage 日志已记录失败位置；这里只记类型，避免异常正文进入日志。
         if reserved:
             await refund_credits(user.id, settings.resume_match_cost)
-        logger.warning("创建匹配失败（503）: %s", e)
+        logger.warning("创建匹配失败（503） | error_type=%s", type(e).__name__)
         raise HTTPException(status_code=503, detail=str(e))
     except Exception:
         if reserved:
