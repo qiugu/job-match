@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from email.utils import format_datetime
 from types import SimpleNamespace
 
 import httpx
@@ -88,14 +90,53 @@ def test_match_policy_defaults_and_stage_timeout_inheritance():
     assert defaults.match_extract_timeout_seconds == 300
     assert defaults.match_analyze_timeout_seconds == 300
     assert defaults.match_optimize_timeout_seconds == 300
-    assert defaults.match_extract_max_tokens == 4096
-    assert defaults.match_analyze_max_tokens == 4096
-    assert defaults.match_optimize_max_tokens == 4096
+    assert defaults.match_extract_max_tokens is None
+    assert defaults.match_analyze_max_tokens is None
+    assert defaults.match_optimize_max_tokens is None
 
     customized = Settings(_env_file=None, match_total_timeout_seconds=17)
     assert customized.match_extract_timeout_seconds == 17
     assert customized.match_analyze_timeout_seconds == 17
     assert customized.match_optimize_timeout_seconds == 17
+
+
+@pytest.mark.asyncio
+async def test_default_optimize_policy_accepts_representative_long_resume(monkeypatch):
+    calls: list[dict] = []
+    long_resume = "# Sanitized Resume\n" + "\n".join(
+        f"- Project {i}: improved a measured service outcome with documented evidence."
+        for i in range(800)
+    )
+
+    class LongResumeModel:
+        async def ainvoke(self, prompt, config=None):  # noqa: ARG002
+            return SimpleNamespace(
+                content=long_resume,
+                response_metadata={"finish_reason": "stop"},
+            )
+
+    def fake_init_chat_model(model, **kwargs):  # noqa: ARG001
+        calls.append(kwargs)
+        return LongResumeModel()
+
+    monkeypatch.setattr(llm, "init_chat_model", fake_init_chat_model)
+    monkeypatch.setattr(llm, "settings", Settings(_env_file=None))
+    llm.get_match_llm.cache_clear()
+    try:
+        state = await agent.keyword_optimize(
+            {
+                "resume_text": long_resume,
+                "resume_match_results": MatchResult(
+                    role="Engineer", score=0.8, requirements=[], summary="ok"
+                ),
+                "keywords": ["Python"],
+            }
+        )
+    finally:
+        llm.get_match_llm.cache_clear()
+
+    assert state["markdown_content"] == long_resume
+    assert "max_tokens" not in calls[0]
 
 
 @pytest.mark.asyncio
@@ -336,6 +377,48 @@ async def test_retry_after_beyond_deadline_fails_without_sleeping(monkeypatch):
     monkeypatch.setattr(agent.asyncio, "sleep", fake_sleep)
     monkeypatch.setattr(agent.settings, "match_total_timeout_seconds", 1)
     monkeypatch.setattr(agent.settings, "match_extract_timeout_seconds", 1)
+
+    with pytest.raises(MatchStageError, match="slow down"):
+        await agent.jd_extract({"jd_text": "jd"})
+
+    assert calls == 1
+    assert sleeps == []
+
+
+@pytest.mark.asyncio
+async def test_http_date_retry_after_beyond_deadline_fails_without_retry(
+    monkeypatch,
+):
+    calls = 0
+    sleeps: list[float] = []
+    response = httpx.Response(
+        429,
+        headers={
+            "retry-after": format_datetime(
+                datetime.fromtimestamp(110, timezone.utc), usegmt=True
+            )
+        },
+        request=httpx.Request("POST", "https://llm.invalid/v1/chat"),
+    )
+
+    class AlwaysRateLimited:
+        def with_structured_output(self, schema, method):  # noqa: ARG002
+            return self
+
+        async def ainvoke(self, prompt, config=None):  # noqa: ARG002
+            nonlocal calls
+            calls += 1
+            raise RateLimitError("slow down", response=response, body=None)
+
+    async def fake_sleep(seconds):
+        sleeps.append(seconds)
+
+    monkeypatch.setattr(agent, "get_match_llm", lambda stage: AlwaysRateLimited())
+    monkeypatch.setattr(agent, "_monotonic", lambda: 100.0)
+    monkeypatch.setattr(agent, "_wall_time", lambda: 100.0, raising=False)
+    monkeypatch.setattr(agent.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(agent.settings, "match_total_timeout_seconds", 5)
+    monkeypatch.setattr(agent.settings, "match_extract_timeout_seconds", 5)
 
     with pytest.raises(MatchStageError, match="slow down"):
         await agent.jd_extract({"jd_text": "jd"})

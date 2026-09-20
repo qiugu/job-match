@@ -17,6 +17,8 @@ from __future__ import annotations
 import asyncio
 import time
 from contextvars import ContextVar
+from datetime import timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import httpx
@@ -45,6 +47,7 @@ _match_deadline: ContextVar[float | None] = ContextVar(
     "match_deadline", default=None
 )
 _monotonic = time.monotonic
+_wall_time = time.time
 
 
 class TruncatedMatchOutputError(RuntimeError):
@@ -79,7 +82,13 @@ def _retry_after_seconds(exc: BaseException) -> float:
             return max(float(retry_after_ms) / 1000, 0)
         return max(float(value), 0) if value is not None else 0
     except ValueError:
-        return 0
+        try:
+            retry_at = parsedate_to_datetime(value)
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=timezone.utc)
+            return max(retry_at.timestamp() - _wall_time(), 0)
+        except (TypeError, ValueError, OverflowError):
+            return 0
 
 
 def _is_recoverable_match_error(exc: BaseException) -> bool:
@@ -442,8 +451,8 @@ async def run_match(
         }
         result = await graph.ainvoke(init)
 
-        # 工作流节点内部出错时已写入 error 字段，此处将其作为异常抛出，
-        # 避免静默返回空简历误导调用方。节点内已用 logger.exception 记录完整堆栈。
+        # 正常节点失败会直接抛 MatchStageError；保留 error 状态检查，兼容未来或
+        # 外部节点显式返回失败状态，避免静默返回空简历。
         if result.get("error"):
             raise RuntimeError(f"匹配流程执行失败：{result['error']}")
 

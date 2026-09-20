@@ -45,15 +45,19 @@ def get_match_llm(stage: MatchStage):
         "analyze": settings.match_analyze_timeout_seconds,
         "optimize": settings.match_optimize_timeout_seconds,
     }[stage]
+    model_kwargs = {
+        "api_key": settings.llm_api_key,
+        "model_provider": settings.llm_provider,
+        "base_url": settings.llm_base_url,
+        "timeout": timeout,
+        "temperature": settings.llm_temperature,
+        "max_retries": 0,
+    }
+    if max_tokens is not None:
+        model_kwargs["max_tokens"] = max_tokens
     return init_chat_model(
         settings.llm_model,
-        api_key=settings.llm_api_key,
-        model_provider=settings.llm_provider,
-        base_url=settings.llm_base_url,
-        timeout=timeout,
-        temperature=settings.llm_temperature,
-        max_tokens=max_tokens,
-        max_retries=0,
+        **model_kwargs,
     )
 
 

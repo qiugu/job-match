@@ -43,10 +43,12 @@ class Settings(BaseSettings):
     match_extract_timeout_seconds: float | None = None
     match_analyze_timeout_seconds: float | None = None
     match_optimize_timeout_seconds: float | None = None
-    # 初始值与现有客户端的 4096 输出限制对齐；待采集分位数后再分阶段收紧。
-    match_extract_max_tokens: int = 4096
-    match_analyze_max_tokens: int = 4096
-    match_optimize_max_tokens: int = 4096
+    # 匹配节点输出预算可按部署模型分别显式配置。默认不向 provider 下发上限：
+    # 旧匹配路径没有 max_tokens，且 OpenAI 兼容端点对应的模型能力无法从本地可靠
+    # 推断；贸然设 4096 会截断长简历。采集真实输出分位数后再按环境收紧。
+    match_extract_max_tokens: int | None = None
+    match_analyze_max_tokens: int | None = None
+    match_optimize_max_tokens: int | None = None
 
     @model_validator(mode="after")
     def _inherit_match_stage_timeouts(self) -> Self:

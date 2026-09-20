@@ -304,6 +304,13 @@ async def test_truncated_optimization_is_not_persisted(client, session, monkeypa
     token = await _login(client, session, "trunc", "TR1")
     h = auth_headers(token)
 
+    from app.models.user import User
+
+    before = (
+        await session.execute(select(User).where(User.username == "trunc"))
+    ).scalar_one()
+    credits_before = before.credits
+
     class StageModel:
         def __init__(self, stage):
             self.stage = stage
@@ -341,3 +348,11 @@ async def test_truncated_optimization_is_not_persisted(client, session, monkeypa
     assert response.status_code == 503
     rows = (await session.execute(select(DerivedResume))).scalars().all()
     assert rows == []
+    credits_after = (
+        await session.execute(
+            select(User)
+            .where(User.username == "trunc")
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+    assert credits_after.credits == credits_before
