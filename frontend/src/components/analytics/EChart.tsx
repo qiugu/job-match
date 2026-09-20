@@ -13,7 +13,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import * as echarts from "echarts/core";
-import { BarChart, PieChart } from "echarts/charts";
+import { BarChart, LineChart, PieChart } from "echarts/charts";
 import {
   GridComponent,
   LegendComponent,
@@ -31,6 +31,7 @@ import { readChartTokens, type ChartTokens } from "./tokens";
 // 注意 markArea 需要单独注册 MarkAreaComponent，否则「回填日」色带不会渲染。
 echarts.use([
   BarChart,
+  LineChart,
   PieChart,
   GridComponent,
   TooltipComponent,

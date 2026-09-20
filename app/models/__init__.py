@@ -7,6 +7,7 @@ from app.models.cover_letter import CoverLetter
 from app.models.job import Job
 from app.models.job_event import JobStatusEvent
 from app.models.llm_usage import LlmUsage
+from app.models.site_visit import SiteVisit
 
 __all__ = [
     "User",
@@ -17,4 +18,5 @@ __all__ = [
     "Job",
     "JobStatusEvent",
     "LlmUsage",
+    "SiteVisit",
 ]

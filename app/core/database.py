@@ -47,6 +47,7 @@ async def init_db() -> None:
         cover_letter,
         job,
         llm_usage,
+        site_visit,
     )
 
     # 数据库 schema 由 Alembic 迁移统一管理，启动时确保已升级到最新版本。

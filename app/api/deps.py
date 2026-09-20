@@ -46,3 +46,10 @@ async def get_current_user(
     if int(payload.get("ver", -1)) != int(user.token_version):
         raise unauthorized("登录状态已失效，请重新登录")
     return user
+
+
+async def get_admin_user(user: User = Depends(get_current_user)) -> User:
+    """管理员接口的统一鉴权依赖。"""
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="仅管理员可访问系统管理页面")
+    return user
