@@ -45,7 +45,7 @@ function KpiCard({
   hint?: string;
 }) {
   return (
-    <div className="analytics-kpi analytics-panel rounded-2xl border border-border bg-card p-5">
+    <div className="workbench-panel analytics-kpi analytics-panel p-5">
       <p className="xai-eyebrow text-[10px]">{label}</p>
       <p className="mt-2 flex items-baseline gap-1">
         <span className="font-mono text-[30px] font-semibold leading-none tracking-[-0.06em] text-xai-text">
@@ -73,9 +73,9 @@ function ChartPanel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="analytics-panel rounded-2xl border border-border bg-card p-5">
+    <section className="workbench-panel analytics-panel p-5">
       <div className="flex items-center gap-2">
-        <span className="h-1.5 w-1.5 rounded-full bg-[#E85D4A]" aria-hidden="true" />
+        <span className="h-1.5 w-1.5 rounded-full bg-xai-text" aria-hidden="true" />
         <p className="xai-eyebrow text-[10px]">{title}</p>
       </div>
       <div className="mt-4">{children}</div>
@@ -199,11 +199,11 @@ export default function AnalyticsPage() {
   );
 
   return (
-    <div className="analytics-page flex h-full min-h-0 flex-col overflow-hidden bg-xai-canvas text-xai-text">
+    <div className="workbench-page analytics-page flex h-full min-h-0 flex-col overflow-hidden bg-xai-canvas text-xai-text">
       {/* 顶部：标题 + 区间切换 + 刷新 */}
-      <header className="analytics-header flex min-h-[82px] shrink-0 items-center justify-between gap-4 border-b border-xai-hairline-soft px-6 py-4 lg:px-8">
+      <header className="workbench-header analytics-header flex min-h-[82px] shrink-0 items-center justify-between gap-4 border-b px-6 py-4 lg:px-8">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#17233C] text-[#FFFDF8] shadow-[4px_4px_0_#E85D4A]">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-xai-hairline bg-xai-surface-2 text-xai-text">
             <BarChart3 className="size-4.5" />
           </span>
           <div className="min-w-0">

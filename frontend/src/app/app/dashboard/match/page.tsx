@@ -650,7 +650,7 @@ export default function JobMatchPage() {
   const showTaskSkeleton = !result && (matchPending || pitchPending);
 
   return (
-    <div className="h-full w-full">
+    <div className="workbench-page h-full w-full">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -658,7 +658,7 @@ export default function JobMatchPage() {
         className="flex h-full w-full flex-col px-4 py-6 sm:px-6"
       >
         {/* 页头：标题 + 环形靶签名装饰 */}
-        <div className="mb-6 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="workbench-header mb-6 flex flex-col gap-5 border-b pb-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             {/* 环形靶：唯一的签名元素 */}
             <div
@@ -705,7 +705,7 @@ export default function JobMatchPage() {
           <aside
             ref={formCardRef}
             className={cn(
-              "absolute inset-y-0 left-0 z-20 flex w-[min(400px,88vw)] flex-col overflow-hidden rounded-r-xl border border-border bg-card text-card-foreground shadow-lg transition-transform duration-300 ease-out",
+              "workbench-panel absolute inset-y-0 left-0 z-20 flex w-[min(400px,88vw)] flex-col overflow-hidden rounded-r-xl text-card-foreground transition-transform duration-300 ease-out",
               drawerOpen ? "translate-x-0" : "-translate-x-full"
             )}
           >

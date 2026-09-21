@@ -224,9 +224,9 @@ export default function JobsPage() {
   const active = rows;
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="workbench-page flex h-full min-h-0 flex-col overflow-hidden">
       {/* 顶部：标题 + 新机会入口 */}
-      <header className="flex shrink-0 flex-col gap-4 border-b border-xai-hairline-soft px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-4">
+      <header className="workbench-header flex shrink-0 flex-col gap-4 border-b px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-4">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-xai-hairline bg-xai-surface text-xai-text">
             <Briefcase className="size-4.5" />
@@ -262,7 +262,7 @@ export default function JobsPage() {
             <span className="xai-eyebrow text-[10px]">OPEN OPPORTUNITIES</span>
             <span className="font-mono text-[11px] text-xai-mute">{String(active.length).padStart(2, "0")}</span>
           </div>
-          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto rounded-2xl border border-xai-hairline bg-xai-surface p-2 shadow-[0_16px_36px_rgba(0,0,0,0.12)]">
+          <div className="workbench-panel min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
             {loading ? (
               <div className="flex items-center gap-2 p-4 text-[13px] text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
@@ -307,7 +307,7 @@ export default function JobsPage() {
         </aside>
 
         {/* 右：详情区 */}
-        <section className="min-h-0 min-w-0 flex-1 overflow-y-auto rounded-2xl border border-xai-hairline bg-xai-surface shadow-[0_16px_36px_rgba(0,0,0,0.12)]">
+        <section className="workbench-panel min-h-0 min-w-0 flex-1 overflow-y-auto">
           {detailLoading || !detail ? (
             <div className="flex h-full min-h-[240px] items-center justify-center text-[13px] text-muted-foreground">
               {detailLoading ? (

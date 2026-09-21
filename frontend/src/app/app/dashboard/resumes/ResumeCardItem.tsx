@@ -87,7 +87,7 @@ export const ResumeCardItem = ({
         >
             <Card
                 className={cn(
-                    "group flex aspect-[210/297] flex-col overflow-hidden rounded-[10px] border-xai-hairline bg-xai-surface shadow-none transition-colors duration-200",
+                    "workbench-panel group flex aspect-[210/297] flex-col overflow-hidden shadow-none transition-colors duration-200",
                     "hover:border-xai-hairline-strong"
                 )}
             >

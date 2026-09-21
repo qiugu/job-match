@@ -186,10 +186,10 @@ export const ResumeWorkbench = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                className="flex-1 space-y-7 py-9"
+                className="workbench-page flex-1 space-y-7 py-9"
             >
                 <motion.div
-                    className="flex flex-col gap-4 px-6 sm:flex-row sm:items-end sm:justify-between"
+                    className="workbench-header flex flex-col gap-4 border-b px-6 pb-6 sm:flex-row sm:items-end sm:justify-between"
                     initial={{ y: -20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ duration: 0.3 }}

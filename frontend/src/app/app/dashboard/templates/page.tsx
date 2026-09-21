@@ -91,8 +91,8 @@ const TemplateCardItem = ({
       <Card
         aria-label={getTemplateCardLabel(index, total)}
         className={cn(
-          "group flex flex-col overflow-hidden rounded-2xl border border-xai-hairline bg-xai-surface p-2.5 shadow-[0_18px_40px_rgba(0,0,0,0.12)] transition-[border-color,box-shadow] duration-200",
-          "hover:border-xai-hairline-strong hover:shadow-[0_22px_48px_rgba(0,0,0,0.18)]"
+          "workbench-panel group flex flex-col overflow-hidden p-2.5 shadow-none transition-[border-color] duration-200",
+          "hover:border-xai-hairline-strong"
         )}
       >
         <CardContent
@@ -224,9 +224,9 @@ const TemplatesPage = () => {
 
   return (
     <ScrollArea className="h-[calc(100vh-2rem)] w-full">
-      <div className="w-full px-5 py-7 sm:px-6 sm:py-8">
+      <div className="workbench-page w-full px-5 py-7 sm:px-6 sm:py-8">
         <div className="flex flex-col gap-8">
-          <div className="flex flex-col gap-7 border-b border-xai-hairline-soft pb-7 lg:flex-row lg:items-end lg:justify-between">
+          <div className="workbench-header flex flex-col gap-7 border-b pb-7 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
               <p className="xai-eyebrow">YOUR RESUME / LAYOUT LIBRARY</p>
               <h2 className="mt-3 text-[34px] font-medium leading-[0.98] tracking-[-0.04em] text-xai-text sm:text-[42px]">
@@ -243,7 +243,7 @@ const TemplatesPage = () => {
                 <span>MARKDOWN</span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-xai-hairline bg-xai-surface px-3 py-2.5">
+              <div className="workbench-panel flex flex-wrap items-center gap-3 px-3 py-2.5">
                 <span className="xai-eyebrow whitespace-nowrap text-[10px]">{t("themeColor")}</span>
                 <div className="flex items-center gap-2">
                 {COLOR_CYCLE.map((color, index) => {

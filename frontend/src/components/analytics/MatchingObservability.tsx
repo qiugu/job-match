@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="analytics-kpi analytics-panel rounded-2xl border border-border bg-card p-5">
+    <div className="workbench-panel analytics-kpi analytics-panel p-5">
       <p className="xai-eyebrow text-[10px]">{label}</p>
       <p className="mt-2 font-mono text-[28px] font-semibold leading-none tracking-[-0.06em] text-xai-text">
         {value}
@@ -31,7 +31,7 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="analytics-panel rounded-2xl border border-border bg-card p-5">
+    <section className="workbench-panel analytics-panel p-5">
       <div className="flex items-center gap-2">
         <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
         <p className="xai-eyebrow text-[10px]">{title}</p>
