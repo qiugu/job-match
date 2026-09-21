@@ -521,3 +521,111 @@
   padding: 0;
   box-sizing: border-box;
 }
+
+/* Shared dashboard language: every workbench surface is built from the same
+   canvas, panel, hairline, and action vocabulary. */
+.workbench-page {
+  min-height: 100%;
+  background: var(--xai-canvas);
+  color: var(--xai-text);
+}
+
+.workbench-header {
+  border-color: var(--xai-hairline-soft);
+  background: color-mix(in srgb, var(--xai-canvas) 92%, var(--xai-surface));
+}
+
+.workbench-panel {
+  border: 1px solid var(--xai-hairline);
+  border-radius: 12px;
+  background: var(--xai-surface);
+  box-shadow: none;
+}
+
+.workbench-panel-muted {
+  border: 1px solid var(--xai-hairline-soft);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--xai-canvas) 76%, var(--xai-surface));
+}
+
+.workbench-header :is(button, a):focus-visible,
+.workbench-page :is(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid var(--xai-text);
+  outline-offset: 3px;
+}
+
+/* Analytics used to own a paper/coral palette. Keep the data hierarchy, but
+   return its surfaces to the same workbench system as every other page. */
+.theme-xai .analytics-page {
+  --background: 0 0% 4%;
+  --foreground: 0 0% 100%;
+  --card: 228 12% 8%;
+  --card-foreground: 220 12% 95%;
+  --border: 228 11% 18%;
+  --primary: 0 0% 100%;
+  --primary-foreground: 0 0% 4%;
+  --xai-canvas: #0a0a0a;
+  --xai-surface: #131418;
+  --xai-surface-2: #1a1c21;
+  --xai-hairline: #292b33;
+  --xai-hairline-soft: #1f2126;
+  --xai-hairline-strong: #3d4048;
+  --xai-text: #ffffff;
+  --xai-text-mid: #e7e9ec;
+  --xai-mute: #8a8f98;
+  --xai-eyebrow: #6b727b;
+  --xai-success: #6fd79e;
+  --xai-add: #86e0ac;
+  --xai-add-bg: #0f1f17;
+  --xai-del: #f0a091;
+  --xai-del-bg: #221312;
+}
+
+html.light .theme-xai .analytics-page {
+  --background: 0 0% 98%;
+  --foreground: 0 0% 4%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 4% 10%;
+  --border: 240 6% 90%;
+  --primary: 0 0% 4%;
+  --primary-foreground: 0 0% 98%;
+  --xai-canvas: #fafafa;
+  --xai-surface: #ffffff;
+  --xai-surface-2: #f4f4f5;
+  --xai-hairline: #e4e4e7;
+  --xai-hairline-soft: #eeeeef;
+  --xai-hairline-strong: #cfcfd4;
+  --xai-text: #0a0a0a;
+  --xai-text-mid: #3f4249;
+  --xai-mute: #71757e;
+  --xai-eyebrow: #757a83;
+  --xai-success: #1f9d61;
+  --xai-add: #16a34a;
+  --xai-add-bg: #e8f8ee;
+  --xai-del: #dc2626;
+  --xai-del-bg: #fdeceb;
+}
+
+.analytics-page .analytics-header,
+.analytics-page .analytics-panel {
+  background: var(--xai-surface);
+  box-shadow: none;
+}
+
+.analytics-page .analytics-kpi::after,
+.analytics-page .analytics-kpi:first-child::after,
+.analytics-page .analytics-kpi:nth-child(2)::after,
+.analytics-page .analytics-kpi:nth-child(3)::after {
+  background: var(--xai-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

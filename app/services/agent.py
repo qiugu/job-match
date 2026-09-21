@@ -1,11 +1,10 @@
 """简历匹配 Agent：基于 LangGraph 的多节点工作流。
 
 流程（匹配链路）：
-  1. jd_extract       —— 从 JD 提取关键词（技能/经验/要求），打平为 keywords
-  2. resume_match     —— 基于 JD 分析结果与简历的匹配关系，产出匹配项、优化建议
-                         （MatchResult，已不含话术）
-  3. keyword_optimize —— 关键词/模块级优化：保持简历大结构，在建议指导下
-                         优化措辞，允许有依据时新增/删除条目或模块（markdown）
+  legacy:   jd_extract → resume_match → keyword_optimize
+  combined: analyze_match → keyword_optimize
+
+两条路径最终都产出原有 keywords、MatchResult 和优化后的 markdown。
 
 话术（cover letter）已解耦为独立链路：单次 LLM 调用，不进 LangGraph 图，
 由 `run_cover_letter` 直接产出，支持 greeting/followup/interview 多场景。
@@ -15,14 +14,19 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import time
+from contextvars import ContextVar
+from datetime import timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 
-from langgraph.graph import StateGraph, END
+import httpx
+from langchain_core.exceptions import OutputParserException
+from langgraph.graph import END, StateGraph
+from openai import APIConnectionError, APIStatusError
 from pydantic import ValidationError
 
-from app.core.llm import get_llm, is_configured, model
+from app.core.llm import get_match_llm, is_configured, model
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.prompts import (
@@ -31,12 +35,158 @@ from app.core.prompts import (
     COVER_LETTER_PROMPT,
     COVER_LETTER_SCENES,
     KEYWORDS_OPTIMIZE,
+    MATCH_ANALYSIS_PROMPT,
     RESUME_MATCHER_PROMPT,
 )
 from app.schemas.resume import GlobalSettings, MenuSection, ResumeData
-from app.schemas.agent import AgentState, JDAnalysis, MatchResult
+from app.schemas.agent import (
+    AgentState,
+    JDAnalysis,
+    MatchAnalysisBundle,
+    MatchResult,
+)
+from app.services.match_metrics import MatchStageError, match_request, match_stage
+from app.services.match_observability import get_match_run_id, record_match_step
 
 logger = get_logger("agent")
+_match_deadline: ContextVar[float | None] = ContextVar(
+    "match_deadline", default=None
+)
+_monotonic = time.monotonic
+_wall_time = time.time
+
+
+class TruncatedMatchOutputError(RuntimeError):
+    """模型因输出上限中止，结果不可作为完整简历使用。"""
+
+
+class StructuredMatchOutputError(ValueError):
+    """结构化响应未能产出约定的 Pydantic 模型。"""
+
+
+def _is_truncated_response(response: Any) -> bool:
+    for metadata in (
+        getattr(response, "response_metadata", None),
+        getattr(response, "additional_kwargs", None),
+    ):
+        if not isinstance(metadata, dict):
+            continue
+        reason = metadata.get("finish_reason") or metadata.get("stop_reason")
+        if str(reason).lower() in {"length", "max_tokens", "max_output_tokens"}:
+            return True
+    return False
+
+
+def _retry_after_seconds(exc: BaseException) -> float:
+    response = getattr(exc, "response", None)
+    if response is None or response.status_code != 429:
+        return 0
+    retry_after_ms = response.headers.get("retry-after-ms")
+    value = response.headers.get("retry-after")
+    try:
+        if retry_after_ms is not None:
+            return max(float(retry_after_ms) / 1000, 0)
+        return max(float(value), 0) if value is not None else 0
+    except ValueError:
+        try:
+            retry_at = parsedate_to_datetime(value)
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=timezone.utc)
+            return max(retry_at.timestamp() - _wall_time(), 0)
+        except (TypeError, ValueError, OverflowError):
+            return 0
+
+
+def _is_recoverable_match_error(exc: BaseException) -> bool:
+    if isinstance(
+        exc,
+        (
+            OutputParserException,
+            ValidationError,
+            StructuredMatchOutputError,
+            TimeoutError,
+        ),
+    ):
+        return True
+    if isinstance(exc, APIConnectionError):
+        return True
+    if isinstance(exc, APIStatusError):
+        return exc.status_code == 429 or exc.status_code >= 500
+    if isinstance(exc, httpx.TransportError):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code == 429 or exc.response.status_code >= 500
+    return False
+
+
+async def _invoke_match_stage(
+    stage_name: str,
+    runnable: Any,
+    prompt: str,
+    *,
+    expected_type: type[Any] | None = None,
+) -> Any:
+    """在共享截止时间内调用节点，并对可恢复故障最多重试一次。"""
+    deadline = _match_deadline.get()
+    if deadline is None:
+        deadline = _monotonic() + settings.match_total_timeout_seconds
+    stage_timeout = {
+        "jd_extract": settings.match_extract_timeout_seconds,
+        "resume_match": settings.match_analyze_timeout_seconds,
+        "analyze_match": settings.match_analyze_timeout_seconds,
+        "keyword_optimize": settings.match_optimize_timeout_seconds,
+    }[stage_name]
+    for attempt in (1, 2):
+        run_id = get_match_run_id()
+        stage_started = _monotonic() if run_id is not None else 0.0
+        stage_status = "success"
+        stage_error_type = ""
+        try:
+            with match_stage(
+                stage_name, attempt=attempt, input_chars=len(prompt)
+            ) as stage:
+                remaining = deadline - _monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("match deadline exhausted")
+                async with asyncio.timeout(min(stage_timeout, remaining)):
+                    response = await runnable.ainvoke(
+                        prompt, config=stage.runnable_config
+                    )
+                if (
+                    stage_name == "keyword_optimize"
+                    and _is_truncated_response(response)
+                ):
+                    raise TruncatedMatchOutputError(
+                        "优化简历输出被模型长度限制截断"
+                    )
+                if expected_type is not None and not isinstance(
+                    response, expected_type
+                ):
+                    raise StructuredMatchOutputError(
+                        f"{stage_name} 结构化输出类型不正确"
+                    )
+                return response
+        except Exception as exc:
+            stage_status = "error"
+            stage_error_type = type(exc).__name__
+            if attempt == 2 or not _is_recoverable_match_error(exc):
+                raise
+            retry_after = _retry_after_seconds(exc)
+            if retry_after >= deadline - _monotonic():
+                raise
+            if retry_after:
+                await asyncio.sleep(retry_after)
+        finally:
+            if run_id is not None:
+                await record_match_step(
+                    run_id,
+                    step_key=stage_name,
+                    status=stage_status,
+                    latency_ms=round((_monotonic() - stage_started) * 1000),
+                    attempt=attempt,
+                    error_type=stage_error_type,
+                )
+    raise AssertionError("unreachable")
 
 
 def _flatten_keywords(analysis: JDAnalysis) -> list[str]:
@@ -55,70 +205,83 @@ def _flatten_keywords(analysis: JDAnalysis) -> list[str]:
 
 
 async def jd_extract(state: AgentState) -> AgentState:
-    t0 = time.perf_counter()
     prompt = JD_EXTRACT_PROMPT.format(
         jd=state["jd_text"]
     )
     try:
         # 使用 langchain 结构化输出。思考模型（DeepSeek thinking）禁止 tool_choice，
         # 因此必须走 json_mode（response_format=json_object），不触发 tool_choice。
-        model_with_structure = model.with_structured_output(
+        model_with_structure = get_match_llm("extract").with_structured_output(
             JDAnalysis, method="json_mode"
         )
-        resp = await asyncio.wait_for(
-            model_with_structure.ainvoke(prompt),
-            timeout=settings.llm_timeout
+        resp = await _invoke_match_stage(
+            "jd_extract",
+            model_with_structure,
+            prompt,
+            expected_type=JDAnalysis,
         )
-        if isinstance(resp, JDAnalysis):
-            state["jd_analyze_results"] = resp
-            # 打平为关键词列表：此前没有任何节点写入 state["keywords"]，
-            # 导致 keyword_optimize 的 {kw}、API 返回值与前端关键词高亮全部失效。
-            state["keywords"] = _flatten_keywords(resp)
+        state["jd_analyze_results"] = resp
+        # 打平为关键词列表：此前没有任何节点写入 state["keywords"]，
+        # 导致 keyword_optimize 的 {kw}、API 返回值与前端关键词高亮全部失效。
+        state["keywords"] = _flatten_keywords(resp)
     except Exception as e:
-        # 兜底：JD 提取失败时也要写入空结果，避免下游因缺失
-        # jd_analyze_results 触发 KeyError（AgentState 该字段为可选字段）。
-        logger.exception("JD 关键词提取节点失败（已降级为空结果）: %s", str(e))
-        state["jd_analyze_results"] = JDAnalysis(
-            experiences=[],
-            hard_skills=[],
-            soft_skills=[],
-            plus=[],
-            rigid=[],
-        )
-        state["error"] = str(e)
-    finally:
-        logger.info("节点 jd_extract 耗时 %.1fs", time.perf_counter() - t0)
+        logger.error("JD 关键词提取节点失败 | error_type=%s", type(e).__name__)
+        raise MatchStageError("jd_extract", e) from e
     return state
 
 
 async def resume_match(state: AgentState) -> AgentState:
-    t0 = time.perf_counter()
     jd_analyze_results = state.get("jd_analyze_results")
-    # 上游（jd_extract）未产出分析结果时跳过，避免 KeyError 崩溃。
     if jd_analyze_results is None:
-        state["error"] = state.get("error") or "JD 分析未产出结果，无法执行匹配"
-        return state
+        cause = RuntimeError("JD 分析未产出结果，无法执行匹配")
+        raise MatchStageError("resume_match", cause) from cause
     # 消费 jd_extract 的格式化结果（结构化 JD 要点）进行匹配。
     prompt = RESUME_MATCHER_PROMPT.format(
         jd_analyze_results=jd_analyze_results.model_dump_json(),
         resume=state["resume_text"]
     )
     try:
-        model_with_structure = model.with_structured_output(
+        model_with_structure = get_match_llm("analyze").with_structured_output(
             MatchResult, method="json_mode"
         )
-        resp = await asyncio.wait_for(
-            model_with_structure.ainvoke(prompt),
-            timeout=settings.llm_timeout
+        resp = await _invoke_match_stage(
+            "resume_match",
+            model_with_structure,
+            prompt,
+            expected_type=MatchResult,
         )
-        if isinstance(resp, MatchResult):
-            state["resume_match_results"] = resp
+        state["resume_match_results"] = resp
     except Exception as e:
-        logger.exception("简历匹配节点失败: %s", e)
-        state["error"] = str(e)
-    finally:
-        logger.info("节点 resume_match 耗时 %.1fs", time.perf_counter() - t0)
+        logger.error("简历匹配节点失败 | error_type=%s", type(e).__name__)
+        raise MatchStageError("resume_match", e) from e
     return state
+
+
+async def analyze_match(state: AgentState) -> AgentState:
+    """一次联合提取 JD 分类并生成匹配分析。"""
+
+    prompt = MATCH_ANALYSIS_PROMPT.format(
+        jd=state["jd_text"],
+        resume=state["resume_text"],
+    )
+    try:
+        model_with_structure = get_match_llm("analyze").with_structured_output(
+            MatchAnalysisBundle, method="json_mode"
+        )
+        resp = await _invoke_match_stage(
+            "analyze_match",
+            model_with_structure,
+            prompt,
+            expected_type=MatchAnalysisBundle,
+        )
+        state["jd_analyze_results"] = resp.jd_analysis
+        state["keywords"] = _flatten_keywords(resp.jd_analysis)
+        state["resume_match_results"] = resp.match_result
+    except Exception as e:
+        logger.error("联合匹配分析节点失败 | error_type=%s", type(e).__name__)
+        raise MatchStageError("analyze_match", e) from e
+    return state
+
 
 def _strip(s: str) -> str:
     s = s.strip()
@@ -243,11 +406,10 @@ async def rewrite_resume(state: AgentState) -> AgentState:
 
 
 async def keyword_optimize(state: AgentState) -> AgentState:
-    t0 = time.perf_counter()
     resume_match_results = state.get("resume_match_results")
     if resume_match_results is None:
-        state["error"] = state.get("error") or "匹配结果缺失，无法优化关键词"
-        return state
+        cause = RuntimeError("匹配结果缺失，无法优化关键词")
+        raise MatchStageError("keyword_optimize", cause) from cause
     kw = "、".join(state.get("keywords", []))
     # 紧凑 JSON（不带 indent）：indent=2 的缩进/换行会额外增加 30%+ 的输入 token，
     # 抬高 TTFT 与费用，对模型解析没有帮助。
@@ -257,16 +419,13 @@ async def keyword_optimize(state: AgentState) -> AgentState:
         kw=kw
     )
     try:
-        resp = await asyncio.wait_for(
-            model.ainvoke(prompt), timeout=settings.llm_timeout
+        resp = await _invoke_match_stage(
+            "keyword_optimize", get_match_llm("optimize"), prompt
         )
         state["markdown_content"] = _strip(_to_text(resp.content))
-    finally:
-        logger.info(
-            "节点 keyword_optimize 耗时 %.1fs（注入关键词 %d 个）",
-            time.perf_counter() - t0,
-            len(state.get("keywords", [])),
-        )
+    except Exception as e:
+        logger.error("关键词优化节点失败 | error_type=%s", type(e).__name__)
+        raise MatchStageError("keyword_optimize", e) from e
     return state
 
 
@@ -306,15 +465,17 @@ def build_graph():
     # Pyrefly/ty 无法对 TypedDict 类做结构匹配（langgraph StateT 上界 TypedDictLikeV1/V2，
     # 且其错误码不互通，只能使用无码 ignore）。运行时已验证正常。
     g = StateGraph(AgentState)  # type: ignore
-    g.add_node("jd_extract", jd_extract)
-    g.add_node("resume_match", resume_match)
     g.add_node("keyword_optimize", keyword_optimize)
-
-    g.set_entry_point("jd_extract")
-    g.add_edge("jd_extract", "resume_match")
-    # 已删除 refactor_mode 分支：统一走 keyword_optimize（描述/模块级优化）。
-    # 话术（cover letter）已解耦为独立链路 run_cover_letter，不在此图中路由。
-    g.add_edge("resume_match", "keyword_optimize")
+    if settings.match_pipeline_version == "combined":
+        g.add_node("analyze_match", analyze_match)
+        g.set_entry_point("analyze_match")
+        g.add_edge("analyze_match", "keyword_optimize")
+    else:
+        g.add_node("jd_extract", jd_extract)
+        g.add_node("resume_match", resume_match)
+        g.set_entry_point("jd_extract")
+        g.add_edge("jd_extract", "resume_match")
+        g.add_edge("resume_match", "keyword_optimize")
     g.add_edge("keyword_optimize", END)
     return g.compile()
 
@@ -340,10 +501,10 @@ async def run_match(
             "resume_text": master_text,
             "jd_text": jd_text,
         }
-        result = await asyncio.wait_for(graph.ainvoke(init), timeout=settings.llm_timeout)
+        result = await graph.ainvoke(init)
 
-        # 工作流节点内部出错时已写入 error 字段，此处将其作为异常抛出，
-        # 避免静默返回空简历误导调用方。节点内已用 logger.exception 记录完整堆栈。
+        # 正常节点失败会直接抛 MatchStageError；保留 error 状态检查，兼容未来或
+        # 外部节点显式返回失败状态，避免静默返回空简历。
         if result.get("error"):
             raise RuntimeError(f"匹配流程执行失败：{result['error']}")
 
@@ -359,29 +520,23 @@ async def run_match(
             analysis,
         )
 
-    t0 = time.perf_counter()
-    try:
-        return await _run_once()
-    except ValidationError as e:
-        # LLM 输出不稳定导致结构无法验证：重试一次工作流
-        logger.warning("LLM 结构化输出解析失败，重试一次: %s", e)
+    with match_request():
+        t0 = time.perf_counter()
+        total_timeout = settings.match_total_timeout_seconds
+        deadline_token = _match_deadline.set(_monotonic() + total_timeout)
         try:
-            return await _run_once()
-        except ValidationError:
-            logger.exception("LLM 结构化输出重试后仍无法解析")
-            raise RuntimeError(f"LLM 输出的简历结构无法解析，请重试：{str(e)[:120]}") from e
-    except asyncio.TimeoutError:
-        # LLM 接口无响应导致整体超时：返回 503 而非让事件循环永久 pending
-        logger.exception("匹配工作流整体超时")
-        raise RuntimeError("匹配请求超时（LLM 接口未在规定时间内响应），请稍后重试")
-    except RuntimeError:
-        # 业务上抛出的可预期错误（LLM 未配置 / 匹配流程失败）已在上游记录，
-        # 直接向上传播给 match.py 转 503。
-        raise
-    except Exception as e:
-        # 节点内未捕获的 LLM 网络/厂商异常会在此冒泡：记录完整 traceback，
-        # 转成 RuntimeError 让 match.py 返回 503 而非默认 500。
-        logger.exception("匹配工作流执行失败: %s", e)
-        raise RuntimeError(f"匹配请求处理失败：{e}") from e
-    finally:
-        logger.info("匹配工作流总耗时 %.1fs", time.perf_counter() - t0)
+            async with asyncio.timeout(total_timeout):
+                return await _run_once()
+        except asyncio.TimeoutError:
+            # LLM 接口无响应导致整体超时：返回 503 而非让事件循环永久 pending
+            logger.exception("匹配工作流整体超时")
+            raise RuntimeError("匹配请求超时（LLM 接口未在规定时间内响应），请稍后重试")
+        except RuntimeError:
+            # 节点异常已带 stage 名并记录完整堆栈，直接交给路由转成 503。
+            raise
+        except Exception as e:
+            logger.error("匹配工作流执行失败 | error_type=%s", type(e).__name__)
+            raise RuntimeError(f"匹配请求处理失败：{e}") from e
+        finally:
+            _match_deadline.reset(deadline_token)
+            logger.info("匹配工作流总耗时 %.1fs", time.perf_counter() - t0)

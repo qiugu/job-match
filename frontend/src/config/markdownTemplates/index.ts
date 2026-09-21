@@ -23,7 +23,7 @@ export type MarkdownTemplateSettings = GlobalSettings & {
 /**
  * Markdown 版式变体：决定模块标题 / 姓名标题 / 条目小标题的实际渲染样式。
  *
- * 光靠改主题色和字号不足以区分模板（那样 9 个模板会长得一模一样），
+ * 光靠改主题色和字号不足以区分模板（那样 10 个模板会长得一模一样），
  * 因此每个变体在 MarkdownPreview 里对应一套标题排版规则：
  * 下划线 / 细线 / 左侧色条 / 时间轴刻度 / 宽字距小标题 / 居中 / 色块 / 超大衬线 / 顶部粗线。
  * 变体与模板一一对应，随 resume.templateId 持久化，进编辑器后版式不丢。
@@ -37,7 +37,8 @@ export type MarkdownTemplateVariant =
   | "centered" // 优雅：居中标题 + 细下划线
   | "band" // 创意：模块标题为主题色色块
   | "editorial" // 画报：超大衬线标题，无边框
-  | "rule"; // 瑞士：上方粗线 + 小号宽字距标题
+  | "rule" // 瑞士：上方粗线 + 小号宽字距标题
+  | "impact"; // 成果账本：成果导向标题 + 量化影响优先
 
 export interface MarkdownTemplate {
   /**
@@ -177,6 +178,16 @@ export const MARKDOWN_TEMPLATES: MarkdownTemplate[] = [
     headerSize: 18,
     subheaderSize: 14,
   }),
+  // 成果账本：项目成果与量化影响优先，适合产品、设计、研发与负责人岗位
+  buildTemplate("impact", "impact", THEME_COLORS[2], "impact", {
+    fontFamily: FONT_SANS,
+    baseFontSize: 14,
+    lineHeight: 1.55,
+    pagePadding: DEFAULT_PAGE_PADDING,
+    sectionSpacing: 18,
+    headerSize: 20,
+    subheaderSize: 15,
+  }),
 ];
 
 /** 兜底模板：id 无法匹配时（历史脏数据）回退到第一个 */
@@ -201,7 +212,7 @@ export const getMarkdownTemplateContent = (
  *
  * @param template 目标模板
  * @param locale   语言（zh / en），决定示例正文
- * @param themeColor 用户选择的主题色；传空字符串表示「跟随模板默认色」
+ * @param themeColor 用户在模板页顶部选择的主题色；不传时统一使用全局默认色
  */
 export const buildMarkdownTemplateResume = (
   template: MarkdownTemplate,
@@ -218,7 +229,7 @@ export const buildMarkdownTemplateResume = (
     globalSettings: {
       ...base.globalSettings,
       ...template.globalSettings,
-      themeColor: themeColor || template.themeColor,
+      themeColor: themeColor || THEME_COLORS[0],
     },
   } as ResumeData;
 };

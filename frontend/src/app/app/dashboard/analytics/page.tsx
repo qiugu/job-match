@@ -15,6 +15,7 @@ import {
   type JobStatus,
 } from "@/lib/jobmatch";
 import { EChart } from "@/components/analytics/EChart";
+import { MatchingObservability } from "@/components/analytics/MatchingObservability";
 import {
   buildDailyTrendOption,
   buildFunnelOption,
@@ -44,7 +45,7 @@ function KpiCard({
   hint?: string;
 }) {
   return (
-    <div className="analytics-kpi analytics-panel rounded-2xl border border-border bg-card p-5">
+    <div className="workbench-panel analytics-kpi analytics-panel p-5">
       <p className="xai-eyebrow text-[10px]">{label}</p>
       <p className="mt-2 flex items-baseline gap-1">
         <span className="font-mono text-[30px] font-semibold leading-none tracking-[-0.06em] text-xai-text">
@@ -72,9 +73,9 @@ function ChartPanel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="analytics-panel rounded-2xl border border-border bg-card p-5">
+    <section className="workbench-panel analytics-panel p-5">
       <div className="flex items-center gap-2">
-        <span className="h-1.5 w-1.5 rounded-full bg-[#E85D4A]" aria-hidden="true" />
+        <span className="h-1.5 w-1.5 rounded-full bg-xai-text" aria-hidden="true" />
         <p className="xai-eyebrow text-[10px]">{title}</p>
       </div>
       <div className="mt-4">{children}</div>
@@ -111,7 +112,24 @@ export default function AnalyticsPage() {
   const [error, setError] = useState(false);
   /** 每次成功加载后 +1，驱动图表重绘（数据引用可能不变，但内容已更新） */
   const [revision, setRevision] = useState(0);
+  const [tab, setTab] = useState<"delivery" | "matching">("delivery");
   const requestId = useRef(0);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tab") === "matching") {
+      setTab("matching");
+    }
+  }, []);
+
+  const changeTab = (next: "delivery" | "matching") => {
+    setTab(next);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (next === "matching") url.searchParams.set("tab", "matching");
+      else url.searchParams.delete("tab");
+      window.history.replaceState({}, "", url);
+    }
+  };
 
   const load = useCallback(
     async (range: AnalyticsDays) => {
@@ -181,11 +199,11 @@ export default function AnalyticsPage() {
   );
 
   return (
-    <div className="analytics-page flex h-full min-h-0 flex-col overflow-hidden bg-xai-canvas text-xai-text">
+    <div className="workbench-page analytics-page flex h-full min-h-0 flex-col overflow-hidden bg-xai-canvas text-xai-text">
       {/* 顶部：标题 + 区间切换 + 刷新 */}
-      <header className="analytics-header flex min-h-[82px] shrink-0 items-center justify-between gap-4 border-b border-xai-hairline-soft px-6 py-4 lg:px-8">
+      <header className="workbench-header analytics-header flex min-h-[82px] shrink-0 items-center justify-between gap-4 border-b px-6 py-4 lg:px-8">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#17233C] text-[#FFFDF8] shadow-[4px_4px_0_#E85D4A]">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-xai-hairline bg-xai-surface-2 text-xai-text">
             <BarChart3 className="size-4.5" />
           </span>
           <div className="min-w-0">
@@ -198,11 +216,32 @@ export default function AnalyticsPage() {
             </p>
           </div>
         </div>
-        <div className="max-w-full shrink-0 overflow-x-auto pb-0.5">{rangeBar}</div>
+        <div className="flex max-w-full shrink-0 items-center gap-3 overflow-x-auto pb-0.5">
+          <div className="flex shrink-0 items-center gap-1 rounded-full border border-border bg-card p-1" role="tablist" aria-label={t("analyticsTabsLabel")}>
+            {(["delivery", "matching"] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tab === key}
+                onClick={() => changeTab(key)}
+                className={cn(
+                  "h-7 rounded-full px-3 text-[11px] transition-colors duration-150",
+                  tab === key ? "bg-xai-text text-xai-canvas" : "text-xai-mute hover:bg-xai-surface-2 hover:text-xai-text"
+                )}
+              >
+                {t(key === "delivery" ? "analyticsTabDelivery" : "analyticsTabMatching")}
+              </button>
+            ))}
+          </div>
+          {rangeBar}
+        </div>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-5 sm:px-6 lg:px-8">
-        {loading && !stats ? (
+        {tab === "matching" ? (
+          <MatchingObservability days={days} />
+        ) : loading && !stats ? (
           <div className="flex h-full items-center justify-center gap-2 text-[13px] text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
             {t("analyticsLoading")}

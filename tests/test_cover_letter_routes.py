@@ -13,7 +13,10 @@ import pytest
 
 from conftest import auth_headers
 from app.core.timeutils import utcnow
+from app.models.cover_letter import CoverLetter
+from app.models.job import Job
 from app.models.registration_code import RegistrationCode
+from app.models.user import User
 from sqlalchemy import select
 
 
@@ -64,6 +67,48 @@ async def test_create_letter_consumes_one_credit(client, session, monkeypatch):
     assert body["id"]
     # 初始 50，生成扣 1 → 49
     assert body["remaining_credits"] == 49
+
+
+@pytest.mark.asyncio
+async def test_create_letter_refunds_once_when_post_llm_persistence_fails(
+    client, session, monkeypatch
+):
+    """LLM 成功后的落库失败回滚半成品，并且预扣积分只归还一次。"""
+    token = await _login(client, session, "cl-persist-fail", "CPF1")
+    h = auth_headers(token)
+    monkeypatch.setattr("app.api.cover_letter.run_cover_letter", _fake_run_cover_letter)
+
+    user = (
+        await session.execute(select(User).where(User.username == "cl-persist-fail"))
+    ).scalar_one()
+    credits_before = user.credits
+
+    async def fail_promotion(db, job, action_status):
+        raise RuntimeError("synthetic cover persistence failure")
+
+    monkeypatch.setattr("app.api.cover_letter.promote_for_action", fail_promotion)
+
+    with pytest.raises(RuntimeError, match="synthetic cover persistence failure"):
+        await client.post(
+            "/api/cover-letters",
+            json={
+                "resume_text": "# resume",
+                "jd_text": "# cover persistence failure jd",
+                "scene": "greeting",
+            },
+            headers=h,
+        )
+
+    assert (await session.execute(select(CoverLetter))).scalars().all() == []
+    assert (await session.execute(select(Job))).scalars().all() == []
+    credits_after = (
+        await session.execute(
+            select(User)
+            .where(User.username == "cl-persist-fail")
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+    assert credits_after.credits == credits_before
 
 
 @pytest.mark.asyncio

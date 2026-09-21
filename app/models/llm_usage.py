@@ -58,6 +58,10 @@ class LlmUsage(Base):
     user_id: Mapped[str] = mapped_column(String(32), default="", index=True)
     # 业务端点（见 ENDPOINT_* 常量）
     endpoint: Mapped[str] = mapped_column(String(32), default="")
+    # 可选的简历匹配运行关联；其他 AI 端点保持为空。
+    match_run_id: Mapped[str | None] = mapped_column(
+        String(32), default=None, nullable=True, index=True
+    )
     # 实际使用的模型名（工作流内多模型时取首个，明细见日志）
     model: Mapped[str] = mapped_column(String(64), default="")
     # token 用量：厂商未返回 usage 时记 0（不伪造、不估算）

@@ -150,36 +150,36 @@ async def create_cover_letter(
         if dr is None or dr.user_id != user.id:
             raise HTTPException(status_code=404, detail="关联的衍生简历不存在")
 
-    # 自动挂载岗位卡：归一化 JD 查重，命中复用旧卡，未命中建新卡；
-    # 返回 job.id 写入话术的 job_id（实现「生成即建档、刷新不丢上下文」）。
-    # V2：首动作定初始态——新建卡进入 greeting_sent；复用旧卡不在此处改状态。
-    job = await attach_or_create_job(
-        db, user.id, req.jd_text, initial_status=JOB_STATUS_DEFAULT
-    )
-
     content = await _generate_text(user, req.jd_text, req.resume_text, req.scene)
-
-    cover = CoverLetter(
-        user_id=user.id,
-        derived_resume_id=req.derived_resume_id,
-        job_id=job.id,
-        resume_text=req.resume_text,
-        jd_text=req.jd_text,
-        scene=req.scene,
-        content=content,
-        model=settings.llm_model,
-    )
-    db.add(cover)
-    # V2：生成话术是「打招呼」动作，只前进不回退地推进岗位阶段；
-    # closed 卡上再次生成视为重新激活（有简历则回到 resume_ready）。
-    await promote_for_action(db, job, JOB_STATUS_DEFAULT)
+    user_id = user.id
+    should_refund = not user.unlimited_credits
+    result_committed = False
     try:
+        # attach 会 flush 候选卡以原子处理并发，因此必须在 LLM/独立预扣事务结束后执行，
+        # 避免生成期间占用 SQLite 写锁。
+        job = await attach_or_create_job(
+            db, user_id, req.jd_text, initial_status=JOB_STATUS_DEFAULT
+        )
+        cover = CoverLetter(
+            user_id=user_id,
+            derived_resume_id=req.derived_resume_id,
+            job_id=job.id,
+            resume_text=req.resume_text,
+            jd_text=req.jd_text,
+            scene=req.scene,
+            content=content,
+            model=settings.llm_model,
+        )
+        db.add(cover)
+        await promote_for_action(db, job, JOB_STATUS_DEFAULT)
         await db.commit()
+        result_committed = True
         await db.refresh(cover)
     except Exception:
-        # 落库失败：这次生成没产出可保存结果，归还预扣积分
-        if not user.unlimited_credits:
-            await refund_credits(user.id, settings.cover_letter_cost)
+        if not result_committed:
+            await db.rollback()
+            if should_refund:
+                await refund_credits(user_id, settings.cover_letter_cost)
         raise
     # 生成消耗了积分：回查最新余额供前端刷新侧边栏显示
     remaining = await _remaining_credits(db, user)

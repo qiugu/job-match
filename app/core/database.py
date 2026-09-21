@@ -47,6 +47,8 @@ async def init_db() -> None:
         cover_letter,
         job,
         llm_usage,
+        match_run,
+        match_run_step,
         site_visit,
     )
 

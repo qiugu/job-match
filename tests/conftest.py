@@ -26,6 +26,7 @@ import app.core.database as database_module
 import app.services.auth_bootstrap as boot_module
 import app.services.quota as quota_module
 import app.services.usage as usage_module
+import app.services.match_observability as match_observability_module
 from app.main import app
 
 
@@ -74,6 +75,7 @@ def _test_isolation(monkeypatch, session_factory):
     # 用量台账（app.services.usage）同样以 `from ... import AsyncSessionLocal`
     # 绑定原 factory，不重定向会把测试期的台账写进真实 jobmatch.db。
     monkeypatch.setattr(usage_module, "AsyncSessionLocal", session_factory)
+    monkeypatch.setattr(match_observability_module, "AsyncSessionLocal", session_factory)
 
     # 禁用注册/登录限流（内存计数器跨请求/跨测试累积，干扰回归）。
     import app.api.auth as auth_module

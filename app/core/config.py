@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import List
+from typing import List, Literal, Self
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,7 +35,32 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.deepseek.com/v1"
     llm_model: str = "deepseek-v4-flash"
     llm_temperature: float = 0.3
-    llm_timeout: int = 300  # LLM 单次请求超时（秒），匹配工作流节点/整体统一沿用此配置
+    llm_timeout: int = 300  # 非匹配 LLM 调用的单次请求超时（秒）
+
+    # 匹配工作流独立预算。节点 timeout 未显式配置时继承整体预算，避免三个
+    # 串行节点各自把总耗时扩张到 MATCH_TOTAL_TIMEOUT_SECONDS 的数倍。
+    match_pipeline_version: Literal["legacy", "combined"] = "legacy"
+    match_total_timeout_seconds: float = 300
+    match_extract_timeout_seconds: float | None = None
+    match_analyze_timeout_seconds: float | None = None
+    match_optimize_timeout_seconds: float | None = None
+    # 匹配节点输出预算可按部署模型分别显式配置。默认不向 provider 下发上限：
+    # 旧匹配路径没有 max_tokens，且 OpenAI 兼容端点对应的模型能力无法从本地可靠
+    # 推断；贸然设 4096 会截断长简历。采集真实输出分位数后再按环境收紧。
+    match_extract_max_tokens: int | None = None
+    match_analyze_max_tokens: int | None = None
+    match_optimize_max_tokens: int | None = None
+
+    @model_validator(mode="after")
+    def _inherit_match_stage_timeouts(self) -> Self:
+        for field in (
+            "match_extract_timeout_seconds",
+            "match_analyze_timeout_seconds",
+            "match_optimize_timeout_seconds",
+        ):
+            if getattr(self, field) is None:
+                setattr(self, field, self.match_total_timeout_seconds)
+        return self
 
     # ---------- 登录鉴权 ----------
     # JWT 签名密钥。生产必须显式配置 AUTH_SECRET_KEY：留空时进程会生成随机密钥，

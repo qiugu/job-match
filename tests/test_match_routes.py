@@ -13,12 +13,20 @@
 匹配响应不再包含 hasCoverLetter / coverLetter 字段。
 """
 
-import pytest
+from types import SimpleNamespace
 
+import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+import app.services.agent as agent
 from conftest import auth_headers
 from app.core.timeutils import utcnow
+from app.models.derived_resume import DerivedResume
+from app.models.job import Job
 from app.models.registration_code import RegistrationCode
-from sqlalchemy import select
+from app.models.user import User
+from app.schemas.agent import JDAnalysis, MatchResult
 
 
 async def _ensure_code(session, code, grant_credits=20):
@@ -104,6 +112,97 @@ async def test_create_match_returns_job_id(client, session, monkeypatch):
     )
     assert r.status_code == 200, r.text
     assert isinstance(r.json().get("jobId"), str) and r.json()["jobId"]
+
+
+@pytest.mark.asyncio
+async def test_create_match_refunds_when_post_llm_persistence_fails(
+    client, session, monkeypatch
+):
+    """预扣后任一结果/岗位持久化失败，都必须回滚主事务并归还积分。"""
+    token = await _login(client, session, "persist-fail", "PF1")
+    h = auth_headers(token)
+    monkeypatch.setattr("app.api.match.run_match", _fake_run_match)
+
+    before = (
+        await session.execute(select(User).where(User.username == "persist-fail"))
+    ).scalar_one()
+    credits_before = before.credits
+
+    async def fail_after_job_and_result_are_pending(db, job, action_status):
+        raise RuntimeError("synthetic persistence failure")
+
+    monkeypatch.setattr(
+        "app.api.match.promote_for_action", fail_after_job_and_result_are_pending
+    )
+
+    response = await client.post(
+        "/api/derived-resumes",
+        json={
+            "resumeText": "# resume",
+            "jdText": "# persistence failure jd",
+            "title": "must-not-persist",
+        },
+        headers=h,
+    )
+
+    assert response.status_code == 503
+    assert (await session.execute(select(DerivedResume))).scalars().all() == []
+    assert (await session.execute(select(Job))).scalars().all() == []
+    credits_after = (
+        await session.execute(
+            select(User)
+            .where(User.username == "persist-fail")
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+    assert credits_after.credits == credits_before
+
+
+@pytest.mark.asyncio
+async def test_create_match_does_not_refund_after_commit_when_refresh_fails(
+    client, session, monkeypatch
+):
+    """结果已提交后即使响应刷新失败，也不能把已消费积分退回。"""
+    token = await _login(client, session, "refresh-fail", "RF1")
+    h = auth_headers(token)
+    monkeypatch.setattr("app.api.match.run_match", _fake_run_match)
+
+    user = (
+        await session.execute(select(User).where(User.username == "refresh-fail"))
+    ).scalar_one()
+    credits_before = user.credits
+    original_refresh = AsyncSession.refresh
+
+    async def fail_derived_refresh(self, instance, *args, **kwargs):
+        if isinstance(instance, DerivedResume):
+            raise RuntimeError("synthetic post-commit refresh failure")
+        return await original_refresh(self, instance, *args, **kwargs)
+
+    monkeypatch.setattr(AsyncSession, "refresh", fail_derived_refresh)
+
+    response = await client.post(
+        "/api/derived-resumes",
+        json={
+            "resumeText": "# resume",
+            "jdText": "# committed refresh failure jd",
+            "title": "committed-before-refresh",
+        },
+        headers=h,
+    )
+
+    assert response.status_code == 503
+    derived = (await session.execute(select(DerivedResume))).scalars().all()
+    jobs = (await session.execute(select(Job))).scalars().all()
+    assert len(derived) == len(jobs) == 1
+    assert derived[0].job_id == jobs[0].id
+    credits_after = (
+        await session.execute(
+            select(User)
+            .where(User.username == "refresh-fail")
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+    assert credits_after.credits == credits_before - 5
 
 
 @pytest.mark.asyncio
@@ -292,3 +391,62 @@ async def test_unlimited_user_not_charged(client, session, monkeypatch):
     assert r.status_code == 200, r.text
     # 无限制账号返回 -1
     assert r.json()["remainingCredits"] == -1
+
+
+@pytest.mark.asyncio
+async def test_truncated_optimization_is_not_persisted(client, session, monkeypatch):
+    token = await _login(client, session, "trunc", "TR1")
+    h = auth_headers(token)
+
+    from app.models.user import User
+
+    before = (
+        await session.execute(select(User).where(User.username == "trunc"))
+    ).scalar_one()
+    credits_before = before.credits
+
+    class StageModel:
+        def __init__(self, stage):
+            self.stage = stage
+
+        def with_structured_output(self, schema, method):  # noqa: ARG002
+            return self
+
+        async def ainvoke(self, prompt, config=None):  # noqa: ARG002
+            if self.stage == "extract":
+                return JDAnalysis(
+                    experiences=[],
+                    hard_skills=["Python"],
+                    soft_skills=[],
+                    plus=[],
+                    rigid=[],
+                )
+            if self.stage == "analyze":
+                return MatchResult(
+                    role="Engineer", score=0.8, requirements=[], summary="ok"
+                )
+            return SimpleNamespace(
+                content="# partial resume",
+                response_metadata={"finish_reason": "length"},
+            )
+
+    monkeypatch.setattr(agent, "is_configured", lambda: True)
+    monkeypatch.setattr(agent, "get_match_llm", lambda stage: StageModel(stage))
+
+    response = await client.post(
+        "/api/derived-resumes",
+        json={"resumeText": "# resume", "jdText": "# jd", "title": "truncated"},
+        headers=h,
+    )
+
+    assert response.status_code == 503
+    rows = (await session.execute(select(DerivedResume))).scalars().all()
+    assert rows == []
+    credits_after = (
+        await session.execute(
+            select(User)
+            .where(User.username == "trunc")
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+    assert credits_after.credits == credits_before

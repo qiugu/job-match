@@ -16,12 +16,18 @@
 """
 from __future__ import annotations
 
+import threading
 import time
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Iterator
+from uuid import UUID
 
-from langchain_core.callbacks import get_usage_metadata_callback
+from langchain_core.callbacks import BaseCallbackHandler, get_usage_metadata_callback
+from langchain_core.messages import AIMessage
+from langchain_core.outputs import ChatGeneration, LLMResult
 from sqlalchemy import func, select
 
 from app.core.database import AsyncSessionLocal
@@ -33,6 +39,141 @@ from app.models.llm_usage import (
 )
 
 logger = get_logger("usage")
+
+
+@dataclass(frozen=True)
+class ModelRunUsage:
+    """单个匹配 stage 的模型用量；厂商缺失的字段保留为 ``None``。"""
+
+    input_tokens: int | None
+    output_tokens: int | None
+    reasoning_tokens: int | None
+    model: str
+
+
+class RunUsageCallbackHandler(BaseCallbackHandler):
+    """按匹配 stage 的逻辑 run_id 聚合模型用量。
+
+    结构化输出 Runnable 可能在外层 run 下创建新的模型 run，因此不能假定配置的
+    ``run_id`` 就是 ``on_llm_end`` 收到的 id。这里在模型启动时读取继承的 metadata，
+    先把实际模型 run 映射回 stage run，再在结束回调中记录 token。
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._lock = threading.Lock()
+        self._stage_by_model_run: dict[UUID, UUID] = {}
+        self._usage_by_stage_run: dict[UUID, ModelRunUsage] = {}
+
+    def on_chat_model_start(
+        self,
+        serialized: dict[str, Any],  # noqa: ARG002
+        messages: list[list[Any]],  # noqa: ARG002
+        *,
+        run_id: UUID,
+        metadata: dict[str, Any] | None = None,
+        **kwargs: Any,  # noqa: ARG002
+    ) -> None:
+        stage_run_id = (metadata or {}).get("match_stage_run_id")
+        if not stage_run_id:
+            return
+        try:
+            parsed_stage_run_id = UUID(str(stage_run_id))
+        except (TypeError, ValueError):
+            return
+        with self._lock:
+            self._stage_by_model_run[run_id] = parsed_stage_run_id
+
+    def on_llm_end(
+        self,
+        response: LLMResult,
+        *,
+        run_id: UUID,
+        **kwargs: Any,  # noqa: ARG002
+    ) -> None:
+        try:
+            generation = response.generations[0][0]
+        except IndexError:
+            generation = None
+
+        usage_metadata: dict[str, Any] | None = None
+        model = ""
+        if isinstance(generation, ChatGeneration):
+            message = generation.message
+            if isinstance(message, AIMessage):
+                usage_metadata = message.usage_metadata
+                model = str(message.response_metadata.get("model_name") or "")
+
+        with self._lock:
+            stage_run_id = self._stage_by_model_run.pop(run_id, run_id)
+            if usage_metadata is None:
+                return
+            details = usage_metadata.get("output_token_details") or {}
+            current = ModelRunUsage(
+                input_tokens=int(usage_metadata.get("input_tokens") or 0),
+                output_tokens=int(usage_metadata.get("output_tokens") or 0),
+                reasoning_tokens=(
+                    int(details["reasoning"])
+                    if details.get("reasoning") is not None
+                    else None
+                ),
+                model=model,
+            )
+            previous = self._usage_by_stage_run.get(stage_run_id)
+            if previous is None:
+                self._usage_by_stage_run[stage_run_id] = current
+            else:
+                self._usage_by_stage_run[stage_run_id] = ModelRunUsage(
+                    input_tokens=(previous.input_tokens or 0)
+                    + (current.input_tokens or 0),
+                    output_tokens=(previous.output_tokens or 0)
+                    + (current.output_tokens or 0),
+                    reasoning_tokens=(
+                        None
+                        if previous.reasoning_tokens is None
+                        and current.reasoning_tokens is None
+                        else (previous.reasoning_tokens or 0)
+                        + (current.reasoning_tokens or 0)
+                    ),
+                    model=previous.model or current.model,
+                )
+
+    def on_llm_error(
+        self,
+        error: BaseException,  # noqa: ARG002
+        *,
+        run_id: UUID,
+        **kwargs: Any,  # noqa: ARG002
+    ) -> None:
+        with self._lock:
+            self._stage_by_model_run.pop(run_id, None)
+
+    def usage_for(self, stage_run_id: UUID) -> ModelRunUsage | None:
+        with self._lock:
+            return self._usage_by_stage_run.get(stage_run_id)
+
+
+_run_usage_callback: ContextVar[RunUsageCallbackHandler | None] = ContextVar(
+    "match_run_usage_callback",
+    default=None,
+)
+
+
+@contextmanager
+def use_run_usage_callback(
+    callback: RunUsageCallbackHandler,
+) -> Iterator[RunUsageCallbackHandler]:
+    """在当前异步 task 中暴露 stage 用量回调，退出时可靠复位。"""
+
+    token = _run_usage_callback.set(callback)
+    try:
+        yield callback
+    finally:
+        _run_usage_callback.reset(token)
+
+
+def get_run_usage_callback() -> RunUsageCallbackHandler | None:
+    return _run_usage_callback.get()
 
 
 def _summarize_usage(usage_metadata: dict[str, Any] | None) -> tuple[int, int, int, str]:
@@ -59,6 +200,7 @@ async def track_llm(
     endpoint: str,
     user_id: str = "",
     model: str = "",
+    match_run_id: str | None = None,
 ) -> AsyncIterator[None]:
     """记录一次业务端点调用的 LLM 用量。
 
@@ -74,11 +216,15 @@ async def track_llm(
     status = USAGE_STATUS_SUCCESS
     error_type = ""
     usage_metadata: dict[str, Any] = {}
+    run_usage_callback = RunUsageCallbackHandler()
     try:
         # 注意：该回调是**同步**上下文管理器（基于 contextvar 收集），即使在异步
         # 函数中也用 `with`——langchain_core 1.x 未提供 async 版本。
         # contextvar 按 task 隔离，故并发请求间的用量不会串台。
-        with get_usage_metadata_callback() as cb:
+        with (
+            get_usage_metadata_callback() as cb,
+            use_run_usage_callback(run_usage_callback),
+        ):
             try:
                 yield
             except BaseException as exc:  # noqa: BLE001 - 记录后原样抛出
@@ -101,6 +247,7 @@ async def track_llm(
             latency_ms=latency_ms,
             status=status,
             error_type=error_type,
+            match_run_id=match_run_id,
         )
 
 
@@ -115,6 +262,7 @@ async def record_llm_usage(
     latency_ms: int = 0,
     status: str = USAGE_STATUS_SUCCESS,
     error_type: str = "",
+    match_run_id: str | None = None,
 ) -> None:
     """写入一条用量记录（独立短事务，失败只记日志）。
 
@@ -134,6 +282,7 @@ async def record_llm_usage(
                     latency_ms=latency_ms,
                     status=status,
                     error_type=error_type,
+                    match_run_id=match_run_id,
                 )
             )
             await db.commit()
