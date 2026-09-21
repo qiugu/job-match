@@ -310,6 +310,10 @@
       "swiss": {
         "name": "Swiss Aesthetic",
         "description": "Education and tabular skills first, heavy top rules, rational international style"
+      },
+      "impact": {
+        "name": "Impact Ledger",
+        "description": "Results and measurable outcomes first, for product, design, engineering, and lead roles"
       }
     }
   },

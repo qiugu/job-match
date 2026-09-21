@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "@/i18n/compat/client";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { useRouter } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import MarkdownPreview from "@/components/preview/MarkdownPreview";
 import { THEME_COLORS } from "@/types/resume";
+import { getTemplateCardLabel } from "@/app/app/dashboard/pagePresentation";
 
 const A4_WIDTH_PX = 793.700787;
 const PREVIEW_MODAL_SCALE = 0.529166667;
@@ -25,11 +26,13 @@ const PREVIEW_MODAL_SCALE = 0.529166667;
  * 主题色色板 = 编辑器（SidePanel / MarkdownWorkbench）使用的 THEME_COLORS，
  * 两者同源，避免「模板页一套颜色、编辑器另一套颜色」导致选型后样式对不上。
  */
-const FOLLOW_TEMPLATE_COLOR = "";
-const COLOR_CYCLE = [FOLLOW_TEMPLATE_COLOR, ...THEME_COLORS];
+const DEFAULT_THEME_COLOR = THEME_COLORS[0];
+const COLOR_CYCLE = THEME_COLORS;
 
 interface TemplateCardItemProps {
   index: number;
+  total: number;
+  themeColor: string;
   template: MarkdownTemplate;
   templateName: string;
   templateDescription: string;
@@ -42,6 +45,8 @@ interface TemplateCardItemProps {
 
 const TemplateCardItem = ({
   index,
+  total,
+  themeColor,
   template,
   templateName,
   templateDescription,
@@ -53,6 +58,7 @@ const TemplateCardItem = ({
 }: TemplateCardItemProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.24);
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -68,27 +74,25 @@ const TemplateCardItem = ({
     return () => observer.disconnect();
   }, []);
 
-  // 模板卡片缩略图固定使用「模板自身默认色」——每个模板展示自己的配色，
-  // 不再跟随顶部全局色板，避免所有卡片被统一成同一种颜色。
-  // 顶部色板只在「预览弹窗 / 使用此模板」时生效（见下方 handleCreateResume 与弹窗）。
   const previewResume = buildMarkdownTemplateResume(
     template,
     locale,
-    "" // 空串 → 跟随模板默认色
+    themeColor
   );
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.08 }}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      transition={{ duration: shouldReduceMotion ? 0 : 0.3, delay: shouldReduceMotion ? 0 : index * 0.08 }}
+      whileHover={shouldReduceMotion ? undefined : { y: -4 }}
+      whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
     >
       <Card
+        aria-label={getTemplateCardLabel(index, total)}
         className={cn(
-          "group flex flex-col overflow-hidden rounded-[10px] border border-xai-hairline bg-xai-surface p-2.5 shadow-none transition-colors duration-200",
-          "hover:border-white/60"
+          "group flex flex-col overflow-hidden rounded-2xl border border-xai-hairline bg-xai-surface p-2.5 shadow-[0_18px_40px_rgba(0,0,0,0.12)] transition-[border-color,box-shadow] duration-200",
+          "hover:border-xai-hairline-strong hover:shadow-[0_22px_48px_rgba(0,0,0,0.18)]"
         )}
       >
         <CardContent
@@ -99,7 +103,7 @@ const TemplateCardItem = ({
             className="absolute inset-0 pb-6 flex items-center justify-center pointer-events-none transition-transform duration-300 group-hover:scale-[1.02] overflow-hidden"
             ref={containerRef}
           >
-            <div className="w-full h-full relative origin-top bg-white">
+            <div className="relative h-full w-full origin-top bg-white">
               <div
                 className="resume-preview absolute top-0 left-0 bg-white"
                 style={{
@@ -122,10 +126,15 @@ const TemplateCardItem = ({
 
         {/* 模板名与说明放在白纸之外，深色卡壳上一目了然 */}
         <div className="flex flex-col gap-1 px-1.5 pb-1 pt-3">
-          <span className="truncate text-[14px] font-medium text-xai-text">
-            {templateName}
-          </span>
-          <span className="truncate text-[11px] text-xai-mute">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="truncate text-[14px] font-medium text-xai-text">
+              {templateName}
+            </span>
+            <span className="font-mono text-[10px] text-xai-eyebrow">
+              {String(index + 1).padStart(2, "0")}
+            </span>
+          </div>
+          <span className="line-clamp-2 min-h-8 text-[11px] leading-relaxed text-xai-mute">
             {templateDescription}
           </span>
         </div>
@@ -133,13 +142,13 @@ const TemplateCardItem = ({
         <CardFooter className="z-10 px-1.5 pb-1 pt-3">
           <div className="grid grid-cols-2 gap-2 w-full">
             <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={shouldReduceMotion ? undefined : { scale: 1.02 }}
+              whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
             >
               <Button
                 variant="outline"
-                className="h-9 w-full rounded-full border-xai-hairline bg-transparent text-[12.5px] text-xai-text-mid hover:border-xai-hairline-strong hover:bg-xai-surface-2 hover:text-xai-text"
+                className="h-8 w-full rounded-full border-xai-hairline bg-transparent text-[11px] text-xai-text-mid hover:border-xai-hairline-strong hover:bg-xai-surface-2 hover:text-xai-text"
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -151,12 +160,12 @@ const TemplateCardItem = ({
             </motion.div>
 
             <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={shouldReduceMotion ? undefined : { scale: 1.02 }}
+              whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
             >
               <Button
-                className="h-9 w-full rounded-full bg-xai-text text-[12.5px] font-medium text-xai-canvas hover:bg-xai-text/90"
+                className="h-8 w-full rounded-full bg-xai-text text-[11px] font-medium text-xai-canvas hover:bg-xai-text/90"
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -179,7 +188,7 @@ const TemplatesPage = () => {
   const router = useRouter();
   const createResume = useResumeStore((state) => state.createResume);
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
-  const [selectedColor, setSelectedColor] = useState<string>(FOLLOW_TEMPLATE_COLOR);
+  const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_THEME_COLOR);
 
   const handleColorSelect = (value: string) => {
     setSelectedColor(value);
@@ -205,7 +214,7 @@ const TemplatesPage = () => {
         globalSettings: {
           ...resume.globalSettings,
           ...template.globalSettings,
-          themeColor: selectedColor || template.themeColor,
+          themeColor: selectedColor,
         },
       });
     }
@@ -215,66 +224,64 @@ const TemplatesPage = () => {
 
   return (
     <ScrollArea className="h-[calc(100vh-2rem)] w-full">
-      <div className="mx-auto w-full max-w-[1600px] px-6 py-9">
-        <div className="flex flex-col space-y-8">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex flex-col gap-2.5">
-              <p className="xai-eyebrow">RESUME TEMPLATES — MARKDOWN</p>
-              <h2 className="text-[32px] font-medium leading-none tracking-tight text-xai-text">
+      <div className="w-full px-5 py-7 sm:px-6 sm:py-8">
+        <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-7 border-b border-xai-hairline-soft pb-7 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="xai-eyebrow">YOUR RESUME / LAYOUT LIBRARY</p>
+              <h2 className="mt-3 text-[34px] font-medium leading-[0.98] tracking-[-0.04em] text-xai-text sm:text-[42px]">
                 {t("title")}
               </h2>
-              <p className="text-[13px] text-xai-mute">{t("subtitle")}</p>
+              <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-xai-mute">{t("subtitle")}</p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
-              <div className="flex items-center rounded-full border border-xai-hairline bg-xai-surface px-4 py-3">
-                <span className="xai-eyebrow text-[10px]">
-                  {String(MARKDOWN_TEMPLATES.length).padStart(2, "0")} TEMPLATES
-                </span>
+            <div className="flex flex-col items-start gap-3 lg:items-end">
+              <div className="flex items-center gap-3 text-[11px] text-xai-mute">
+                <span className="font-mono text-xai-text">{String(MARKDOWN_TEMPLATES.length).padStart(2, "0")}</span>
+                <span>{t("title")}</span>
+                <span className="text-xai-hairline-strong">/</span>
+                <span>MARKDOWN</span>
               </div>
 
-              <div className="flex items-center gap-2 rounded-full border border-xai-hairline bg-xai-surface px-3 py-2.5">
-              {COLOR_CYCLE.map((color, index) => {
-                const isFollowTemplate = color === FOLLOW_TEMPLATE_COLOR;
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-xai-hairline bg-xai-surface px-3 py-2.5">
+                <span className="xai-eyebrow whitespace-nowrap text-[10px]">{t("themeColor")}</span>
+                <div className="flex items-center gap-2">
+                {COLOR_CYCLE.map((color, index) => {
                 return (
                   <button
-                    key={isFollowTemplate ? "follow-template" : color}
+                    key={color}
                     type="button"
                     onClick={() => handleColorSelect(color)}
                     className={cn(
-                      "relative flex size-8 shrink-0 items-center justify-center rounded-full transition-transform hover:scale-110",
+                      "relative flex size-7 shrink-0 items-center justify-center rounded-full transition-transform hover:scale-110",
                       selectedColor === color
                         ? "scale-110 ring-2 ring-white ring-offset-2 ring-offset-xai-surface"
                         : ""
                     )}
                     title={
-                      isFollowTemplate ? t("defaultColor") : `${t("themeColor")} ${index}`
-                    }
-                  >
-                    {isFollowTemplate ? (
-                      <div className="flex h-full w-full items-center justify-center rounded-full border border-xai-hairline bg-xai-surface-2">
-                        <span className="font-mono text-[9px] uppercase tracking-tighter text-xai-mute">
-                          Tpl
-                        </span>
-                      </div>
-                    ) : (
-                      <div
-                        className="h-full w-full rounded-full border border-white/15"
-                        style={{ backgroundColor: color }}
-                      />
-                    )}
+                      `${t("themeColor")} ${index + 1}`
+                  }
+                >
+                    <div
+                      className="h-full w-full rounded-full border border-white/15"
+                      style={{ backgroundColor: color }}
+                    />
                   </button>
                 );
               })}
+                </div>
               </div>
+              <p className="text-[11px] text-xai-mute">{t("themeColor")} · {selectedColor}</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-5 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {MARKDOWN_TEMPLATES.map((template, index) => (
               <TemplateCardItem
                 key={template.id}
                 index={index}
+                total={MARKDOWN_TEMPLATES.length}
+                themeColor={selectedColor}
                 template={template}
                 templateName={t(`${template.nameKey}.name`)}
                 templateDescription={t(`${template.nameKey}.description`)}

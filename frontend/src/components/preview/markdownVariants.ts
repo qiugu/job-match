@@ -168,6 +168,20 @@ const VARIANT_STYLES: Record<
     .mod-skills ul { margin: 0; padding-left: 0; list-style: none; display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px 16px; }
     .mod-skills li { margin: 0; padding-left: 10px; position: relative; }
     .mod-skills li::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 4px; height: 4px; background: ${themeColor}; border-radius: 50%; }`,
+
+  // 成果账本：以量化成果为主角，顶部定位句 + 细密横线 + 紧凑项目条目
+  impact: ({ themeColor, headerSize, subheaderSize, lineUnit, moduleSpacing }) => `
+    .resume-header { margin-bottom: ${px(lineUnit * 0.9)}; padding-bottom: ${px(lineUnit * 0.55)}; border-bottom: 2px solid ${themeColor}; }
+    .resume-header h1 { font-size: ${px(headerSize + 8)}; font-weight: 800; color: #111111; margin: 0 0 ${px(lineUnit * 0.15)}; line-height: 1.1; letter-spacing: -0.02em; }
+    .resume-header p { color: #4b5563; font-size: 0.92em; }
+    h1 { font-size: ${px(headerSize + 6)}; font-weight: 800; color: #111111; line-height: 1.15; letter-spacing: -0.01em; }
+    h2 { display: flex; align-items: baseline; gap: 10px; font-size: 12px; font-weight: 700; color: ${themeColor}; text-transform: uppercase; letter-spacing: 0.14em; margin: ${px(moduleSpacing)} 0 ${px(lineUnit * 0.3)}; padding-bottom: 6px; border-bottom: 1px solid #d1d5db; line-height: 1.4; }
+    h2::after { flex: 1; height: 1px; background: #e5e7eb; content: ""; }
+    h3 { font-size: ${px(subheaderSize)}; font-weight: 750; color: #111111; margin: ${px(lineUnit * 0.28)} 0 ${px(lineUnit * 0.1)}; line-height: 1.3; }
+    .mod-item-title { color: ${themeColor}; }
+    .mod-skills ul { margin: 0; padding-left: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+    .mod-skills li { margin: 0; color: #374151; }
+    .mod-skills li::before { content: "—"; color: ${themeColor}; margin-right: 5px; }`,
 };
 
 const scopeToPreview = (css: string, scopeSelector?: string): string => {

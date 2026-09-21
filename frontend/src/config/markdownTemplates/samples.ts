@@ -364,6 +364,50 @@ React · Vue.js · TypeScript · Next.js · Vite · 性能优化
 
 React · Vue.js · TypeScript · Next.js · Webpack · Vite · 性能监控`,
 
+  // 成果账本：以项目成果和量化影响为主线，适合产品、设计、研发与负责人岗位
+  impact: `# 宋哈娜
+
+高级前端工程师 · 产品体验与平台效率
+
+138-0013-8000 · zhangsan@example.com · 北京
+
+八年前端工程经验，专注把复杂产品做得更快、更清晰、更容易复用。擅长从 0 到 1 搭建平台，并用可量化结果推动团队决策。
+
+## 关键成果
+
+### 创作者增长平台 · 前端负责人（2022.06 – 2024.12）
+
+- 从 0 到 1 搭建内容工作台，支持 **100 万+** 创作者，核心任务完成率提升 **32%**
+- 设计数据密集型交互与组件规范，新功能交付周期缩短 **40%**
+- 推动性能专项，首屏加载下降 **50%**，线上故障率下降 **45%**
+
+### 前端基础设施 · 技术负责人（2020.03 – 2022.05）
+
+- 统一 Monorepo、CI 与组件库，覆盖 8 条业务线，重复代码减少 **35%**
+- 建立前端质量门禁与监控看板，发布回滚时间从 30 分钟降至 **5 分钟**
+
+## 工作经历
+
+### 字节跳动 · 高级前端工程师（2021.07 – 2024.12）
+
+带领 6 人小组负责创作者平台的前端架构、交互体验和工程效率。
+
+### 腾讯 · 前端工程师（2019.03 – 2021.06）
+
+负责微信小程序开发者工具核心模块，服务数十万开发者。
+
+## 专业技能
+
+- 产品体验：复杂表格、数据可视化、设计系统、可用性优化
+- 工程效率：React、TypeScript、Vite、Monorepo、CI/CD
+- 结果方法：指标拆解、性能治理、灰度发布、团队协作
+
+## 教育经历
+
+### 北京大学 · 计算机科学与技术（2013.09 – 2017.06）
+
+专业排名前 5%，连续三年获得一等奖学金`,
+
   // 瑞士：教育背景 + 表格化技能前置，日期左置并带地点，最后才是经历与项目
   swiss: `# 宋哈娜 | 高级前端工程师
 
@@ -750,6 +794,50 @@ Top 5% of the major, with a first-class scholarship three years in a row.
 ## Skills
 
 React · Vue.js · TypeScript · Next.js · Webpack · Vite · Web Performance`,
+
+  // Impact ledger: a results-first layout for product, design, engineering, and lead roles
+  impact: `# Hana Song
+
+Senior Frontend Engineer · Product Experience & Platform Efficiency
+
+138-0013-8000 · hana@example.com · Beijing
+
+Eight years in frontend engineering, focused on making complex products faster, clearer, and easier to reuse. Strong at building platforms from zero to one and turning measurable outcomes into team decisions.
+
+## Selected Impact
+
+### Creator Growth Platform · Frontend Lead (2022.06 – 2024.12)
+
+- Built the content workspace from zero for **1M+** creators; core task completion up **32%**
+- Designed data-heavy interaction patterns and a component system, cutting delivery time **40%**
+- Led a performance program that cut first paint **50%** and production incidents **45%**
+
+### Frontend Infrastructure · Technical Lead (2020.03 – 2022.05)
+
+- Unified Monorepo, CI, and component library across 8 product lines; duplicate code down **35%**
+- Established quality gates and monitoring dashboards, reducing rollback time from 30 minutes to **5 minutes**
+
+## Experience
+
+### ByteDance · Senior Frontend Engineer (2021.07 – 2024.12)
+
+Led a six-person team across frontend architecture, interaction quality, and engineering efficiency for the creator platform.
+
+### Tencent · Frontend Engineer (2019.03 – 2021.06)
+
+Owned core modules of the WeChat Mini Program DevTools for over 100k developers.
+
+## Skills
+
+- Product experience: complex tables, data visualization, design systems, usability
+- Engineering efficiency: React, TypeScript, Vite, Monorepo, CI/CD
+- Results practice: metric definition, performance, rollout, team leadership
+
+## Education
+
+### Peking University · Computer Science (2013.09 – 2017.06)
+
+Top 5% of the major, first-class scholarship three years in a row`,
 
   swiss: `# Hana Song | Senior Frontend Engineer
 

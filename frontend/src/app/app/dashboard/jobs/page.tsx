@@ -41,6 +41,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { getApplicationStageMeta } from "@/app/app/dashboard/pagePresentation";
 
 // 阶段徽章：中性底 + 中色调圆点（两种主题下均可读，避免 400 系浅色在浅底失效）
 const STAGE_DOT: Record<JobStatus, string> = {
@@ -55,6 +56,7 @@ const STAGE_LABEL: Record<JobStatus, string> = {
   applied: "jobStatusApplied",
   closed: "jobStatusClosed",
 };
+const ACTIVE_STAGES: JobStatus[] = ["greeting_sent", "resume_ready", "applied"];
 
 function relTime(iso: string | null, loc: string): string {
   if (!iso) return "—";
@@ -224,34 +226,43 @@ export default function JobsPage() {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* 顶部：标题 + 新机会入口 */}
-      <header className="flex h-[66px] shrink-0 items-center justify-between border-b border-xai-hairline-soft px-6">
+      <header className="flex shrink-0 flex-col gap-4 border-b border-xai-hairline-soft px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-4">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-primary">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-xai-hairline bg-xai-surface text-xai-text">
             <Briefcase className="size-4.5" />
           </span>
           <div className="min-w-0">
-            <h1 className="truncate text-[15px] font-medium text-xai-text">
+            <p className="xai-eyebrow text-[10px]">APPLICATION DESK</p>
+            <h1 className="mt-1 truncate text-[18px] font-medium tracking-[-0.02em] text-xai-text">
               {t("jobsTitle")}
             </h1>
-            <p className="truncate text-[11px] text-xai-mute">
-              {t("jobDetailEmpty")}
-            </p>
           </div>
         </div>
-        <button
-          type="button"
-          className="xai-pill-primary"
-          onClick={() => router.push("/app/dashboard/match")}
-        >
-          <Tag className="size-3.5" />
-          {t("jobPageNewMatch")}
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="hidden items-center gap-3 text-[11px] text-xai-mute sm:flex">
+            <span><span className="font-mono text-xai-text">{rows.length}</span> active</span>
+            <span className="text-xai-hairline-strong">/</span>
+            <span><span className="font-mono text-xai-text">{archived.length}</span> archived</span>
+          </div>
+          <button
+            type="button"
+            className="xai-pill-primary"
+            onClick={() => router.push("/app/dashboard/match")}
+          >
+            <Tag className="size-3.5" />
+            {t("jobPageNewMatch")}
+          </button>
+        </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 gap-4 px-6 pb-6 pt-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 px-5 pb-5 pt-4 sm:px-7 sm:pb-7 lg:flex-row">
         {/* 左：岗位卡列表 */}
-        <aside className="flex w-[min(340px,34%)] shrink-0 flex-col">
-          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto rounded-xl border border-border bg-card p-2">
+        <aside className="flex min-h-[220px] w-full shrink-0 flex-col lg:min-h-0 lg:w-[min(360px,34%)]">
+          <div className="mb-2 flex items-center justify-between px-1">
+            <span className="xai-eyebrow text-[10px]">OPEN OPPORTUNITIES</span>
+            <span className="font-mono text-[11px] text-xai-mute">{String(active.length).padStart(2, "0")}</span>
+          </div>
+          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto rounded-2xl border border-xai-hairline bg-xai-surface p-2 shadow-[0_16px_36px_rgba(0,0,0,0.12)]">
             {loading ? (
               <div className="flex items-center gap-2 p-4 text-[13px] text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
@@ -296,7 +307,7 @@ export default function JobsPage() {
         </aside>
 
         {/* 右：详情区 */}
-        <section className="min-h-0 min-w-0 flex-1 overflow-y-auto rounded-xl border border-border bg-card">
+        <section className="min-h-0 min-w-0 flex-1 overflow-y-auto rounded-2xl border border-xai-hairline bg-xai-surface shadow-[0_16px_36px_rgba(0,0,0,0.12)]">
           {detailLoading || !detail ? (
             <div className="flex h-full min-h-[240px] items-center justify-center text-[13px] text-muted-foreground">
               {detailLoading ? (
@@ -434,7 +445,10 @@ function JobRow({
       )}
     >
       <div className="flex items-center gap-2">
-        <span className="size-1.5 shrink-0 rounded-full" style={{ background: dot }} />
+        <span className="relative flex size-3 shrink-0 items-center justify-center">
+          <span className="absolute size-2 rounded-full opacity-25" style={{ background: dot }} />
+          <span className="relative size-1.5 rounded-full" style={{ background: dot }} />
+        </span>
         <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-xai-text">
           {title}
         </span>
@@ -453,6 +467,15 @@ function JobRow({
         </span>
         <span className="ml-auto">{relTime(job.last_activity_at, locale)}</span>
       </div>
+      {job.status !== "closed" && (
+        <div className="mt-3 flex items-center gap-1 pl-0.5" aria-hidden="true">
+          {ACTIVE_STAGES.map((stage) => {
+            const current = getApplicationStageMeta(job.status).index;
+            const step = getApplicationStageMeta(stage).index;
+            return <span key={stage} className={cn("h-0.5 flex-1 rounded-full", step <= current ? "bg-xai-text" : "bg-xai-hairline")} />;
+          })}
+        </div>
+      )}
     </button>
   );
 }
@@ -510,6 +533,7 @@ function JobDetailView({
                 relTime(detail.updated_at, locale)
               )}
             </p>
+            <StageRail status={detail.status} t={t} />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {isClosed ? (
@@ -584,20 +608,20 @@ function JobDetailView({
       </div>
 
       {/* 详情体：岗位描述（全文）+ 定制简历（含匹配分析回看）+ 话术记录 */}
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+      <div className="min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-6 sm:px-7">
         {/* 岗位描述：JD 是整条投递的上下文锚点，全文直接展示在正文区随页面滚动，不做折叠 */}
         <section>
-          <h3 className="xai-eyebrow mb-2 text-[10px]">{t("jobDetailJd")}</h3>
-          <div className="whitespace-pre-wrap break-words rounded-lg border border-border bg-background px-4 py-3 text-[12.5px] leading-relaxed text-xai-text-mid">
+          <h3 className="xai-eyebrow mb-3 text-[10px]">{t("jobDetailJd")}</h3>
+          <div className="whitespace-pre-wrap break-words rounded-xl border border-xai-hairline-soft bg-xai-canvas/70 px-4 py-4 text-[12.5px] leading-[1.8] text-xai-text-mid">
             {detail.jd_text || t("jobDetailJd")}
           </div>
         </section>
 
         {/* 定制简历与匹配结果 */}
         <section>
-          <h3 className="xai-eyebrow mb-2 text-[10px]">{t("jobDetailResumes")}</h3>
+          <h3 className="xai-eyebrow mb-3 text-[10px]">{t("jobDetailResumes")}</h3>
           {detail.derived_resumes.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border p-4 text-[12px] text-muted-foreground">
+            <div className="rounded-xl border border-dashed border-xai-hairline p-4 text-[12px] text-xai-mute">
               {isClosed ? t("jobNoDerived") : t("jobPitchCtaDesc")}
             </div>
           ) : (
@@ -611,9 +635,9 @@ function JobDetailView({
 
         {/* 话术记录 */}
         <section>
-          <h3 className="xai-eyebrow mb-2 text-[10px]">{t("jobDetailPitches")}</h3>
+          <h3 className="xai-eyebrow mb-3 text-[10px]">{t("jobDetailPitches")}</h3>
           {detail.cover_letters.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border p-4 text-[12px] text-muted-foreground">
+            <div className="rounded-xl border border-dashed border-xai-hairline p-4 text-[12px] text-xai-mute">
               {t("jobNoPitch")}
             </div>
           ) : (
@@ -627,7 +651,7 @@ function JobDetailView({
       </div>
 
       {/* 危险操作 */}
-      <div className="flex shrink-0 items-center gap-2 border-t border-border px-6 py-3">
+      <div className="flex shrink-0 items-center gap-2 border-t border-xai-hairline-soft px-5 py-3 sm:px-7">
         <button
           type="button"
           className="inline-flex h-7 items-center gap-1 rounded-full border border-border px-3 text-xs text-muted-foreground transition-colors hover:border-rose-400/40 hover:text-rose-400"
@@ -649,6 +673,42 @@ function JobDetailView({
   );
 }
 
+function StageRail({
+  status,
+  t,
+}: {
+  status: JobStatus;
+  t: Translator;
+}) {
+  const current = getApplicationStageMeta(status).index;
+
+  if (status === "closed") {
+    return (
+      <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-xai-hairline px-3 py-1.5 text-[11px] text-xai-mute">
+        <span className="size-1.5 rounded-full bg-xai-mute" />
+        {t("jobStatusClosed")}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5 grid max-w-xl grid-cols-3 gap-2" aria-label="Application progress">
+      {ACTIVE_STAGES.map((stage) => {
+        const meta = getApplicationStageMeta(stage);
+        const complete = meta.index <= current;
+        return (
+          <div key={stage} className="space-y-2">
+            <div className={cn("h-1 rounded-full", complete ? "bg-xai-text" : "bg-xai-hairline")} />
+            <span className={cn("block text-[10px] leading-tight", complete ? "text-xai-text-mid" : "text-xai-eyebrow")}>
+              {t(meta.label)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function DerivedCard({
   dr,
   t,
@@ -659,7 +719,7 @@ function DerivedCard({
   const a = dr.analysis;
   const pct = a?.score != null ? Math.round(Math.min(1, Math.max(0, a.score)) * 100) : null;
   return (
-    <div className="rounded-xl border border-border p-4">
+    <div className="rounded-xl border border-xai-hairline-soft bg-xai-canvas/30 p-4">
       <div className="flex items-center gap-2">
         <FileText className="size-3.5 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
@@ -740,7 +800,7 @@ function PitchCard({
   t: Translator;
 }) {
   return (
-    <div className="rounded-xl border border-border p-4">
+    <div className="rounded-xl border border-xai-hairline-soft bg-xai-canvas/30 p-4">
       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
         <Mail className="size-3" />
         <span className="rounded border border-border px-1 py-px uppercase">{cl.scene}</span>
