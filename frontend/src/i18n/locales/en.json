@@ -376,7 +376,7 @@
     "saveMatchError": "Failed to save resume",
     "sourceUnknown": "Unknown source",
     "selectMaster": "Select a resume",
-    "matchingDesc": "The agent is parsing the job description and optimizing your resume. This usually takes about 3 minutes…",
+    "matchingDesc": "The agent is parsing the job description and optimizing your resume…",
     "matchAnalysis": "Match Analysis",
     "matchAnalysisRole": "Target Role",
     "matchAnalysisScore": "Match Score",

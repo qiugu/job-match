@@ -377,7 +377,7 @@
     "saveMatchError": "保存简历失败",
     "sourceUnknown": "未知来源",
     "selectMaster": "选择要优化的简历",
-    "matchingDesc": "Agent 正在解析岗位描述并优化简历，通常需要 3 分钟左右…",
+    "matchingDesc": "Agent 正在解析岗位描述并优化简历…",
     "matchAnalysis": "匹配分析",
     "matchAnalysisRole": "目标岗位",
     "matchAnalysisScore": "匹配度",
