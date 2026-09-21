@@ -12,7 +12,7 @@ import pytest
 
 
 PREVIOUS_HEAD = "l5f7a9c2d4e6"
-NEW_HEAD = "m6a8c0e2f4b7"
+NEW_HEAD = "n7h9j1k3m5p7"
 
 
 def _run_alembic(root: Path, database_url: str, *args: str) -> None:

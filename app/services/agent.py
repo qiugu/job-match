@@ -46,6 +46,7 @@ from app.schemas.agent import (
     MatchResult,
 )
 from app.services.match_metrics import MatchStageError, match_request, match_stage
+from app.services.match_observability import get_match_run_id, record_match_step
 
 logger = get_logger("agent")
 _match_deadline: ContextVar[float | None] = ContextVar(
@@ -136,6 +137,10 @@ async def _invoke_match_stage(
         "keyword_optimize": settings.match_optimize_timeout_seconds,
     }[stage_name]
     for attempt in (1, 2):
+        run_id = get_match_run_id()
+        stage_started = _monotonic() if run_id is not None else 0.0
+        stage_status = "success"
+        stage_error_type = ""
         try:
             with match_stage(
                 stage_name, attempt=attempt, input_chars=len(prompt)
@@ -162,6 +167,8 @@ async def _invoke_match_stage(
                     )
                 return response
         except Exception as exc:
+            stage_status = "error"
+            stage_error_type = type(exc).__name__
             if attempt == 2 or not _is_recoverable_match_error(exc):
                 raise
             retry_after = _retry_after_seconds(exc)
@@ -169,6 +176,16 @@ async def _invoke_match_stage(
                 raise
             if retry_after:
                 await asyncio.sleep(retry_after)
+        finally:
+            if run_id is not None:
+                await record_match_step(
+                    run_id,
+                    step_key=stage_name,
+                    status=stage_status,
+                    latency_ms=round((_monotonic() - stage_started) * 1000),
+                    attempt=attempt,
+                    error_type=stage_error_type,
+                )
     raise AssertionError("unreachable")
 
 

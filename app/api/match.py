@@ -24,12 +24,40 @@ from app.schemas.resume import ResumeData
 from app.services.agent import run_match
 from app.services.job import attach_or_create_job, promote_for_action
 from app.services.match_metrics import match_request
+from app.services.match_observability import (
+    finish_match_run,
+    match_run_context,
+    start_match_run,
+)
+from app.services.match_stats import compute_match_observability, get_match_run_detail
 from app.services.quota import consume_credits, refund_credits
 from app.services.usage import track_llm
 
 logger = get_logger("match")
 
 router = APIRouter(prefix="/api/derived-resumes", tags=["derived-resumes"])
+
+
+@router.get("/observability", summary="简历匹配可观测性统计")
+async def match_observability(
+    days: int = 30,
+    tz_offset: int = 480,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return await compute_match_observability(db, user.id, days, tz_offset)
+
+
+@router.get("/observability/runs/{run_id}", summary="简历匹配运行详情")
+async def match_observability_run_detail(
+    run_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = await get_match_run_detail(db, user.id, run_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="匹配运行不存在")
+    return result
 
 
 async def _master_title_taken(db: AsyncSession, title: str, user_id: str) -> bool:
@@ -110,15 +138,19 @@ async def create_match(
         reserved = True
 
     result_committed = False
+    match_run_id = await start_match_run(user_id)
     try:
-        # 用量台账（Plan.md R1）：整段匹配工作流的 token 与耗时留痕；
-        # 内部多节点 LLM 调用会被汇总成一条记录，失败同样记 status=error。
-        with match_request(uuid.uuid4().hex):
-            async with track_llm(ENDPOINT_MATCH, user_id=user_id):
-                keywords, resume_md, analysis = await run_match(
-                    master_text=req.resumeText,
-                    jd_text=req.jdText,
-                )
+        with match_run_context(match_run_id):
+            # 用量台账（Plan.md R1）：整段匹配工作流的 token 与耗时留痕；
+            # 内部多节点 LLM 调用会被汇总成一条记录，失败同样记 status=error。
+            with match_request(uuid.uuid4().hex):
+                async with track_llm(
+                    ENDPOINT_MATCH, user_id=user_id, match_run_id=match_run_id
+                ):
+                    keywords, resume_md, analysis = await run_match(
+                        master_text=req.resumeText,
+                        jd_text=req.jdText,
+                    )
 
         did = uuid.uuid4().hex
         # 标题冲突时自动追加「自动1/自动2…」，确保 JD 生成的简历名称唯一
@@ -145,6 +177,13 @@ async def create_match(
         await db.commit()
         result_committed = True
         await db.refresh(derived)
+        await finish_match_run(
+            match_run_id,
+            status="success",
+            job_id=job.id,
+            derived_resume_id=derived.id,
+            analysis=analysis,
+        )
     except RuntimeError as e:
         # LLM 或提交前持久化失败都没有可用产出：先释放主会话事务/SQLite 写锁，
         # 再用 quota 的独立短事务退款。commit 成功后的 refresh/响应故障不得退款。
@@ -152,13 +191,15 @@ async def create_match(
             await db.rollback()
             if reserved:
                 await refund_credits(user_id, settings.resume_match_cost)
+            await finish_match_run(match_run_id, status="error", error=e)
         logger.warning("创建匹配失败（503） | error_type=%s", type(e).__name__)
         raise HTTPException(status_code=503, detail=str(e))
-    except Exception:
+    except Exception as e:
         if not result_committed:
             await db.rollback()
             if reserved:
                 await refund_credits(user_id, settings.resume_match_cost)
+            await finish_match_run(match_run_id, status="error", error=e)
         raise
 
     remaining = await _remaining_credits(db, user)

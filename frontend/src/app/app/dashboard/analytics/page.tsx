@@ -15,6 +15,7 @@ import {
   type JobStatus,
 } from "@/lib/jobmatch";
 import { EChart } from "@/components/analytics/EChart";
+import { MatchingObservability } from "@/components/analytics/MatchingObservability";
 import {
   buildDailyTrendOption,
   buildFunnelOption,
@@ -111,7 +112,24 @@ export default function AnalyticsPage() {
   const [error, setError] = useState(false);
   /** 每次成功加载后 +1，驱动图表重绘（数据引用可能不变，但内容已更新） */
   const [revision, setRevision] = useState(0);
+  const [tab, setTab] = useState<"delivery" | "matching">("delivery");
   const requestId = useRef(0);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tab") === "matching") {
+      setTab("matching");
+    }
+  }, []);
+
+  const changeTab = (next: "delivery" | "matching") => {
+    setTab(next);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (next === "matching") url.searchParams.set("tab", "matching");
+      else url.searchParams.delete("tab");
+      window.history.replaceState({}, "", url);
+    }
+  };
 
   const load = useCallback(
     async (range: AnalyticsDays) => {
@@ -198,11 +216,32 @@ export default function AnalyticsPage() {
             </p>
           </div>
         </div>
-        <div className="max-w-full shrink-0 overflow-x-auto pb-0.5">{rangeBar}</div>
+        <div className="flex max-w-full shrink-0 items-center gap-3 overflow-x-auto pb-0.5">
+          <div className="flex shrink-0 items-center gap-1 rounded-full border border-border bg-card p-1" role="tablist" aria-label={t("analyticsTabsLabel")}>
+            {(["delivery", "matching"] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tab === key}
+                onClick={() => changeTab(key)}
+                className={cn(
+                  "h-7 rounded-full px-3 text-[11px] transition-colors duration-150",
+                  tab === key ? "bg-xai-text text-xai-canvas" : "text-xai-mute hover:bg-xai-surface-2 hover:text-xai-text"
+                )}
+              >
+                {t(key === "delivery" ? "analyticsTabDelivery" : "analyticsTabMatching")}
+              </button>
+            ))}
+          </div>
+          {rangeBar}
+        </div>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-5 sm:px-6 lg:px-8">
-        {loading && !stats ? (
+        {tab === "matching" ? (
+          <MatchingObservability days={days} />
+        ) : loading && !stats ? (
           <div className="flex h-full items-center justify-center gap-2 text-[13px] text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
             {t("analyticsLoading")}

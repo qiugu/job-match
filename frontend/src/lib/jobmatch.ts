@@ -564,3 +564,110 @@ export async function getJobStats(
   params.set("tz_offset", String(offset));
   return request(`/api/jobs/stats?${params.toString()}`);
 }
+
+// ---------- 简历匹配可观测性 ----------
+export interface MatchObservabilityRange extends JobStatsRange {}
+
+export interface MatchObservabilityOverview {
+  total: number;
+  success: number;
+  error: number;
+  running: number;
+  success_rate: number;
+  avg_latency_ms: number | null;
+  p95_latency_ms: number | null;
+  total_tokens: number;
+  avg_tokens: number | null;
+  avg_score: number | null;
+}
+
+export interface MatchDailyPoint {
+  date: string;
+  total: number;
+  success: number;
+  error: number;
+  avg_latency_ms: number | null;
+}
+
+export interface MatchStepSummary {
+  step_key: string;
+  calls: number;
+  success: number;
+  error: number;
+  success_rate: number;
+  avg_latency_ms: number | null;
+}
+
+export interface MatchQuality {
+  matched: number;
+  weak: number;
+  missing: number;
+  unsupported: number;
+  total_requirements: number;
+}
+
+export interface MatchRunSummary {
+  id: string;
+  job_id: string | null;
+  job_title: string;
+  company: string;
+  job_status: JobStatus | null;
+  status: "running" | "success" | "error";
+  score: number | null;
+  latency_ms: number;
+  total_tokens: number;
+  started_at: string | null;
+  completed_at: string | null;
+  error_type: string | null;
+}
+
+export interface MatchObservability {
+  range: MatchObservabilityRange;
+  overview: MatchObservabilityOverview;
+  daily: MatchDailyPoint[];
+  steps: MatchStepSummary[];
+  quality: MatchQuality;
+  outcome: {
+    success_runs: number;
+    applied_runs: number;
+    applied_rate: number;
+  };
+  recent_runs: MatchRunSummary[];
+}
+
+export interface MatchRunDetail {
+  run: MatchRunSummary;
+  quality: MatchQuality;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    model: string;
+  };
+  error: { type: string | null; message: string | null };
+  steps: Array<{
+    step_key: string;
+    status: string;
+    attempt: number;
+    latency_ms: number;
+    started_at: string | null;
+    completed_at: string | null;
+    error_type: string | null;
+  }>;
+}
+
+export async function getMatchObservability(
+  days: AnalyticsDays | number = 30,
+  tzOffset?: number
+): Promise<MatchObservability> {
+  const params = new URLSearchParams({ days: String(days) });
+  params.set(
+    "tz_offset",
+    String(tzOffset ?? (typeof window !== "undefined" ? -new Date().getTimezoneOffset() : 480))
+  );
+  return request(`/api/derived-resumes/observability?${params.toString()}`);
+}
+
+export async function getMatchRunDetail(runId: string): Promise<MatchRunDetail> {
+  return request(`/api/derived-resumes/observability/runs/${runId}`);
+}

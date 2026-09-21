@@ -200,6 +200,7 @@ async def track_llm(
     endpoint: str,
     user_id: str = "",
     model: str = "",
+    match_run_id: str | None = None,
 ) -> AsyncIterator[None]:
     """记录一次业务端点调用的 LLM 用量。
 
@@ -246,6 +247,7 @@ async def track_llm(
             latency_ms=latency_ms,
             status=status,
             error_type=error_type,
+            match_run_id=match_run_id,
         )
 
 
@@ -260,6 +262,7 @@ async def record_llm_usage(
     latency_ms: int = 0,
     status: str = USAGE_STATUS_SUCCESS,
     error_type: str = "",
+    match_run_id: str | None = None,
 ) -> None:
     """写入一条用量记录（独立短事务，失败只记日志）。
 
@@ -279,6 +282,7 @@ async def record_llm_usage(
                     latency_ms=latency_ms,
                     status=status,
                     error_type=error_type,
+                    match_run_id=match_run_id,
                 )
             )
             await db.commit()
