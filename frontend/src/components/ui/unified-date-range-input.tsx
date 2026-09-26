@@ -108,8 +108,8 @@ export function UnifiedDateRangeInput({
         <div className="flex items-center gap-2">
           <div className="flex-1">
             <DateInput
-              value={range.start}
-              onChange={handleStartChange}
+              value={range.start as any}
+              onChange={handleStartChange as any}
               variant="bordered"
               granularity={"month" as any}
               shouldForceLeadingZeros
@@ -124,8 +124,8 @@ export function UnifiedDateRangeInput({
           <span className="text-muted-foreground">-</span>
           <div className="flex-1 relative">
             <DateInput
-              value={isPresent ? null : range.end}
-              onChange={handleEndChange}
+              value={(isPresent ? null : range.end) as any}
+              onChange={handleEndChange as any}
               variant="bordered"
               granularity={"month" as any}
               shouldForceLeadingZeros

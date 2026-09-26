@@ -70,14 +70,14 @@ const EducationEditor: React.FC<EducationEditorProps> = ({
         <div className="grid grid-cols-2 gap-4">
           <Field
             label={t("labels.startDate")}
-            value={education.startDate}
+            value={education.startDate ?? ""}
             onChange={(value) => handleChange("startDate", value)}
             type="date"
             placeholder="YYYY-MM"
           />
           <Field
             label={t("labels.endDate")}
-            value={education.endDate}
+            value={education.endDate ?? ""}
             onChange={(value) => handleChange("endDate", value)}
             type="date"
             placeholder="YYYY-MM"
@@ -87,7 +87,7 @@ const EducationEditor: React.FC<EducationEditorProps> = ({
 
         <Field
           label={t("labels.description")}
-          value={education.description}
+          value={education.description ?? ""}
           onChange={(value) => handleChange("description", value)}
           type="editor"
           placeholder={t("placeholders.description")}

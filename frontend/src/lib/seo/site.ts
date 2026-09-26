@@ -9,6 +9,8 @@
 
 import { defaultLocale, locales, type Locale } from "@/i18n/config";
 
+export type { Locale } from "@/i18n/config";
+
 /** 生产站点基址（无尾斜杠）。仅作为 VITE_SITE_URL 缺省时的回退。 */
 export const DEFAULT_SITE_URL = "https://jdmatch.site";
 

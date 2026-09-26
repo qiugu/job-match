@@ -236,7 +236,7 @@ const PreviewPanel = React.forwardRef<HTMLDivElement, PreviewPanelProps>(
               // id 只作为导出/打印的 DOM 句柄，不参与样式匹配）。
               className="relative resume-preview"
             >
-              <style jsx global>{`
+              <style>{`
               .grammar-error {
                 cursor: help;
                 border-bottom: 2px dashed;
@@ -274,7 +274,7 @@ const PreviewPanel = React.forwardRef<HTMLDivElement, PreviewPanelProps>(
                   background-color: transparent;
                 }
               }
-            `}</style>
+              `}</style>
               <ResumeTemplateComponent data={activeResume} template={template} />
               {contentHeight > 0 && (
                 <>

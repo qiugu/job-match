@@ -117,7 +117,7 @@ const MarkdownWorkbench = () => {
               </div>
               <div className="flex-1 min-h-0">
                 <MarkdownEditor
-                  value={activeResume.markdownContent}
+                  value={activeResume.markdownContent ?? ""}
                   onChange={handleChange}
                   placeholder={t("placeholder")}
                 />
