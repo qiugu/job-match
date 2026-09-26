@@ -56,8 +56,8 @@ export function UnifiedDateInput({
     <div className={className}>
       <HeroUIProvider locale="ja-JP">
         <DateInput
-          value={isPresent ? null : selectedDate}
-          onChange={handleDateChange}
+          value={(isPresent ? null : selectedDate) as any}
+          onChange={handleDateChange as any}
           isRequired={isRequired}
           granularity={"month" as any}
           variant="bordered"

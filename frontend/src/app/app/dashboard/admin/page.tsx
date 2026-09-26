@@ -16,6 +16,7 @@ import { AdminRange, fetchAdminDashboard, type AdminDashboard } from "@/lib/admi
 import { EChart } from "@/components/analytics/EChart";
 import { useAuthStore } from "@/store/useAuthStore";
 import type { ChartTokens } from "@/components/analytics/tokens";
+import type { EChartsOption } from "echarts";
 
 const RANGES: AdminRange[] = [7, 30, 90];
 const BRAND_ACCENT = "#E85D4A";
@@ -62,12 +63,12 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function chartOption(
   data: AdminDashboard["daily"],
-  fieldA: "pv" | "newUsers" | "matches",
-  fieldB: "uv" | "jobs" | "llmCalls",
+  fieldA: keyof AdminDashboard["daily"][number],
+  fieldB: keyof AdminDashboard["daily"][number],
   labels: [string, string],
   colors: [string, string],
   tokens: ChartTokens
-) {
+): EChartsOption {
   return {
     animationDuration: 450,
     grid: { left: 8, right: 8, top: 30, bottom: 18, containLabel: true },
