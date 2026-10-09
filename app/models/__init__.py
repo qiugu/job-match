@@ -10,6 +10,7 @@ from app.models.llm_usage import LlmUsage
 from app.models.match_run import MatchRun
 from app.models.match_run_step import MatchRunStep
 from app.models.site_visit import SiteVisit
+from app.models.growth_event import GrowthEvent
 
 __all__ = [
     "User",
@@ -23,4 +24,5 @@ __all__ = [
     "MatchRun",
     "MatchRunStep",
     "SiteVisit",
+    "GrowthEvent",
 ]

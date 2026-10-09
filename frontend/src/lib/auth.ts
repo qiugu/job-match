@@ -124,15 +124,13 @@ export function login(username: string, password: string): Promise<AuthResponse>
   });
 }
 
-/** 注册必须带注册码：注册码决定该账号获得多少积分 */
 export function register(
   username: string,
-  password: string,
-  code: string
+  password: string
 ): Promise<AuthResponse> {
   return request<AuthResponse>("/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ username, password, code }),
+    body: JSON.stringify({ username, password }),
   });
 }
 

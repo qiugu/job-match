@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2, Ticket } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { formatCountdown } from "@/utils/countdown";
@@ -7,7 +7,6 @@ import { formatCountdown } from "@/utils/countdown";
 import Logo from "@/components/shared/Logo";
 import { IcpFilingLink } from "@/components/shared/IcpFiling";
 import { PublicSecurityFilingLink } from "@/components/shared/PublicSecurityFiling";
-import RegistrationCodeCTA from "@/components/home/client/RegistrationCodeCTA";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/i18n/compat/client";
 import { useRouter } from "@/lib/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
+import { trackGrowthEvent } from "@/lib/telemetry";
 
 type Mode = "login" | "register";
 
@@ -44,7 +44,6 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
   const [mode, setMode] = useState<Mode>("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [code, setCode] = useState("");
   const [cooldownLeft, setCooldownLeft] = useState(0);
 
   // 冷却倒计时：归零时自动解除，用户无需刷新页面
@@ -76,10 +75,16 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
         await login(username.trim(), password);
         toast.success(t("loginSuccess"));
       } else {
-        await register(username.trim(), password, code.trim());
+        void trackGrowthEvent("register_start", { path: "/login" });
+        await register(username.trim(), password);
+        void trackGrowthEvent("register_success", { path: "/login" });
         toast.success(t("registerSuccess"));
       }
-      router.push(redirectTo || "/app/dashboard");
+      router.push(
+        mode === "register"
+          ? "/app/dashboard/match?onboarding=1"
+          : redirectTo || "/app/dashboard"
+      );
     } catch (err) {
       // 失败一律弹 toast：表单内的红字容易被忽略，用户会以为「点了没反应」，
       // 限流（429）尤其如此——它往往需要等待，必须给出明确反馈。
@@ -123,41 +128,6 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
                 required
               />
             </div>
-
-            {mode === "register" && (
-              <div className="space-y-2">
-                <Label htmlFor="code">{t("code")}</Label>
-                <Input
-                  id="code"
-                  value={code}
-                  onChange={(event) => setCode(event.target.value)}
-                  placeholder={t("codePlaceholder")}
-                  autoComplete="off"
-                  required
-                  className={code.trim() ? "border-primary/50" : undefined}
-                />
-                {/* 自助领取入口：紧贴注册码输入框，无码用户一眼可见并可随手领取，
-                    领取成功后由 onIssued 回填并提示，弹框自动关闭 */}
-                <RegistrationCodeCTA
-                  hideGoRegisterHint
-                  noVerticalMargin
-                  onIssued={(issue) => {
-                    setCode(issue.code);
-                    toast.success(t("codeAutoFilled"));
-                  }}
-                  trigger={(open) => (
-                    <Button
-                      type="button"
-                      className="w-full rounded-full"
-                      onClick={open}
-                    >
-                      <Ticket />
-                      {t("getCodeCta")}
-                    </Button>
-                  )}
-                />
-              </div>
-            )}
 
             <div className="space-y-2">
               <Label htmlFor="password">{t("password")}</Label>

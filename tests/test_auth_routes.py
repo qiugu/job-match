@@ -12,6 +12,7 @@ import pytest
 from conftest import auth_headers
 from app.core.timeutils import utcnow
 from app.models.registration_code import RegistrationCode
+from app.core.config import settings
 from sqlalchemy import select
 
 
@@ -61,6 +62,18 @@ async def test_register_success_grants_credits(client, session):
     assert r.status_code == 200
     assert r.json()["credits"] == 50
     assert r.json()["username"] == "bob"
+
+
+@pytest.mark.asyncio
+async def test_register_without_code_grants_default_credits(client):
+    """主注册流程无码可用，并按积分模型发放默认试用余额。"""
+    r = await client.post(
+        "/api/auth/register",
+        json={"username": "trialuser", "password": "Pass#1234"},
+    )
+
+    assert r.status_code == 200, r.text
+    assert r.json()["user"]["credits"] == settings.registration_default_credits
 
 
 @pytest.mark.asyncio

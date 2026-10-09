@@ -31,7 +31,7 @@ interface AuthStore {
   cooldownUntil: number | null;
   initialize: () => Promise<void>;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string, code: string) => Promise<void>;
+  register: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   /**
    * 修改密码。后端改密后会递增 token_version 使旧令牌立即失效，并在响应里回发
@@ -95,10 +95,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
   },
 
-  register: async (username, password, code) => {
+  register: async (username, password) => {
     set({ submitting: true, error: null });
     try {
-      const res = await registerApi(username, password, code);
+      const res = await registerApi(username, password);
       setToken(res.token);
       set({
         status: "authenticated",

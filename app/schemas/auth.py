@@ -9,11 +9,11 @@ from pydantic import BaseModel, Field
 
 
 class RegisterRequest(BaseModel):
-    """注册：用户名 + 口令 + 注册码（注册码决定该账号获得多少积分）。"""
+    """注册：用户名 + 口令；活动注册码为兼容 API 的可选项。"""
 
     username: str
     password: str
-    code: str
+    code: str | None = None
 
 
 class LoginRequest(BaseModel):

@@ -50,6 +50,7 @@ async def init_db() -> None:
         match_run,
         match_run_step,
         site_visit,
+        growth_event,
     )
 
     # 数据库 schema 由 Alembic 迁移统一管理，启动时确保已升级到最新版本。

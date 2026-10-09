@@ -4,6 +4,7 @@
 import { ResumeData } from "@/types/resume";
 import { API_BASE } from "./apiBase";
 import { authHeaders, handleUnauthorized } from "./auth";
+import { trackGrowthEvent } from "./telemetry";
 
 export { API_BASE };
 
@@ -86,7 +87,9 @@ export async function uploadMasterResume(file: File): Promise<MasterResumeSummar
     error.status = res.status;
     throw error;
   }
-  return res.json();
+  const created = (await res.json()) as MasterResumeSummary;
+  void trackGrowthEvent("resume_created");
+  return created;
 }
 
 export async function listMasterResumes(): Promise<MasterResumeSummary[]> {
@@ -119,10 +122,12 @@ export async function updateMasterResume(
 export async function createMasterResumeJson(
   data: ResumeData
 ): Promise<CreateMasterResumeResult> {
-  return request("/api/master-resumes/json", {
+  const created = await request<CreateMasterResumeResult>("/api/master-resumes/json", {
     method: "POST",
     body: JSON.stringify(data),
   });
+  void trackGrowthEvent("resume_created");
+  return created;
 }
 
 /**
@@ -305,10 +310,12 @@ export async function regenerateCoverLetter(
 }
 
 export async function createMatch(payload: CreateMatchPayload): Promise<MatchResult> {
-  return request("/api/derived-resumes", {
+  const result = await request<MatchResult>("/api/derived-resumes", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  void trackGrowthEvent("first_match_success");
+  return result;
 }
 
 export async function listDerivedResumes(): Promise<DerivedResumeSummary[]> {

@@ -5,7 +5,7 @@ import { HeroUIProvider } from "@heroui/react";
 import { useLocale } from "@/i18n/compat/client";
 import { useAuthStore } from "@/store/useAuthStore";
 import { usePathname } from "@/lib/navigation";
-import { trackPageView } from "@/lib/telemetry";
+import { trackDailySession, trackGrowthEvent, trackPageView } from "@/lib/telemetry";
 // 2026-08-29 起本地目录文件同步已停用：简历唯一数据源改为后端 master_resumes，
 // 不再从 Downloads/简历 等本地目录自动扫描并写入 localStorage。
 // import { useResumeDirectorySync } from "@/hooks/useResumeDirectorySync";
@@ -24,6 +24,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     void trackPageView(pathname);
+    void trackDailySession(pathname);
+    if (/^\/(zh|en)\/?$/.test(pathname)) {
+      void trackGrowthEvent("landing_view", { path: pathname });
+    }
   }, [pathname]);
 
   return (
