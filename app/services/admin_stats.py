@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.derived_resume import DerivedResume
+from app.models.growth_event import GrowthEvent
 from app.models.job import Job
 from app.models.llm_usage import LlmUsage, USAGE_STATUS_SUCCESS
 from app.models.master_resume import MasterResume
@@ -16,6 +17,15 @@ from app.models.user import User
 
 
 ALLOWED_RANGES = (7, 30, 90)
+GROWTH_EVENT_FIELDS = {
+    "landing_view": "landingView",
+    "cta_click": "ctaClick",
+    "register_start": "registerStart",
+    "register_success": "registerSuccess",
+    "resume_created": "resumeCreated",
+    "first_match_success": "firstMatchSuccess",
+    "session_start": "sessionStart",
+}
 
 
 def _day(value: datetime | date) -> date:
@@ -64,6 +74,17 @@ async def build_admin_dashboard(session: AsyncSession, days: int) -> dict:
     )
     visits = {day: (int(pv), int(uv)) for day, pv, uv in visit_rows}
 
+    growth_actor = case(
+        (GrowthEvent.user_id.is_not(None), GrowthEvent.user_id),
+        else_=GrowthEvent.visitor_hash,
+    )
+    growth_rows = await session.execute(
+        select(GrowthEvent.event_name, func.count(func.distinct(growth_actor)))
+        .where(GrowthEvent.occurred_at >= start)
+        .group_by(GrowthEvent.event_name)
+    )
+    growth_counts = {name: int(count) for name, count in growth_rows}
+
     daily = []
     for offset in range(days):
         current = start_date + timedelta(days=offset)
@@ -91,4 +112,8 @@ async def build_admin_dashboard(session: AsyncSession, days: int) -> dict:
             "creditsConsumed": credits_consumed,
         },
         "daily": daily,
+        "growthFunnel": {
+            field: growth_counts.get(event_name, 0)
+            for event_name, field in GROWTH_EVENT_FIELDS.items()
+        },
     }

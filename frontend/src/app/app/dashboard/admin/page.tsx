@@ -12,7 +12,12 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "@/i18n/compat/client";
 import { cn } from "@/lib/utils";
-import { AdminRange, fetchAdminDashboard, type AdminDashboard } from "@/lib/admin";
+import {
+  AdminRange,
+  fetchAdminDashboard,
+  growthConversionRate,
+  type AdminDashboard,
+} from "@/lib/admin";
 import { EChart } from "@/components/analytics/EChart";
 import { useAuthStore } from "@/store/useAuthStore";
 import type { ChartTokens } from "@/components/analytics/tokens";
@@ -212,6 +217,54 @@ export default function AdminPage() {
                 <MetricCard label={t("adminMatches")} value={data.overview.derivedResumes} note={t("adminBusinessTrend")} icon={GitBranch} />
                 <MetricCard label={t("adminJobs")} value={data.overview.jobs} note={t("adminJobs")} icon={Sparkles} />
                 <MetricCard label={t("adminLlmCalls")} value={data.overview.llmCalls} note={`${data.overview.totalTokens.toLocaleString()} ${t("adminTokens")}`} icon={Activity} />
+              </div>
+            </section>
+
+            <section>
+              <SectionLabel>GROWTH / ACTIVATION</SectionLabel>
+              <div className="rounded-2xl border border-xai-hairline-soft bg-xai-surface p-4 sm:p-5">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[13px] font-medium text-xai-text">{t("adminGrowthTitle")}</p>
+                    <p className="mt-1 text-[11px] text-xai-mute">{t("adminGrowthSubtitle")}</p>
+                  </div>
+                  <span className="xai-eyebrow text-[10px]">{t(`adminRange${range}`)}</span>
+                </div>
+                <div className="space-y-3">
+                  {(() => {
+                    const funnel = data.growthFunnel ?? {
+                      landingView: 0,
+                      ctaClick: 0,
+                      registerStart: 0,
+                      registerSuccess: 0,
+                      resumeCreated: 0,
+                      firstMatchSuccess: 0,
+                      sessionStart: 0,
+                    };
+                    const stages = [
+                      ["landingView", funnel.landingView],
+                      ["ctaClick", funnel.ctaClick],
+                      ["registerStart", funnel.registerStart],
+                      ["registerSuccess", funnel.registerSuccess],
+                      ["resumeCreated", funnel.resumeCreated],
+                      ["firstMatchSuccess", funnel.firstMatchSuccess],
+                    ] as const;
+                    return stages.map(([key, value], index) => {
+                      const previous = index === 0 ? value : stages[index - 1][1];
+                      const rate = index === 0 ? 100 : growthConversionRate(value, previous);
+                      return (
+                        <div key={key} className="grid gap-2 sm:grid-cols-[150px_1fr_88px] sm:items-center">
+                          <p className="text-[12px] text-xai-text-mid">{t(`adminGrowth.${key}`)}</p>
+                          <div className="h-2 overflow-hidden rounded-full bg-xai-surface-2" aria-hidden>
+                            <div className="h-full rounded-full bg-[#E85D4A] transition-[width]" style={{ width: `${rate}%` }} />
+                          </div>
+                          <p className="font-mono text-[12px] tabular-nums sm:text-right">{value} <span className="text-xai-mute">/ {rate}%</span></p>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+                <p className="mt-4 text-[11px] leading-relaxed text-xai-mute">{t("adminGrowthPrivacy")}</p>
               </div>
             </section>
 

@@ -24,6 +24,22 @@ export interface AdminDashboard {
     jobs: number;
     llmCalls: number;
   }>;
+  growthFunnel: GrowthFunnel;
+}
+
+export interface GrowthFunnel {
+  landingView: number;
+  ctaClick: number;
+  registerStart: number;
+  registerSuccess: number;
+  resumeCreated: number;
+  firstMatchSuccess: number;
+  sessionStart: number;
+}
+
+export function growthConversionRate(current: number, previous: number): number {
+  if (previous <= 0) return 0;
+  return Math.min(100, Math.round((Math.max(0, current) / previous) * 100));
 }
 
 export async function fetchAdminDashboard(days: AdminRange): Promise<AdminDashboard> {

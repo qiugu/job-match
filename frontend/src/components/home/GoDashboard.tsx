@@ -1,5 +1,6 @@
 
 import { useNavigate } from "@tanstack/react-router";
+import { trackGrowthEvent } from "@/lib/telemetry";
 
 export default function GoDashboard({
   children,
@@ -20,6 +21,7 @@ export default function GoDashboard({
     <form
       onSubmit={(event) => {
         event.preventDefault();
+        void trackGrowthEvent("cta_click");
         navigate({ to: routeMap[type] });
       }}
     >

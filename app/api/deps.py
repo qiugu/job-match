@@ -48,6 +48,25 @@ async def get_current_user(
     return user
 
 
+async def get_optional_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    """为匿名可用的遥测端点尽力关联登录用户；无效令牌按匿名处理。"""
+    if credentials is None or not credentials.credentials:
+        return None
+    try:
+        payload = decode_access_token(credentials.credentials)
+    except Exception:  # noqa: BLE001 - 遥测不能因过期令牌阻断产品流程
+        return None
+    user = await db.get(User, str(payload.get("sub")))
+    if user is None or not user.is_active:
+        return None
+    if int(payload.get("ver", -1)) != int(user.token_version):
+        return None
+    return user
+
+
 async def get_admin_user(user: User = Depends(get_current_user)) -> User:
     """管理员接口的统一鉴权依赖。"""
     if not user.is_admin:

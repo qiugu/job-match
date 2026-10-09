@@ -10,7 +10,7 @@ import {
   Loader2,
   PanelLeftClose,
   PanelLeftOpen,
-  ArrowRight,
+  Upload,
   Tag,
   Check,
   RefreshCw,
@@ -60,12 +60,14 @@ import {
   detectJob,
   listJobs,
   getJob,
+  uploadMasterResume,
   type CreateMatchPayload,
   type MasterResumeSummary,
   type MatchResult,
   type CoverLetterScene,
   type JobSummary,
 } from "@/lib/jobmatch";
+import { getQuickStartStep } from "@/lib/quick-start";
 import TaskModePicker, { type TaskMode } from "@/components/match/TaskModePicker";
 import {
   initialMatchTaskState,
@@ -198,6 +200,7 @@ export default function JobMatchPage() {
   const [masters, setMasters] = useState<MasterResumeSummary[]>([]);
   const [selected, setSelected] = useState<ResumeSource | null>(null);
   const [jdText, setJdText] = useState<string>("");
+  const [uploading, setUploading] = useState<boolean>(false);
   const [taskState, dispatchTask] = useReducer(
     matchTaskReducer<MatchResult>,
     initialMatchTaskState<MatchResult>()
@@ -263,6 +266,8 @@ export default function JobMatchPage() {
 
   const formCardRef = useRef<HTMLDivElement>(null);
   const resultCardRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const jdTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // 结果区是否处于「仅话术」视图：独立产出的话术，没有也不需要有匹配结果。
   // 与 taskMode 分开——用户可在出结果后切回任务类型，不应丢失已产出的话术。
@@ -299,6 +304,13 @@ export default function JobMatchPage() {
     })();
   }, [pathname]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("onboarding") === "1") {
+      setTaskMode("match");
+    }
+  }, []);
+
   // 默认选择：第一份已上传简历
   useEffect(() => {
     if (selected) return;
@@ -318,8 +330,34 @@ export default function JobMatchPage() {
     if (result) setResultTab("analysis");
   }, [result?.id]);
 
-  const handleGoToResumes = () => {
-    router.push("/app/dashboard/resumes");
+  const handleUploadResume = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      toast.warning(t("pdfOnly"));
+      return;
+    }
+    setUploading(true);
+    try {
+      const created = await uploadMasterResume(file);
+      setMasters((current) => [created, ...current.filter((item) => item.id !== created.id)]);
+      setSelected({
+        kind: "master",
+        id: created.id,
+        title: created.title,
+        rawText: created.rawText,
+        markdownContent: created.markdownContent,
+      });
+      setTaskMode("match");
+      toast.success(t("uploadSuccess"));
+      requestAnimationFrame(() => jdTextareaRef.current?.focus());
+    } catch (error) {
+      console.error("Resume upload failed:", error);
+      toast.error(error instanceof Error ? error.message : t("uploadError"));
+    } finally {
+      setUploading(false);
+    }
   };
 
   // 匹配与话术分别计时，避免第二阶段继续运行时覆盖第一阶段耗时。
@@ -648,6 +686,12 @@ export default function JobMatchPage() {
   const hasAnyResume = masters.length > 0;
   const hasAnalysis = !!result?.matchAnalysis;
   const showTaskSkeleton = !result && (matchPending || pitchPending);
+  const quickStartStep = getQuickStartStep({
+    hasResume: Boolean(selected),
+    hasJd: Boolean(jdText.trim()),
+    hasResult: Boolean(result),
+  });
+  const quickStartStages = [t("quickResume"), t("quickJd"), t("quickMatch")];
 
   return (
     <div className="workbench-page h-full w-full">
@@ -694,6 +738,43 @@ export default function JobMatchPage() {
           </div>
         </div>
 
+        <section className="mb-5" aria-label={t("quickStart")}>
+          <p className="xai-eyebrow mb-2 text-[10px]">{t("quickStart")}</p>
+          <ol className="grid grid-cols-3 gap-2">
+            {quickStartStages.map((label, index) => {
+              const stage = index + 1;
+              const complete = quickStartStep > stage;
+              const active = quickStartStep === stage;
+              return (
+                <li
+                  key={label}
+                  aria-current={active ? "step" : undefined}
+                  className={cn(
+                    "flex min-w-0 items-center gap-2 border-t-2 pt-2 text-xs transition-colors",
+                    complete || active
+                      ? "border-xai-text text-xai-text"
+                      : "border-xai-hairline text-xai-mute"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex size-5 shrink-0 items-center justify-center rounded-full border font-mono text-[10px]",
+                      complete
+                        ? "border-xai-text bg-xai-text text-xai-canvas"
+                        : active
+                          ? "border-xai-text text-xai-text"
+                          : "border-xai-hairline text-xai-mute"
+                    )}
+                  >
+                    {complete ? <Check className="size-3" /> : stage}
+                  </span>
+                  <span className="truncate">{label}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+
         {/* 工作台：左侧配置为「真正可滑入/滑出的抽屉」，结果区始终占据主区域。
             抽屉用 translateX 横向推拉（不重排布局），结果区用 lg:ml-[400px] 让出
             空间并平滑过渡——打开时结果占剩余宽度，关闭时占满，绝不会变成上下结构。
@@ -709,6 +790,13 @@ export default function JobMatchPage() {
               drawerOpen ? "translate-x-0" : "-translate-x-full"
             )}
           >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              className="sr-only"
+              onChange={handleUploadResume}
+            />
             {/* 面板头部：等宽 eyebrow + 标题 */}
             <div className="relative overflow-hidden px-5 pb-2 pt-5">
               <p className="xai-eyebrow">01 · MATCH CONFIG</p>
@@ -760,6 +848,22 @@ export default function JobMatchPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        className="shrink-0 border-border bg-transparent"
+                        disabled={uploading}
+                        onClick={() => fileInputRef.current?.click()}
+                        aria-label={t("uploadResume")}
+                        title={t("uploadResume")}
+                      >
+                        {uploading ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Upload className="size-4" />
+                        )}
+                      </Button>
                     </div>
                   ) : (
                     <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center">
@@ -768,13 +872,19 @@ export default function JobMatchPage() {
                         {t("noMaster")}
                       </p>
                       <Button
+                        type="button"
                         variant="outline"
                         size="sm"
                         className="mt-4 border-border bg-transparent text-card-foreground hover:bg-muted/60"
-                        onClick={handleGoToResumes}
+                        disabled={uploading}
+                        onClick={() => fileInputRef.current?.click()}
                       >
-                        {t("goToMyResumes")}
-                        <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                        {uploading ? (
+                          <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                        ) : (
+                          <Upload className="mr-1.5 size-3.5" />
+                        )}
+                        {uploading ? t("uploadingResume") : t("uploadResume")}
                       </Button>
                     </div>
                   )}
@@ -787,6 +897,7 @@ export default function JobMatchPage() {
                     {t("jd")}
                   </Label>
                   <Textarea
+                    ref={jdTextareaRef}
                     value={jdText}
                     onChange={(e) => setJdText(e.target.value)}
                     onBlur={handleDetectDuplicate}
@@ -833,7 +944,7 @@ export default function JobMatchPage() {
                 <button
                   type="button"
                   onClick={() => handleCreate()}
-                  disabled={loading || !selected}
+                  disabled={loading || !selected || !jdText.trim()}
                   className="group flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loading ? (

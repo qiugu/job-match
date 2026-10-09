@@ -234,7 +234,7 @@ async def _redeem_code(db: AsyncSession, raw: str) -> RegistrationCode:
     return code
 
 
-@router.post("/register", response_model=AuthResponse, summary="使用注册码注册账号")
+@router.post("/register", response_model=AuthResponse, summary="注册账号并领取试用积分")
 async def register(
     payload: RegisterRequest,
     request: Request,
@@ -253,14 +253,20 @@ async def register(
     ).first():
         raise HTTPException(status_code=409, detail=f"用户名「{username}」已存在")
 
-    code = await _redeem_code(db, (payload.code or "").strip())
+    raw_code = (payload.code or "").strip()
+    code = await _redeem_code(db, raw_code) if raw_code else None
+    credits = (
+        max(int(code.grant_credits), 0)
+        if code is not None
+        else max(int(settings.registration_default_credits), 0)
+    )
     user = User(
         username=username,
         nickname=username,
         password_hash=hash_password(payload.password),
         role=ROLE_USER,
-        credits=max(int(code.grant_credits), 0),
-        registered_code=code.code,
+        credits=credits,
+        registered_code=code.code if code is not None else "",
         last_login_at=utcnow(),
     )
     db.add(user)
@@ -272,9 +278,9 @@ async def register(
         raise HTTPException(status_code=409, detail=f"用户名「{username}」已存在") from None
     await db.refresh(user)
     logger.info(
-        "新用户注册：%s（注册码 %s，积分 %s）",
+        "新用户注册：%s（来源 %s，积分 %s）",
         username,
-        code.code,
+        code.code if code is not None else "direct-trial",
         user.credits,
     )
     return _issue(user, response)

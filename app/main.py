@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.database import init_db
 from app.core.logging import get_logger
-from app.api import resume, match, ai, auth, cover_letter, jobs, export, admin
+from app.api import resume, match, ai, auth, cover_letter, jobs, export, admin, telemetry
 from app.services.auth_bootstrap import bootstrap_auth
 from app.services.pdf_export import shutdown_renderer
 
@@ -88,6 +88,7 @@ def create_app() -> FastAPI:
     app.include_router(jobs.router)
     app.include_router(export.router)
     app.include_router(admin.router)
+    app.include_router(telemetry.router)
 
     @app.get("/health", tags=["health"])
     async def health():
