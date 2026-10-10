@@ -445,7 +445,11 @@ const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
     // 3) 每页窗口高度 = 下一页起点 - 本页起点（上限为内容区高度），
     //    整块下推产生的留白就留在页底，不会出现没有任何内容的空白页。
     const pages = useMemo(() => {
-      const cuts = paginateBlocks(metrics.blocks, contentAreaPx);
+      const cuts = paginateBlocks(
+        metrics.blocks,
+        contentAreaPx,
+        metrics.height
+      );
       return buildPageWindows(cuts, contentAreaPx, metrics.height);
     }, [metrics, contentAreaPx]);
 

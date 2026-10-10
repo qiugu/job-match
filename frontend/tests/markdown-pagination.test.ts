@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  MM_TO_PX,
   buildPageWindows,
   paginateBlocks,
   type BlockMetric,
 } from "@/components/preview/pagination";
 
 // 一页内容区高度：A4(297mm) - 上下页边距(32px * 2)，与预览/导出同一口径
-const CONTENT_AREA = 297 * 3.78 - 64;
+const CONTENT_AREA = 297 * MM_TO_PX - 64;
+
+it("使用浏览器 CSS 的精确 96dpi 毫米换算，避免多页累计误差", () => {
+  expect(MM_TO_PX).toBe(96 / 25.4);
+});
 
 /** 由块高度序列生成连续的块度量（块之间无间距） */
 const stack = (heights: number[]): BlockMetric[] => {
@@ -38,6 +43,21 @@ describe("paginateBlocks", () => {
     expect(paginateBlocks(blocks, CONTENT_AREA)).toEqual([0, 1000]);
   });
 
+  it("标题与下一块之间有样式间距时仍保持同页，与打印 CSS 的 break-after 一致", () => {
+    const area = 1000;
+    const blocks: BlockMetric[] = [
+      { top: 0, height: 900 },
+      { top: 940, height: 30, isHeading: true },
+      // 20px 的标题下间距：下一块从 990 开始，而不是紧贴标题底边 970。
+      { top: 990, height: 100 },
+      { top: 1090, height: 890 },
+    ];
+
+    // 第一页应在标题前切分；随后 890px 的末块无法和标题内容同页，形成第三页。
+    // 旧算法只在 heading.bottom === cut 时回退，会误判成两页。
+    expect(paginateBlocks(blocks, area)).toEqual([0, 940, 1090]);
+  });
+
   it("跨页块不会被前一个块的留白推进去：切点始终等于某个块的 top", () => {
     const blocks = stack([300, 300, 300, 300, 300]);
     const cuts = paginateBlocks(blocks, CONTENT_AREA);
@@ -66,6 +86,18 @@ describe("paginateBlocks", () => {
       cursor += w.windowHeight;
     }
     expect(cursor).toBeCloseTo(total, 6);
+  });
+
+  it("以根节点实测高度决定页数，末尾布局空间不会让预览少算一页", () => {
+    const blocks = stack([900, 1000]);
+
+    // 最后一个可分页块止于 1900，但根节点受布局样式影响实际高 2200。
+    // 导出浏览器会按 2200 分成三页，预览也必须使用同一实测高度。
+    expect(paginateBlocks(blocks, 1000, 2200)).toEqual([
+      0,
+      900,
+      1900,
+    ]);
   });
 
   it("内容区高度非正数时退化为一页，不抛错", () => {
