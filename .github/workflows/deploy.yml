@@ -54,6 +54,10 @@ env:
   SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
   DEPLOY_REQUIRED_VARS: ${{ secrets.DEPLOY_REQUIRED_VARS || 'LLM_API_KEY,AUTH_SECRET_KEY,AUTH_BOOTSTRAP_PASSWORD' }}
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   deploy:
     name: Deploy
@@ -153,29 +157,65 @@ jobs:
         env:
           DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
 
-      # Docker builds are CPU-, memory-, and network-heavy, especially the
-      # backend's Chromium layer. Build on the GitHub runner, then stream the
-      # images to the server; the 2 GB production VM only loads and starts them.
-      - name: Build images on GitHub runner and transfer to server
+      - name: Set up Docker Buildx
         if: ${{ github.event.inputs.no_build != 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ github.event.inputs.no_build != 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build on GitHub runners and push layer-aware images. The server pulls
+      # only missing layers instead of receiving a huge docker-save tar stream.
+      - name: Build and publish images
+        if: ${{ github.event.inputs.no_build != 'true' }}
+        env:
+          IMAGE_REPO: ghcr.io/${{ github.repository }}
         run: |
           set -euo pipefail
-          REMOTE="${REMOTE_DEPLOY_TARGET}"
-          REMOTE_HOST="${REMOTE%%:*}"
-          SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
+          IMAGE_REPO="${IMAGE_REPO,,}"
 
-          docker build --pull -t job-matcher-backend:deploy \
+          docker buildx build --push --platform linux/amd64 \
+            --cache-from type=gha,scope=job-matcher-backend \
+            --cache-to type=gha,scope=job-matcher-backend,mode=max \
+            -t "${IMAGE_REPO}/backend:${GITHUB_SHA}" \
             --build-arg PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.npmmirror.com/binaries/playwright \
             -f Dockerfile .
-          docker build --pull -t job-matcher-frontend:deploy \
+          docker buildx build --push --platform linux/amd64 \
+            --cache-from type=gha,scope=job-matcher-frontend \
+            --cache-to type=gha,scope=job-matcher-frontend,mode=max \
+            -t "${IMAGE_REPO}/frontend:${GITHUB_SHA}" \
             --build-arg VITE_JOBMATCH_API= \
             --build-arg VITE_SITE_URL=https://jdmatch.site \
             -f frontend/Dockerfile frontend/
 
-          echo "==> 将 backend 镜像传输并导入服务器"
-          docker save job-matcher-backend:deploy | gzip -1 | ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" 'gzip -dc | docker load'
-          echo "==> 将 frontend 镜像传输并导入服务器"
-          docker save job-matcher-frontend:deploy | gzip -1 | ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" 'gzip -dc | docker load'
+      - name: Pull images on server
+        if: ${{ github.event.inputs.no_build != 'true' }}
+        env:
+          IMAGE_REPO: ghcr.io/${{ github.repository }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          REMOTE="${REMOTE_DEPLOY_TARGET}"
+          REMOTE_HOST="${REMOTE%%:*}"
+          IMAGE_REPO="${IMAGE_REPO,,}"
+          BACKEND_IMAGE="${IMAGE_REPO}/backend:${GITHUB_SHA}"
+          FRONTEND_IMAGE="${IMAGE_REPO}/frontend:${GITHUB_SHA}"
+          SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
+          cleanup_registry_login() {
+            ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker logout ghcr.io" >/dev/null 2>&1 || true
+          }
+          trap cleanup_registry_login EXIT
+
+          echo "==> 服务器登录 GHCR 并分层拉取 backend / frontend 镜像"
+          printf '%s' "${GHCR_TOKEN}" | ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+            "docker login ghcr.io --username '${GITHUB_ACTOR}' --password-stdin"
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+            "docker pull '${BACKEND_IMAGE}' && docker tag '${BACKEND_IMAGE}' job-matcher-backend:deploy && docker pull '${FRONTEND_IMAGE}' && docker tag '${FRONTEND_IMAGE}' job-matcher-frontend:deploy"
 
       # ---------- 第 4 步：服务器端 .env 与数据库迁移（对应 deploy.sh [4/5]） ----------
       - name: Server env check & database migration
@@ -316,7 +356,7 @@ jobs:
 
       # ---------- 第 5 步：docker compose 启动（对应 deploy.sh [5/5]） ----------
       #
-      # Images have already been built on GitHub-hosted runners and loaded on
+      # Images have already been built on GitHub-hosted runners and pulled on
       # the server. Keep existing services running until compose replaces them.
       - name: Start services (docker compose up -d)
         run: |
