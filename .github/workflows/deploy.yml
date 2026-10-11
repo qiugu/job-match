@@ -214,8 +214,34 @@ jobs:
           echo "==> 服务器登录 GHCR 并分层拉取 backend / frontend 镜像"
           printf '%s' "${GHCR_TOKEN}" | ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
             "docker login ghcr.io --username '${GITHUB_ACTOR}' --password-stdin"
-          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
-            "docker pull '${BACKEND_IMAGE}' && docker tag '${BACKEND_IMAGE}' job-matcher-backend:deploy && docker pull '${FRONTEND_IMAGE}' && docker tag '${FRONTEND_IMAGE}' job-matcher-frontend:deploy"
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" bash -s -- "$BACKEND_IMAGE" "$FRONTEND_IMAGE" <<'REMOTE'
+          set -euo pipefail
+
+          pull_with_retry() {
+            local image="$1"
+            local attempt delay
+            for attempt in {1..8}; do
+              echo "==> docker pull ${image}（第 ${attempt}/8 次；已完成的镜像层会复用）"
+              if docker pull "$image"; then
+                return 0
+              fi
+              if (( attempt < 8 )); then
+                delay=$((attempt * 10))
+                echo "    拉取中断，${delay}s 后重试"
+                sleep "$delay"
+              fi
+            done
+            echo "✗ 多次重试仍无法拉取 ${image}" >&2
+            return 1
+          }
+
+          backend_image="$1"
+          frontend_image="$2"
+          pull_with_retry "$backend_image"
+          docker tag "$backend_image" job-matcher-backend:deploy
+          pull_with_retry "$frontend_image"
+          docker tag "$frontend_image" job-matcher-frontend:deploy
+          REMOTE
 
       # ---------- 第 4 步：服务器端 .env 与数据库迁移（对应 deploy.sh [4/5]） ----------
       - name: Server env check & database migration
