@@ -33,6 +33,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # Stable image tags let GitHub Actions build on its runner and transfer the
+    # finished images to small production hosts without compiling there.
+    image: job-matcher-backend:deploy
     # 统一使用 8005：Dockerfile EXPOSE、run 启动端口、nginx 转发三者一致
     expose:
       - "8005"
@@ -76,6 +79,7 @@ services:
         # 站点基址：canonical / hreflang / OG / sitemap 全部由此派生，必须与对外
         # 域名与协议一致（生产为 https://jdmatch.site）。
         VITE_SITE_URL: "https://jdmatch.site"
+    image: job-matcher-frontend:deploy
     expose:
       - "3005"
     environment:

@@ -11,7 +11,8 @@
  *    视觉上就是「文字掉进页与页之间的间隙里」）。
  * 3. 不能凭空造出没有任何内容的空白页（历史上按 A4 整高切分时出现过）。
  */
-export const MM_TO_PX = 3.78;
+/** CSS 绝对长度换算：1in = 96px，1in = 25.4mm（与 Chromium 打印一致） */
+export const MM_TO_PX = 96 / 25.4;
 export const A4_HEIGHT_PX = 297 * MM_TO_PX;
 
 /** 纸张之间的视觉间隙（px）：只是纸张外边距，不参与内容分页计算 */
@@ -91,14 +92,21 @@ export function collectBlockMetrics(
  */
 export function paginateBlocks(
   blocks: BlockMetric[],
-  contentAreaPx: number
+  contentAreaPx: number,
+  measuredContentHeightPx?: number
 ): number[] {
   if (contentAreaPx <= 0) return [0];
 
-  // 内容总高：用于判断何时停止分页（取所有块底边的最大值）
-  const contentHeight = blocks.reduce(
+  // 内容总高：根节点 scrollHeight 是导出浏览器实际分页的口径；块底边只作为
+  // 无 DOM 调用方的兼容兜底。两者取较大值，避免末尾 margin、伪元素或其他
+  // 未被块采集覆盖的布局空间让预览提前停止分页、比导出少一页。
+  const blockContentHeight = blocks.reduce(
     (max, b) => Math.max(max, b.top + b.height),
     0
+  );
+  const contentHeight = Math.max(
+    blockContentHeight,
+    measuredContentHeightPx ?? 0
   );
   if (contentHeight <= 0) return [0];
 
@@ -129,17 +137,21 @@ export function paginateBlocks(
       // 超高块：无法整块容纳，按固定内容区边界硬切（cut 保持 rawCut）
     }
 
-    // keep-with-next：切点不允许落在标题的底边，否则标题会孤零零留在页尾。
-    // 此时把切点回退到标题顶边，让标题与后续内容同页（前提是该标题不是本页首块，
-    // 否则回退后本页零推进，只能接受标题留在页尾）。
-    const trailingHeading = sorted.find(
-      (b) =>
-        b.isHeading &&
-        b.top > pos &&
-        Math.abs(b.top + b.height - cut) < 0.5
-    );
-    if (trailingHeading) {
-      cut = trailingHeading.top;
+    // keep-with-next：切点前的最后一个块若为标题，就把标题一起推到下一页。
+    // 标题与正文之间通常存在 margin，因此不能只判断 heading.bottom === cut；
+    // 打印 CSS 的 break-after: avoid 会跨过这段间距生效，预览也必须一致。
+    // 连续标题会逐个回退，等价于浏览器把整串标题与首个正文块保持同页。
+    while (true) {
+      const previousBlock = [...sorted]
+        .reverse()
+        .find(
+          (b) =>
+            b.top > pos &&
+            b.top < cut &&
+            b.top + b.height <= cut + 0.5
+        );
+      if (!previousBlock?.isHeading) break;
+      cut = previousBlock.top;
     }
 
     // 安全约束：切点必须严格前进、且不超过固定内容区边界
