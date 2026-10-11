@@ -153,6 +153,30 @@ jobs:
         env:
           DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
 
+      # Docker builds are CPU-, memory-, and network-heavy, especially the
+      # backend's Chromium layer. Build on the GitHub runner, then stream the
+      # images to the server; the 2 GB production VM only loads and starts them.
+      - name: Build images on GitHub runner and transfer to server
+        if: ${{ github.event.inputs.no_build != 'true' }}
+        run: |
+          set -euo pipefail
+          REMOTE="${REMOTE_DEPLOY_TARGET}"
+          REMOTE_HOST="${REMOTE%%:*}"
+          SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
+
+          docker build --pull -t job-matcher-backend:deploy \
+            --build-arg PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.npmmirror.com/binaries/playwright \
+            -f Dockerfile .
+          docker build --pull -t job-matcher-frontend:deploy \
+            --build-arg VITE_JOBMATCH_API= \
+            --build-arg VITE_SITE_URL=https://jdmatch.site \
+            -f frontend/Dockerfile frontend/
+
+          echo "==> 将 backend 镜像传输并导入服务器"
+          docker save job-matcher-backend:deploy | gzip -1 | ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" 'gzip -dc | docker load'
+          echo "==> 将 frontend 镜像传输并导入服务器"
+          docker save job-matcher-frontend:deploy | gzip -1 | ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" 'gzip -dc | docker load'
+
       # ---------- 第 4 步：服务器端 .env 与数据库迁移（对应 deploy.sh [4/5]） ----------
       - name: Server env check & database migration
         run: |
@@ -292,12 +316,8 @@ jobs:
 
       # ---------- 第 5 步：docker compose 启动（对应 deploy.sh [5/5]） ----------
       #
-      # 2G 小内存服务器构建约束（已实测：依赖下载/前端 build 时卡死的根因）：
-      #   1. 构建前先停掉全部常驻容器（nginx/backend/frontend），回收它们占用的 RAM，
-      #      否则留给 docker build 的余量过小。
-      #   2. 强制「串行」构建 backend、frontend（docker compose 默认并行构建多 service，
-      #      会同时拉满内存：uv sync 下载编译 + vite build 编译并发 → 逼近/超出 2G）。
-      #   3. 后端镜像已关闭 UV_COMPILE_BYTECODE（见 Dockerfile 注释），避免字节码编译峰值 OOM。
+      # Images have already been built on GitHub-hosted runners and loaded on
+      # the server. Keep existing services running until compose replaces them.
       - name: Start services (docker compose up -d)
         run: |
           set -euo pipefail
@@ -309,22 +329,12 @@ jobs:
 
           NO_BUILD="${{ github.event.inputs.no_build }}"
 
-          # 构建前回收内存：停掉所有常驻容器（含 frontend/nginx），仅保留数据卷
-          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
-            docker compose --project-directory "$RP" down --remove-orphans 2>/dev/null || true
-
           if [[ "$NO_BUILD" == "true" ]]; then
             ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
               docker compose --project-directory "$RP" up -d --wait --wait-timeout 120 2>/dev/null \
               || ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
               docker compose --project-directory "$RP" up -d
           else
-            # 串行构建：先 backend（uv 依赖下载），再 frontend（vite build），
-            # 避免两者同时编译把 2G 内存打满导致卡死
-            ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
-              docker compose --project-directory "$RP" build backend
-            ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
-              docker compose --project-directory "$RP" build frontend
             ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
               docker compose --project-directory "$RP" up -d --wait --wait-timeout 120 2>/dev/null \
               || ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
