@@ -121,17 +121,29 @@ class RequestLogMiddleware:
         )
         if not request_id:
             request_id = uuid.uuid4().hex
-            # 尽量把生成的 request_id 注入响应头（在 send 外层包装）
-            original_send = send
 
-            async def send_with_rid(message) -> None:
-                if message["type"] == "http.response.start":
-                    headers_list = list(message.get("headers", []))
-                    headers_list.append((b"x-request-id", request_id.encode("latin1")))
-                    message["headers"] = headers_list
-                await original_send(message)
+        # 将关联 ID 和「到响应头」的应用耗时注入响应，便于与 Nginx 的
+        # upstream timing 对比；只包装 send，不会缓冲流式响应正文。
+        original_send = send
 
-            send = send_with_rid
+        async def send_with_timing(message) -> None:
+            if message["type"] == "http.response.start":
+                response_headers = [
+                    (key, value)
+                    for key, value in message.get("headers", [])
+                    if key.lower() not in {b"x-request-id", b"server-timing"}
+                ]
+                app_ms = (time.perf_counter() - start) * 1000
+                response_headers.extend(
+                    [
+                        (b"x-request-id", request_id.encode("latin1")),
+                        (b"server-timing", f"app;dur={app_ms:.1f}".encode("ascii")),
+                    ]
+                )
+                message["headers"] = response_headers
+            await original_send(message)
+
+        send = send_with_timing
 
         method = scope.get("method", "?")
         path = scope.get("path", "?")
