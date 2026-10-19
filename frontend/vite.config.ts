@@ -21,12 +21,6 @@ export default defineConfig({
       },
     },
   },
-  optimizeDeps: {
-    exclude: ["pdfjs-dist"],
-  },
-  ssr: {
-    noExternal: ["pdfjs-dist"],
-  },
   plugins: [
     tsconfigPaths({ loose: true }),
     tanstackStart({
