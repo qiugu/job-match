@@ -310,55 +310,75 @@ async def detect_job(db: AsyncSession, user_id: str, jd_text: str) -> str | None
     return job_id
 
 
-async def get_job_aggregates(db: AsyncSession, job_id: str) -> dict:
-    """聚合单张岗位卡的子记录统计，供列表/详情返回，避免 N+1。
+async def get_jobs_aggregates(
+    db: AsyncSession, job_ids: list[str]
+) -> dict[str, dict]:
+    """批量聚合岗位子记录，避免列表接口按岗位执行多次 SQL。
 
-    返回：cover_letter_count、derived_count、last_activity_at、latest_acceptance。
-    last_activity_at 取子记录最大 created_at，无子记录时用岗位卡 updated_at。
+    所有聚合都按岗位分组，查询次数固定为 2 次（话术、匹配简历及接受标记），
+    与岗位数量无关。详情接口也复用这条路径，保证列表与详情的统计口径一致。
     """
-    cl_count = (
-        await db.execute(
-            select(func.count())
-            .select_from(CoverLetter)
-            .where(CoverLetter.job_id == job_id)
-        )
-    ).scalar_one() or 0
+    if not job_ids:
+        return {}
 
-    dr_rows = (
-        await db.execute(
-            select(func.count(), func.max(DerivedResume.created_at))
-            .select_from(DerivedResume)
-            .where(DerivedResume.job_id == job_id)
-        )
-    ).first()
-    dr_count = dr_rows[0] or 0
-    dr_max_created = dr_rows[1]
-
-    cl_max_created = (
-        await db.execute(
-            select(func.max(CoverLetter.created_at)).where(
-                CoverLetter.job_id == job_id
-            )
-        )
-    ).scalar_one_or_none()
-
-    # 最近活跃：子记录最大 created_at；都没有则用岗位卡自身（调用方传入 job）
-    last_activity_at: datetime | None = None
-    candidates = [c for c in (dr_max_created, cl_max_created) if c is not None]
-    if candidates:
-        last_activity_at = max(candidates)  # type: ignore[arg-type]
-
-    latest_acceptance = (
-        await db.execute(
-            select(func.count())
-            .select_from(DerivedResume)
-            .where(DerivedResume.job_id == job_id, DerivedResume.accepted == True)  # noqa: E712
-        )
-    ).scalar_one() or 0
-
-    return {
-        "cover_letter_count": int(cl_count),
-        "derived_count": int(dr_count),
-        "last_activity_at": last_activity_at.isoformat() if last_activity_at else None,
-        "latest_acceptance": int(latest_acceptance) > 0,
+    result = {
+        job_id: {
+            "cover_letter_count": 0,
+            "derived_count": 0,
+            "last_activity_at": None,
+            "latest_acceptance": False,
+        }
+        for job_id in job_ids
     }
+
+    cover_rows = (
+        await db.execute(
+            select(
+                CoverLetter.job_id,
+                func.count().label("count"),
+                func.max(CoverLetter.created_at).label("last_created"),
+            )
+            .where(CoverLetter.job_id.in_(job_ids))
+            .group_by(CoverLetter.job_id)
+        )
+    ).all()
+    for job_id, count, last_created in cover_rows:
+        result[job_id]["cover_letter_count"] = int(count or 0)
+        if last_created is not None:
+            result[job_id]["last_activity_at"] = last_created.isoformat()
+
+    derived_rows = (
+        await db.execute(
+            select(
+                DerivedResume.job_id,
+                func.count().label("count"),
+                func.max(DerivedResume.created_at).label("last_created"),
+                func.max(DerivedResume.accepted).label("accepted"),
+            )
+            .where(DerivedResume.job_id.in_(job_ids))
+            .group_by(DerivedResume.job_id)
+        )
+    ).all()
+    for job_id, count, last_created, accepted in derived_rows:
+        result[job_id]["derived_count"] = int(count or 0)
+        result[job_id]["latest_acceptance"] = bool(accepted)
+        if last_created is not None:
+            previous = result[job_id]["last_activity_at"]
+            last_created_iso = last_created.isoformat()
+            if previous is None or last_created_iso > previous:
+                result[job_id]["last_activity_at"] = last_created_iso
+
+    return result
+
+
+async def get_job_aggregates(db: AsyncSession, job_id: str) -> dict:
+    """聚合单张岗位卡的子记录统计，供详情返回。"""
+    return (await get_jobs_aggregates(db, [job_id])).get(
+        job_id,
+        {
+            "cover_letter_count": 0,
+            "derived_count": 0,
+            "last_activity_at": None,
+            "latest_acceptance": False,
+        },
+    )

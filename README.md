@@ -62,6 +62,24 @@ docker compose logs -f        # 查看日志
 docker compose down           # 停止并移除容器（保留数据卷）
 ```
 
+### GitHub Actions 构建与镜像拉取优化
+
+前后端镜像通过 matrix 在独立 Runner 上并行构建，两者成功后才进入部署；手动 `no_build=true` 仍可跳过构建。构建使用 `docker/build-push-action` 自动接入 GHA 缓存认证，前后端分别保留缓存；临时 Runner 的 cache mount 不会随层缓存自动恢复。缓存导出最多等待 5 分钟，导出失败不阻断已发布镜像。
+
+GitHub Runner 的 Playwright 下载使用官方 CDN；后端只安装 PDF 导出所需的 Chromium headless shell，减少下载和镜像体积。本地 Docker 构建保留国内镜像源默认值。
+
+每个构建 job 最多运行 30 分钟，部署 job 最多 40 分钟；服务器拉取步骤最多 8 分钟，每个镜像单次拉取最多 2 分钟、最多尝试 3 次。直拉失败后自动改由 GitHub Runner 下载镜像，压缩为归档，通过现有 SSH 凭据和 rsync 断点续传，再在服务器 `docker load`。SSH 兜底步骤最多 25 分钟；传输或加载失败会停止部署，不进入数据库迁移。无需新增 Secrets。兜底需传输完整归档，服务器需有归档与镜像解包所需的空闲磁盘，完成或普通失败退出后清理临时归档（强制终止时可能残留在 `.deploy-images/`）。
+
+上述超时属于异常保护，不代表保证在该时间内构建成功。排查时分别查看 `Build (backend)`、`Build (frontend)`、`Pull images on server` 和 SSH 兜底步骤，区分构建、缓存导出与服务器网络耗时。生产部署继续串行执行，避免新提交中途取消正在进行的数据库迁移。
+
+生产部署由 `.github/workflows/deploy.yml` 在 GitHub Runner 构建镜像，再由服务器拉取。默认注册表是 `ghcr.io`；如果服务器到 GHCR 的链路较慢（例如一次部署拉取大镜像达到小时级），建议在服务器同地域配置镜像注册表（如腾讯云 TCR），在 GitHub Actions 中设置：
+
+- Actions Variable `DEPLOY_IMAGE_REGISTRY`：注册表域名，例如 `crpi-xxx.tencentcloudcr.com`
+- Actions Variable `DEPLOY_IMAGE_REPOSITORY`：仓库路径，例如 `job-matcher`
+- Secrets `DEPLOY_REGISTRY_USERNAME` / `DEPLOY_REGISTRY_PASSWORD`：该注册表的推送与拉取凭据
+
+工作流会使用同一注册表构建并推送，服务器端并行拉取 backend/frontend，并输出每个镜像的 `pull_seconds` 与本地解包大小。这样可以区分网络吞吐、镜像体积和重试造成的耗时；未配置上述变量时仍兼容 GHCR。
+
 ### 手动启动（分服务）
 
 ```bash

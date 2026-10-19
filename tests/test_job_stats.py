@@ -20,6 +20,7 @@ from sqlalchemy import select
 
 import app.core.database as database_module
 from app.models.cover_letter import CoverLetter
+from app.models.derived_resume import DerivedResume
 from app.models.job import Job
 from app.models.job_event import (
     EVENT_SOURCE_AUTO,
@@ -35,6 +36,7 @@ from app.services.job_stats import (
     clamp_days,
     clamp_tz_offset,
 )
+from app.services.job import get_jobs_aggregates
 
 
 # ---------------- 辅助 ----------------
@@ -163,6 +165,71 @@ async def _add_job(job_id: str, user_id: str, status="greeting_sent") -> None:
 def _local_today(tz_offset: int):
     now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
     return (now_utc + timedelta(minutes=tz_offset)).date()
+
+
+@pytest.mark.asyncio
+async def test_get_jobs_aggregates_batches_child_counts(session):
+    """岗位列表聚合应一次处理多个岗位，且保持单卡聚合字段口径。"""
+    from datetime import datetime, timezone
+
+    first_activity = datetime(2026, 10, 1, tzinfo=timezone.utc)
+    second_activity = datetime(2026, 10, 2, tzinfo=timezone.utc)
+    session.add_all(
+        [
+            Job(
+                id="aggregate-job-1",
+                user_id="aggregate-user",
+                jd_text="jd-1",
+                title="岗位 1",
+                updated_at=first_activity,
+            ),
+            Job(
+                id="aggregate-job-2",
+                user_id="aggregate-user",
+                jd_text="jd-2",
+                title="岗位 2",
+                updated_at=second_activity,
+            ),
+            CoverLetter(
+                id="aggregate-letter-1",
+                user_id="aggregate-user",
+                job_id="aggregate-job-1",
+                content="hello",
+                created_at=first_activity,
+            ),
+            DerivedResume(
+                id="aggregate-resume-1",
+                user_id="aggregate-user",
+                job_id="aggregate-job-1",
+                markdown_content="# resume",
+                created_at=second_activity,
+                accepted=True,
+            ),
+        ]
+    )
+    await session.commit()
+
+    aggregates = await get_jobs_aggregates(
+        session, ["aggregate-job-1", "aggregate-job-2"]
+    )
+
+    assert aggregates["aggregate-job-1"] == {
+        "cover_letter_count": 1,
+        "derived_count": 1,
+        "last_activity_at": second_activity.replace(tzinfo=None).isoformat(),
+        "latest_acceptance": True,
+    }
+    assert aggregates["aggregate-job-2"] == {
+        "cover_letter_count": 0,
+        "derived_count": 0,
+        "last_activity_at": None,
+        "latest_acceptance": False,
+    }
+
+
+@pytest.mark.asyncio
+async def test_get_jobs_aggregates_empty_ids_is_empty(session):
+    assert await get_jobs_aggregates(session, []) == {}
 
 
 # ---------------- 参数收敛（纯函数） ----------------

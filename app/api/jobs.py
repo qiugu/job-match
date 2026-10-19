@@ -59,6 +59,7 @@ from app.services.job import (
     attach_or_create_job,
     detect_job,
     get_job_aggregates,
+    get_jobs_aggregates,
     reopen_job,
     transition,
 )
@@ -157,7 +158,21 @@ async def list_jobs(
     if not include_closed:
         stmt = stmt.where(Job.status != JOB_STATUS_CLOSED)
     rows = (await db.execute(stmt.order_by(Job.updated_at.desc()))).scalars().all()
-    return [await _to_summary(db, j) for j in rows]
+    aggregates = await get_jobs_aggregates(db, [j.id for j in rows])
+    return [
+        JobSummary(
+            id=j.id,
+            user_id=j.user_id,
+            title=j.title,
+            company=j.company,
+            status=j.status,
+            jd_text=j.jd_text,
+            created_at=j.created_at.isoformat(),
+            updated_at=j.updated_at.isoformat(),
+            **aggregates[j.id],
+        )
+        for j in rows
+    ]
 
 
 @router.get("/stats", summary="投递统计（状态事件台账聚合）")

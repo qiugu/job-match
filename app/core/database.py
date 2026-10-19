@@ -5,12 +5,50 @@ import subprocess
 import sys
 from pathlib import Path
 
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import settings
 
-engine = create_async_engine(settings.async_database_url, echo=False, future=True)
+
+
+def _is_sqlite_url(database_url: str) -> bool:
+    return database_url.startswith("sqlite")
+
+
+def _configure_sqlite_connection(dbapi_connection, _connection_record) -> None:
+    """配置每条 aiosqlite 连接，降低并发读写时的锁等待。"""
+
+    async def configure(raw_connection) -> None:
+        await raw_connection.execute("PRAGMA journal_mode=WAL")
+        await raw_connection.execute("PRAGMA synchronous=NORMAL")
+        await raw_connection.execute("PRAGMA foreign_keys=ON")
+        await raw_connection.execute("PRAGMA busy_timeout=30000")
+        await raw_connection.commit()
+
+    dbapi_connection.run_async(configure)
+
+
+def create_database_engine(database_url: str):
+    """创建应用数据库引擎；SQLite 额外启用 WAL 与 30 秒忙等待。"""
+    connect_args = {"timeout": 30} if _is_sqlite_url(database_url) else {}
+    database_engine = create_async_engine(
+        database_url,
+        echo=False,
+        future=True,
+        connect_args=connect_args,
+    )
+    if _is_sqlite_url(database_url):
+        event.listen(
+            database_engine.sync_engine.pool,
+            "connect",
+            _configure_sqlite_connection,
+        )
+    return database_engine
+
+
+engine = create_database_engine(settings.async_database_url)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 

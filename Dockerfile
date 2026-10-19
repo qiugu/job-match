@@ -3,7 +3,8 @@
 # 后端 FastAPI 服务镜像（使用 uv 管理依赖与虚拟环境）
 # 构建提速两点：
 #   1. uv 版本固定（:latest 会随上游发版漂移，导致依赖安装层反复失效重建）
-#   2. uv 下载缓存用 BuildKit cache mount 持久化——改依赖时只增量下载 wheel
+#   2. BuildKit 层缓存复用依赖；cache mount 仅在同一 builder 上复用下载，
+#      不会随 GHA 层缓存自动迁移到下一台临时 runner
 FROM python:3.12-slim
 
 # 固定 uv 版本（升级时手动改此标签，改完依赖层会重建一次属预期）
@@ -37,7 +38,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev
 
 # 服务端 PDF 导出（矢量渲染）依赖：
-#   - playwright install --with-deps chromium：安装 Chromium 及其系统依赖
+#   - playwright install --with-deps --only-shell chromium：安装无头 Chromium 及系统依赖
 #     （镜像体积 +~200MB，属一次性成本；渲染在首次请求时懒加载）
 #   - fonts-noto-cjk：中文字体兜底。若 EXPORT_FONT_ORIGIN 指向的前端字体源
 #     不可达，Chromium 仍能渲染中文，避免豆腐块（主字体仍走站点字体源）
@@ -50,10 +51,12 @@ RUN --mount=type=cache,target=/var/cache/apt,id=apt \
 
 # Playwright Chromium：浏览器二进制直接装入镜像层（注意：不可用 BuildKit cache mount 缓存
 # ms-playwright，否则运行时容器内不包含浏览器）。下载走 PLAYWRIGHT_DOWNLOAD_HOST 镜像源
-# （国内腾讯云可达），把原本小时级的官方 CDN 下载降到分钟级；该层在 playwright 版本
-# 不变时由 Docker 层缓存复用，日常重建不会重下。--with-deps 所需系统库走上方 apt 缓存。
+# （国内构建可覆盖）；GitHub Actions 将该参数置空，使用官方 CDN。
+# PDF 服务使用默认无头模式，只安装 headless shell，不下载完整 Chromium。
+# 上游依赖层不变时复用浏览器层；任何依赖层变化都可能使本层失效。
+# --with-deps 所需系统库走上方 apt 缓存。
 RUN --mount=type=cache,target=/var/cache/apt,id=apt \
-    .venv/bin/playwright install --with-deps chromium
+    .venv/bin/playwright install --with-deps --only-shell chromium
 
 # 拷贝后端代码
 COPY app ./app
