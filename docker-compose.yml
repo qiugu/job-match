@@ -33,8 +33,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # GitHub Actions pulls this registry image on the server, then tags it here
-    # so Compose can start the published build without compiling on the VM.
+    # GitHub Actions loads the built image on the server over SSH, then tags it
+    # here so Compose can start the published build without compiling on the VM.
     image: job-matcher-backend:deploy
     # 统一使用 8005：Dockerfile EXPOSE、run 启动端口、nginx 转发三者一致
     expose:

@@ -11,9 +11,8 @@
 #   SSH_PRIVATE_KEY       : 服务器登录私钥（PEM 内容，注意 *.pem 已被 .gitignore 忽略，需手动在 Secrets 配置）
 #   KNOWN_HOSTS           : （可选）ssh-keyscan 输出，留空则自动 accept-new
 #   DEPLOY_REQUIRED_VARS  : （可选）覆盖 .env 必填项检查，逗号分隔，默认 LLM_API_KEY,AUTH_SECRET_KEY,AUTH_BOOTSTRAP_PASSWORD
-#   DEPLOY_IMAGE_REGISTRY : （可选）镜像注册表 Actions Variable，默认 ghcr.io；生产服务器建议配置为同地域的 TCR/私有 Registry
-#   DEPLOY_IMAGE_REPOSITORY : （可选）镜像仓库路径 Actions Variable，默认 owner/repository
-#   DEPLOY_REGISTRY_USERNAME / DEPLOY_REGISTRY_PASSWORD : （可选）非 ghcr.io 注册表的登录凭据 Secrets
+#   镜像部署：构建 Runner 将镜像导出为 Actions Artifact，再通过 SSH 上传到服务器；部署过程不访问 GHCR/TCR。
+#   如需另行发布镜像到 Registry，可在独立 workflow 中配置注册表凭据，不参与本部署链路。
 #   TLS_CERT              : （推荐）TLS 证书全文（fullchain PEM，即本地 jdmatch.site_bundle.crt 的完整内容，
 #                           含 leaf + 中间证书的所有 BEGIN/END CERTIFICATE 块）
 #   TLS_KEY               : （推荐）TLS 私钥全文（PEM，即本地 jdmatch.site.key 的完整内容）
@@ -52,14 +51,8 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  # 默认保持 GHCR 兼容；服务器在国内时，建议改成同地域的镜像注册表，避免跨境慢链路。
-  DEPLOY_IMAGE_REGISTRY: ${{ vars.DEPLOY_IMAGE_REGISTRY || 'ghcr.io' }}
-  DEPLOY_IMAGE_REPOSITORY: ${{ vars.DEPLOY_IMAGE_REPOSITORY || github.repository }}
-
 permissions:
   contents: read
-  packages: write
 
 jobs:
   # Independent runners avoid serial backend/frontend builds and memory contention.
@@ -111,47 +104,47 @@ jobs:
           dockerfile: Dockerfile
           skip-extraction: ${{ steps.backend-build-cache.outputs.cache-hit }}
 
-      - name: Log in to image registry
-        env:
-          IMAGE_REGISTRY: ${{ env.DEPLOY_IMAGE_REGISTRY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REGISTRY_USERNAME: ${{ secrets.DEPLOY_REGISTRY_USERNAME }}
-          REGISTRY_PASSWORD: ${{ secrets.DEPLOY_REGISTRY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          if [[ "${IMAGE_REGISTRY}" == "ghcr.io" ]]; then
-            REGISTRY_USERNAME="${GITHUB_ACTOR}"
-            REGISTRY_PASSWORD="${GITHUB_TOKEN}"
-          elif [[ -z "${REGISTRY_USERNAME}" || -z "${REGISTRY_PASSWORD}" ]]; then
-            echo "::error::非 ghcr.io 注册表必须配置 DEPLOY_REGISTRY_USERNAME / DEPLOY_REGISTRY_PASSWORD" >&2
-            exit 1
-          fi
-          printf '%s' "${REGISTRY_PASSWORD}" | docker login "${IMAGE_REGISTRY}" \
-            --username "${REGISTRY_USERNAME}" --password-stdin
-
       - name: Prepare image tag
         id: image
         env:
           IMAGE_NAME: ${{ matrix.image }}
         run: |
           set -euo pipefail
-          IMAGE_REPO="${DEPLOY_IMAGE_REGISTRY%/}/${DEPLOY_IMAGE_REPOSITORY}"
-          IMAGE_REPO="${IMAGE_REPO,,}"
-          echo "tag=${IMAGE_REPO}/${IMAGE_NAME}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "tag=job-matcher-${IMAGE_NAME}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
       # The action supplies the GHA cache runtime URL/token and GitHub API token.
       # Cache export is best effort; it must not hold a published image indefinitely.
-      - name: Build and publish image
+      - name: Build image for SSH deployment
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
-          push: true
+          load: true
           tags: ${{ steps.image.outputs.tag }}
           build-args: ${{ matrix.build_args }}
           cache-from: type=gha,scope=job-matcher-${{ matrix.image }},timeout=5m
           cache-to: type=gha,scope=job-matcher-${{ matrix.image }},mode=max,timeout=5m,ignore-error=true
+
+      - name: Export image archive
+        env:
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+          IMAGE_NAME: ${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/jobmatch-${IMAGE_NAME}-${GITHUB_SHA}.tar.gz"
+          docker image inspect "$IMAGE_TAG" >/dev/null
+          docker save "$IMAGE_TAG" | gzip -1 > "$archive"
+          sha256sum "$archive"
+
+      - name: Upload image archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobmatch-image-${{ matrix.image }}
+          path: ${{ runner.temp }}/jobmatch-${{ matrix.image }}-${{ github.sha }}.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
 
   deploy:
     name: Deploy
@@ -194,6 +187,24 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y --no-install-recommends openssh-client rsync
           # docker / docker compose 仅用于本地前置校验一致性提示；实际部署在远端执行
+
+      - name: Download image archives
+        if: ${{ github.event.inputs.no_build != 'true' }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: jobmatch-image-*
+          path: .deploy-images
+          merge-multiple: true
+
+      - name: Validate image archives
+        if: ${{ github.event.inputs.no_build != 'true' }}
+        run: |
+          set -euo pipefail
+          for image in backend frontend; do
+            archive=".deploy-images/jobmatch-${image}-${GITHUB_SHA}.tar.gz"
+            [[ -s "$archive" ]] || { echo "::error::缺少镜像归档 $archive" >&2; exit 1; }
+            echo "$(du -h "$archive" | cut -f1) $archive"
+          done
 
       - name: Configure SSH
         run: |
@@ -259,118 +270,16 @@ jobs:
         env:
           DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
 
-      - name: Pull images on server
-        id: pull_images
-        timeout-minutes: 8
-        # A failed registry route falls back to runner -> SSH below.
-        continue-on-error: true
+      - name: Transfer images over SSH
         if: ${{ github.event.inputs.no_build != 'true' }}
-        env:
-          IMAGE_REGISTRY: ${{ env.DEPLOY_IMAGE_REGISTRY }}
-          IMAGE_REPOSITORY: ${{ env.DEPLOY_IMAGE_REPOSITORY }}
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REGISTRY_USERNAME: ${{ secrets.DEPLOY_REGISTRY_USERNAME }}
-          REGISTRY_PASSWORD: ${{ secrets.DEPLOY_REGISTRY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          REMOTE="${REMOTE_DEPLOY_TARGET}"
-          REMOTE_HOST="${REMOTE%%:*}"
-          IMAGE_REGISTRY="${IMAGE_REGISTRY%/}"
-          IMAGE_REPO="${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}"
-          IMAGE_REPO="${IMAGE_REPO,,}"
-          BACKEND_IMAGE="${IMAGE_REPO}/backend:${GITHUB_SHA}"
-          FRONTEND_IMAGE="${IMAGE_REPO}/frontend:${GITHUB_SHA}"
-          SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
-          if [[ "${IMAGE_REGISTRY}" == "ghcr.io" ]]; then
-            REGISTRY_USERNAME="${GITHUB_ACTOR}"
-            REGISTRY_PASSWORD="${GHCR_TOKEN}"
-          elif [[ -z "${REGISTRY_USERNAME}" || -z "${REGISTRY_PASSWORD}" ]]; then
-            echo "::error::非 ghcr.io 注册表必须配置 DEPLOY_REGISTRY_USERNAME / DEPLOY_REGISTRY_PASSWORD" >&2
-            exit 1
-          fi
-          REGISTRY_Q="$(printf '%q' "${IMAGE_REGISTRY}")"
-          REGISTRY_USERNAME_Q="$(printf '%q' "${REGISTRY_USERNAME}")"
-          cleanup_registry_login() {
-            ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker logout ${REGISTRY_Q}" >/dev/null 2>&1 || true
-          }
-          trap cleanup_registry_login EXIT
-
-          echo "==> 服务器登录 ${IMAGE_REGISTRY} 并并行分层拉取 backend / frontend 镜像"
-          printf '%s' "${REGISTRY_PASSWORD}" | ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
-            "docker login ${REGISTRY_Q} --username ${REGISTRY_USERNAME_Q} --password-stdin"
-          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" bash -s -- "$BACKEND_IMAGE" "$FRONTEND_IMAGE" <<'REMOTE'
-          set -euo pipefail
-
-          pull_with_retry() {
-            local image="$1" label="$2"
-            local attempt delay started finished status
-            started="$(date +%s)"
-            for attempt in {1..3}; do
-              echo "==> docker pull ${label} ${image}（第 ${attempt}/3 次；单次最多 2 分钟）"
-              if timeout --signal=TERM --kill-after=10s 2m docker pull "$image"; then
-                finished="$(date +%s)"
-                echo "METRIC image=${label} pull_seconds=$((finished - started))"
-                return 0
-              else
-                status=$?
-                echo "METRIC image=${label} attempt=${attempt} exit_code=${status} elapsed_seconds=$(($(date +%s) - started))"
-              fi
-              if (( attempt < 3 )); then
-                delay=$((attempt * 10))
-                echo "    拉取中断，${delay}s 后重试"
-                sleep "$delay"
-              fi
-            done
-            echo "✗ 多次重试仍无法拉取 ${image}" >&2
-            return 1
-          }
-
-          backend_image="$1"
-          frontend_image="$2"
-          pull_with_retry "$backend_image" backend &
-          backend_pid=$!
-          pull_with_retry "$frontend_image" frontend &
-          frontend_pid=$!
-
-          backend_status=0
-          frontend_status=0
-          wait "$backend_pid" || backend_status=$?
-          wait "$frontend_pid" || frontend_status=$?
-          if (( backend_status != 0 || frontend_status != 0 )); then
-            echo "✗ backend/frontend 镜像拉取失败（backend=${backend_status}, frontend=${frontend_status}）" >&2
-            exit 1
-          fi
-
-          docker tag "$backend_image" job-matcher-backend:deploy
-          docker tag "$frontend_image" job-matcher-frontend:deploy
-          docker image inspect "$backend_image" --format='METRIC image=backend digest={{json .RepoDigests}} local_unpacked_bytes={{.Size}}'
-          docker image inspect "$frontend_image" --format='METRIC image=frontend digest={{json .RepoDigests}} local_unpacked_bytes={{.Size}}'
-          REMOTE
-
-      - name: Transfer images over SSH when registry pull fails
-        if: ${{ steps.pull_images.outcome == 'failure' }}
         timeout-minutes: 60
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REGISTRY_USERNAME: ${{ secrets.DEPLOY_REGISTRY_USERNAME }}
-          REGISTRY_PASSWORD: ${{ secrets.DEPLOY_REGISTRY_PASSWORD }}
         run: |
           set -euo pipefail
-          IMAGE_REGISTRY="${DEPLOY_IMAGE_REGISTRY%/}"
-          IMAGE_REPO="${IMAGE_REGISTRY}/${DEPLOY_IMAGE_REPOSITORY}"
-          IMAGE_REPO="${IMAGE_REPO,,}"
-          if [[ "$IMAGE_REGISTRY" == ghcr.io ]]; then
-            REGISTRY_USERNAME="$GITHUB_ACTOR"
-            REGISTRY_PASSWORD="$GITHUB_TOKEN"
-          elif [[ -z "$REGISTRY_USERNAME" || -z "$REGISTRY_PASSWORD" ]]; then
-            echo "::error::未配置镜像注册表凭据" >&2
-            exit 1
-          fi
-          echo "::warning::服务器直拉失败，改由 Runner 下载并通过 SSH 断点续传"
-          printf '%s' "$REGISTRY_PASSWORD" | docker login "$IMAGE_REGISTRY" \
-            --username "$REGISTRY_USERNAME" --password-stdin
           .github/scripts/transfer-images.sh \
-            "${IMAGE_REPO}/backend:${GITHUB_SHA}" "${IMAGE_REPO}/frontend:${GITHUB_SHA}"
+            ".deploy-images/jobmatch-backend-${GITHUB_SHA}.tar.gz" \
+            ".deploy-images/jobmatch-frontend-${GITHUB_SHA}.tar.gz" \
+            "job-matcher-backend:${GITHUB_SHA}" \
+            "job-matcher-frontend:${GITHUB_SHA}"
 
       # ---------- 第 4 步：服务器端 .env 与数据库迁移（对应 deploy.sh [4/5]） ----------
       - name: Server env check & database migration
@@ -511,8 +420,8 @@ jobs:
 
       # ---------- 第 5 步：docker compose 启动（对应 deploy.sh [5/5]） ----------
       #
-      # Images have already been built on GitHub-hosted runners and pulled on
-      # the server. Keep existing services running until compose replaces them.
+      # Images have already been built on GitHub-hosted runners and loaded on
+      # the server over SSH. Keep existing services running until Compose replaces them.
       - name: Start services (docker compose up -d)
         run: |
           set -euo pipefail

@@ -64,25 +64,21 @@ docker compose down           # 停止并移除容器（保留数据卷）
 
 ### GitHub Actions 构建与镜像拉取优化
 
-前后端镜像通过 matrix 在独立 Runner 上并行构建，两者成功后才进入部署；手动 `no_build=true` 仍可跳过构建。构建使用 `docker/build-push-action` 自动接入 GHA 缓存认证，前后端分别保留缓存；临时 Runner 的 cache mount 不会随层缓存自动恢复。缓存导出最多等待 5 分钟，导出失败不阻断已发布镜像。
+前后端镜像通过 matrix 在独立 Runner 上并行构建，两者成功后才进入部署；手动 `no_build=true` 仍可跳过构建。构建使用 `docker/build-push-action` 自动接入 GHA 缓存认证，前后端分别保留缓存；临时 Runner 的 cache mount 不会随层缓存自动恢复。缓存导出最多等待 5 分钟，导出失败不阻断镜像归档生成。
 
 GitHub Runner 的 Playwright 下载使用官方 CDN；后端只安装 PDF 导出所需的 Chromium headless shell，减少下载和镜像体积。本地 Docker 构建保留国内镜像源默认值。
 
-每个构建 job 最多运行 30 分钟，部署 job 最多 90 分钟；服务器拉取步骤最多 8 分钟，每个镜像单次拉取最多 2 分钟、最多尝试 3 次。直拉失败后自动改由 GitHub Runner 下载镜像，压缩为归档，通过现有 SSH 凭据和 rsync 断点续传，再在服务器 `docker load`。SSH 兜底步骤最多 60 分钟，单次 rsync 最多 55 分钟；rsync 自身的 `--timeout=60` 只限制连续 60 秒无数据，允许 1GB 级归档在慢链路上正常完成。传输或加载失败会停止部署，不进入数据库迁移。无需新增 Secrets。兜底需传输完整归档，服务器需有归档与镜像解包所需的空闲磁盘，完成或普通失败退出后清理临时归档（强制终止时可能残留在 `.deploy-images/`）。
+每个构建 job 最多运行 30 分钟，部署 job 最多 90 分钟。构建 Runner 使用 `load: true` 保留本地镜像，压缩为 Actions Artifact；部署 Job 下载两个归档后，通过现有 SSH 凭据和 rsync 断点续传到服务器，再执行 `docker load`。部署路径不执行 `docker pull`，因此生产服务器不需要访问 GHCR/TCR。SSH 传输每个归档最多尝试 3 次，单次 rsync 最多 55 分钟；`--timeout=60` 只限制连续 60 秒无数据，允许 1GB 级归档在慢链路上正常完成。传输或加载失败会停止部署，不进入数据库迁移。无需新增 Secrets。服务器需有归档与镜像解包所需的空闲磁盘；成功后清理临时归档，失败时保留 `.deploy-images/` 中的部分归档以便下次断点续传。
 
-上述超时属于异常保护，不代表保证在该时间内构建成功。排查时分别查看 `Build (backend)`、`Build (frontend)`、`Pull images on server` 和 SSH 兜底步骤，区分构建、缓存导出与服务器网络耗时。生产部署继续串行执行，避免新提交中途取消正在进行的数据库迁移。
+上述超时属于异常保护，不代表保证在该时间内构建成功。排查时分别查看 `Build (backend)`、`Build (frontend)`、`Download image archives`、`Transfer images over SSH` 和远程 `docker load` 输出，区分构建、Artifact 下载、SSH 传输与服务器解包耗时。生产部署继续串行执行，避免新提交中途取消正在进行的数据库迁移。
 
-生产部署由 `.github/workflows/deploy.yml` 在 GitHub Runner 构建镜像，再由服务器拉取。默认注册表是 `ghcr.io`；如果服务器到 GHCR 的链路较慢（例如一次部署拉取大镜像达到小时级），建议在服务器同地域配置镜像注册表（如腾讯云 TCR），在 GitHub Actions 中设置：
+生产部署由 `.github/workflows/deploy.yml` 在 GitHub Runner 构建镜像，再通过 SSH 上传到服务器。GHCR/TCR 不参与部署，也不需要为本工作流配置注册表登录凭据。若需要给其他环境共享或长期保存镜像，可以另行发布到镜像仓库，但这不会影响当前服务器部署。
 
-- Actions Variable `DEPLOY_IMAGE_REGISTRY`：注册表域名，例如 `crpi-xxx.tencentcloudcr.com`
-- Actions Variable `DEPLOY_IMAGE_REPOSITORY`：仓库路径，例如 `job-matcher`
-- Secrets `DEPLOY_REGISTRY_USERNAME` / `DEPLOY_REGISTRY_PASSWORD`：该注册表的推送与拉取凭据
+旧版本工作流曾使用注册表构建并推送，再由服务器拉取；当前工作流已改为 SSH 传输，避免生产服务器访问跨境镜像服务。
 
-工作流会使用同一注册表构建并推送，服务器端并行拉取 backend/frontend，并输出每个镜像的 `pull_seconds` 与本地解包大小。这样可以区分网络吞吐、镜像体积和重试造成的耗时；未配置上述变量时仍兼容 GHCR。
+#### 可选：发布镜像到同地域仓库
 
-#### 配置同地域镜像仓库
-
-推荐让 GitHub Runner 和生产服务器都访问同一个云厂商的镜像仓库。先在 TCR/ACR 控制台创建命名空间和 `job-match` 仓库，并创建只具备该仓库推送/拉取权限的服务账号或访问凭证。注册表域名必须从控制台复制，不能填写 `https://` 或仓库路径。
+如果还需要给其他机器共享镜像，可以在 TCR/ACR 控制台创建命名空间和 `job-match` 仓库，并创建只具备该仓库推送/拉取权限的服务账号或访问凭证。该仓库不参与本项目的服务器部署；部署仍通过 SSH 上传归档。注册表域名必须从控制台复制，不能填写 `https://` 或仓库路径。
 
 在服务器上先验证凭据和网络：
 
@@ -99,19 +95,7 @@ printf '%s' '<ACR Registry密码>' | docker login \
 docker pull <实例名>-registry.cn-hangzhou.cr.aliyuncs.com/<命名空间>/job-match/backend:<已有标签>
 ```
 
-服务器验证通过后，在仓库的 **Settings → Secrets and variables → Actions** 中设置：
-
-```text
-Variables:
-  DEPLOY_IMAGE_REGISTRY   = <控制台提供的注册表域名>
-  DEPLOY_IMAGE_REPOSITORY = <命名空间>/job-match
-
-Secrets:
-  DEPLOY_REGISTRY_USERNAME = <访问凭证用户名>
-  DEPLOY_REGISTRY_PASSWORD = <访问凭证密码或Token>
-```
-
-下一次 workflow 会先登录该注册表，再直接把 backend/frontend 构建并推送到这里，服务器也从这里拉取；不需要先把镜像复制到 GHCR。首次切换后应检查 Build job 中的 `docker push` 和 Deploy job 中的 `docker pull` 是否都使用了相同的完整镜像地址。
+上述命令只用于手动验证或其他环境拉取。当前 `deploy.yml` 不读取这些注册表变量，也不会让生产服务器从该仓库拉取镜像。
 
 #### 给远程 Docker daemon 配置代理
 
