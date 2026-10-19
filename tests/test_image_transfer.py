@@ -8,6 +8,17 @@ import pytest
 
 
 SCRIPT = Path(__file__).parents[1] / ".github/scripts/transfer-images.sh"
+WORKFLOW = Path(__file__).parents[1] / ".github/workflows/deploy.yml"
+
+
+def test_large_archive_transfer_has_a_long_hard_deadline():
+    script = SCRIPT.read_text()
+    workflow = WORKFLOW.read_text()
+
+    # rsync's --timeout=60 already aborts an idle connection. The outer limit
+    # must allow a multi-GB archive to finish on a slow but healthy SSH route.
+    assert "bounded 55m rsync" in script
+    assert "timeout-minutes: 60" in workflow
 
 
 @pytest.mark.parametrize("transfer_fails", [False, True])

@@ -47,7 +47,9 @@ bounded 30s ssh "${ssh_opts[@]}" "$remote_host" "umask 077; mkdir -p -- ${direct
 transferred=false
 for attempt in {1..3}; do
   echo "==> SSH 上传镜像归档（第 ${attempt}/3 次，断点续传）"
-  if bounded 5m rsync --partial --append-verify --protect-args --timeout=60 \
+  # --timeout=60 is an idle timeout; the 55m outer deadline allows a large
+  # archive to finish on a slow but healthy SSH route.
+  if bounded 55m rsync --partial --append-verify --protect-args --timeout=60 \
     -e "$ssh_command" "$archive" "${remote_host}:${remote_archive}"; then
     transferred=true
     break

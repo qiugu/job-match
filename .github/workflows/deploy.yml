@@ -138,7 +138,7 @@ jobs:
     needs: build
     # no_build intentionally skips build; failed/cancelled builds must never deploy.
     if: ${{ !cancelled() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
-    timeout-minutes: 40
+    timeout-minutes: 90
     runs-on: ubuntu-latest
     # 避免因密钥缺失导致静默成功
     environment: production
@@ -329,7 +329,7 @@ jobs:
 
       - name: Transfer images over SSH when registry pull fails
         if: ${{ steps.pull_images.outcome == 'failure' }}
-        timeout-minutes: 25
+        timeout-minutes: 60
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REGISTRY_USERNAME: ${{ secrets.DEPLOY_REGISTRY_USERNAME }}
