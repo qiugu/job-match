@@ -323,6 +323,13 @@
       "subtitle": "Select the format you want to export your resume",
       "pdfDesc": "Server-side vector rendering: selectable and searchable text, ATS-friendly. Recommended for job applications.",
       "printDesc": "Print via the system dialog and choose \"Save as PDF\". Use when the server is unavailable or for custom margins.",
+      "exporting": {
+        "title": "Generating your PDF",
+        "description": "We are preparing a searchable file. Keep this window open while it finishes.",
+        "progressLabel": "PDF export in progress",
+        "downloadingTitle": "Downloading your PDF",
+        "downloadingDescription": "The file is ready and is being saved to your device."
+      },
       "jsonDesc": "Export your resume data as JSON to backup or transfer between devices.",
       "markdownDesc": "Convert to plain Markdown text for easy sharing with AI models.",
       "privacyNotice": "Downloading a PDF sends your resume to the server for rendering (never stored afterwards); all other actions stay local. JDMatch does not store your resume content or exported files."

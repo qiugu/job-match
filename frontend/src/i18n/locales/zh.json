@@ -324,6 +324,13 @@
       "subtitle": "选择您希望导出简历的格式",
       "pdfDesc": "服务端矢量渲染生成：文字可选中、可检索，ATS/招聘系统友好，简历投递首选。",
       "printDesc": "调用系统打印对话框，选择「另存为 PDF」即可导出矢量文件；服务端不可用或需手动调整边距时使用。",
+      "exporting": {
+        "title": "正在生成 PDF",
+        "description": "正在整理版式并生成可检索的文件，请保持此窗口打开。",
+        "progressLabel": "PDF 正在处理中",
+        "downloadingTitle": "正在下载 PDF",
+        "downloadingDescription": "文件已生成，正在保存到你的设备。"
+      },
       "jsonDesc": "保存您的配置档案副本。日后更换设备或清理缓存后，可使用此文件一键无损导入恢复进度。",
       "markdownDesc": "转换为极简的文本标记语言文件，方便快速粘贴给各种 AI 模型或是其他文本编辑器。",
       "privacyNotice": "下载 PDF 会将当前简历发送至服务器渲染（渲染完成后不落库）；打印等其余操作均在本地完成。JDMatch 不存储您的简历内容与导出文件。"

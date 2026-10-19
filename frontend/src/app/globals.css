@@ -496,6 +496,31 @@
   }
 }
 
+@keyframes pdf-export-indeterminate {
+  0% {
+    transform: translateX(-120%);
+  }
+  50% {
+    transform: translateX(120%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+.pdf-export-indeterminate {
+  width: 38%;
+  transform: translateX(-120%);
+  animation: pdf-export-indeterminate 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pdf-export-indeterminate {
+    transform: translateX(0);
+    animation: none;
+  }
+}
+
 .animate-blob {
   animation: blob 7s infinite;
 }

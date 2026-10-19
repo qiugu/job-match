@@ -22,6 +22,14 @@ import { normalizePagePadding } from "@/utils/pagePadding";
 
 const INVALID_FILE_NAME_CHAR_REGEX = /[\\/:*?"<>|]/g;
 
+export const PDF_EXPORT_PHASES = [
+  "preparing",
+  "generating",
+  "downloading",
+] as const;
+
+export type PdfExportPhase = (typeof PDF_EXPORT_PHASES)[number];
+
 const getSafeFileName = (title?: string) => {
   const normalized = (title || "resume")
     .trim()
@@ -46,6 +54,7 @@ export interface ExportToServerPdfOptions {
   pagePadding: number;
   fontFamily?: string;
   onStart?: () => void;
+  onProgress?: (phase: PdfExportPhase) => void;
   onEnd?: () => void;
   successMessage?: string;
   /** 非接口错误（如元素缺失）时的兜底提示 */
@@ -58,11 +67,13 @@ export const exportToServerPdf = async ({
   pagePadding,
   fontFamily,
   onStart,
+  onProgress,
   onEnd,
   successMessage,
   errorMessage,
-}: ExportToServerPdfOptions) => {
+}: ExportToServerPdfOptions): Promise<boolean> => {
   onStart?.();
+  onProgress?.("preparing");
   try {
     const pdfElement = document.querySelector<HTMLElement>(`#${elementId}`);
     if (!pdfElement) {
@@ -83,6 +94,7 @@ export const exportToServerPdf = async ({
       title: title || "resume",
     });
 
+    onProgress?.("generating");
     const res = await fetch(`${API_BASE}/api/export/pdf`, {
       method: "POST",
       headers: {
@@ -111,6 +123,7 @@ export const exportToServerPdf = async ({
     }
 
     const blob = await res.blob();
+    onProgress?.("downloading");
     downloadBlob(blob, `${getSafeFileName(title)}.pdf`);
 
     if (res.headers.get("X-Font-Fallback") === "true") {
@@ -120,11 +133,13 @@ export const exportToServerPdf = async ({
     } else if (successMessage) {
       toast.success(successMessage);
     }
+    return true;
   } catch (error) {
     console.error("Server PDF export error:", error);
     const message =
       error instanceof Error && error.message ? error.message : undefined;
     toast.error(message || errorMessage || "PDF 导出失败");
+    return false;
   } finally {
     onEnd?.();
   }
