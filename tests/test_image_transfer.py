@@ -1,4 +1,4 @@
-"""Exercise SSH image fallback without contacting Docker or a production host."""
+"""Exercise SSH image artifact transfer without contacting Docker or a registry."""
 
 import os
 from pathlib import Path
@@ -8,14 +8,24 @@ import pytest
 
 
 SCRIPT = Path(__file__).parents[1] / ".github/scripts/transfer-images.sh"
+WORKFLOW = Path(__file__).parents[1] / ".github/workflows/deploy.yml"
+
+
+def test_large_archive_transfer_has_a_long_hard_deadline():
+    script = SCRIPT.read_text()
+    workflow = WORKFLOW.read_text()
+
+    assert "bounded 55m rsync" in script
+    assert "timeout-minutes: 60" in workflow
+    assert "docker pull" not in script
 
 
 @pytest.mark.parametrize("transfer_fails", [False, True])
-def test_ssh_transfer_retries_and_only_loads_a_complete_archive(tmp_path, transfer_fails):
+def test_ssh_transfer_retries_archives_and_only_loads_after_success(tmp_path, transfer_fails):
     binaries = tmp_path / "bin"
     binaries.mkdir()
-    # All dependencies are isolated at the command boundary. The production Bash
-    # script still controls downloads, archive creation, transfer retries and load.
+    (tmp_path / "backend.tar.gz").write_bytes(b"backend archive")
+    (tmp_path / "frontend.tar.gz").write_bytes(b"frontend archive")
     stub = r'''#!/bin/bash
 set -euo pipefail
 name="${0##*/}"
@@ -24,9 +34,6 @@ case "$name" in
     timeout)
         shift 3
         exec "$@"
-        ;;
-    docker)
-        if [[ "$1" == save ]]; then printf 'image archive'; fi
         ;;
     rsync)
         count=0
@@ -43,13 +50,20 @@ case "$name" in
     sleep) ;;
 esac
 '''
-    for command in ("timeout", "docker", "rsync", "ssh", "sleep"):
+    for command in ("timeout", "rsync", "ssh", "sleep"):
         path = binaries / command
         path.write_text(stub)
         path.chmod(0o755)
 
     result = subprocess.run(
-        ["bash", str(SCRIPT), "registry/backend:sha", "registry/frontend:sha"],
+        [
+            "bash",
+            str(SCRIPT),
+            str(tmp_path / "backend.tar.gz"),
+            str(tmp_path / "frontend.tar.gz"),
+            "job-matcher-backend:sha",
+            "job-matcher-frontend:sha",
+        ],
         text=True,
         capture_output=True,
         timeout=5,
@@ -57,19 +71,18 @@ esac
             **os.environ,
             "PATH": f"{binaries}:{os.environ['PATH']}",
             "TEST_DIR": str(tmp_path),
-            "RUNNER_TEMP": str(tmp_path),
             "REMOTE_DEPLOY_TARGET": "deploy@example.com:/srv/job match",
             "TRANSFER_FAILS": "1" if transfer_fails else "0",
         },
     )
     assert (result.returncode == 0) is (not transfer_fails), result.stderr
-    assert int((tmp_path / "attempts").read_text()) == (3 if transfer_fails else 2)
+    # A healthy run retries the first archive once, then transfers the second;
+    # a permanently failing run exhausts three attempts on the first archive.
+    assert int((tmp_path / "attempts").read_text()) == 3
     assert (tmp_path / "remote-script").exists() is (not transfer_fails)
-    assert not list(tmp_path.glob("jobmatch-images.*")), "Local archive must be cleaned up"
     commands = (tmp_path / "commands").read_text()
     assert "--partial --append-verify" in commands
-    assert "docker pull registry/backend:sha" in commands
-    assert "docker pull registry/frontend:sha" in commands
+    assert "docker pull" not in commands
     if not transfer_fails:
         assert "METRIC image_transfer=ssh" in result.stdout
 
@@ -77,8 +90,10 @@ esac
 @pytest.mark.parametrize("fail_operation", ["", "load", "image"])
 def test_remote_load_validates_images_before_changing_deployment_tags(tmp_path, fail_operation):
     remote = SCRIPT.read_text().split("<<'REMOTE_LOAD'\n", 1)[1].split("\nREMOTE_LOAD", 1)[0]
-    archive = tmp_path / "archive.tar.gz"
-    archive.write_bytes(b"test archive")
+    backend_archive = tmp_path / "backend.tar.gz"
+    frontend_archive = tmp_path / "frontend.tar.gz"
+    backend_archive.write_bytes(b"backend archive")
+    frontend_archive.write_bytes(b"frontend archive")
     harness = r'''
 timeout() { shift 3; "$@"; }
 docker() {
@@ -87,7 +102,15 @@ docker() {
 }
 '''
     result = subprocess.run(
-        ["bash", "-s", "--", str(archive), "registry/backend:sha", "registry/frontend:sha"],
+        [
+            "bash",
+            "-s",
+            "--",
+            str(backend_archive),
+            str(frontend_archive),
+            "registry/backend:sha",
+            "registry/frontend:sha",
+        ],
         input=harness + remote,
         text=True,
         capture_output=True,
@@ -96,5 +119,4 @@ docker() {
     )
     assert (result.returncode == 0) is (fail_operation == ""), result.stderr
     commands = (tmp_path / "commands").read_text().splitlines()
-    assert len([c for c in commands if c.startswith("tag ")]) == (0 if fail_operation else 2)
-    assert not archive.exists(), "Remote archive must be cleaned up on success and failure"
+    assert len([c for c in commands if c.startswith("tag ")]) == (2 if not fail_operation else 0)
