@@ -454,6 +454,7 @@ async def test_funnel_is_cumulative_and_monotonic(client, monkeypatch):
 
     totals = body["totals"]
     assert totals["jobs"] == 2
+    assert totals["active_now"] == 1  # B 仍在进行中；A 已归档
     assert totals["applied_now"] == 0  # A 已归档、B 未投递
     assert totals["closed_now"] == 1
     assert totals["applied_ever"] == 1  # 与漏斗同口径
@@ -578,6 +579,24 @@ async def test_empty_state_has_no_division_by_zero(client):
     assert len(body["weekday"]) == 7
     assert body["weekday"] == [0] * 7
     assert body["streak"] == {"current": 0, "best": 0}
+
+
+@pytest.mark.asyncio
+async def test_stats_recovers_current_status_when_event_ledger_is_missing(client):
+    """旧/异常数据没有事件台账时，当前状态仍应进入统计，而不是全为 0。"""
+    token = await _login(client, "statlegacy", "SL1")
+    h = auth_headers(token)
+    user_id = await _current_user_id("statlegacy")
+    await _add_job("jlegacy", user_id, status="applied")
+
+    body = (await client.get("/api/jobs/stats?days=30&tz_offset=480", headers=h)).json()
+
+    assert body["totals"]["applied_ever"] == 1
+    assert body["totals"]["applied_rate"] == 1.0
+    assert body["funnel"][-1]["count"] == 1
+    assert body["status_distribution"]["applied"] == 1
+    assert sum(point["created"] for point in body["daily"]) == 1
+    assert sum(point["applied"] for point in body["daily"]) == 1
 
 
 @pytest.mark.asyncio

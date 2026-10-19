@@ -112,6 +112,8 @@ class JobStatsTotals(BaseModel):
 
     jobs: int
     active: int
+    # 所选时间段新建岗位 cohort 中，当前仍处于进行中阶段的卡数
+    active_now: int
     applied_now: int
     closed_now: int
     applied_ever: int

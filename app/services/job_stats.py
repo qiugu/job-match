@@ -53,6 +53,15 @@ _STAGE_RANK: dict[str, int] = {
 }
 
 
+def _utc_naive(value: datetime | None) -> datetime:
+    """将模型时间归一为事件表使用的 UTC naive 时间。"""
+    if value is None:
+        return datetime.now(timezone.utc).replace(tzinfo=None)
+    if value.tzinfo is not None:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
+
+
 def clamp_days(days: int) -> int:
     """把区间天数收敛到 ALLOWED_DAYS。
 
@@ -133,6 +142,77 @@ async def compute_job_stats(
             ).where(JobStatusEvent.user_id == user_id)
         )
     ).all()
+
+    # 理想情况下，所有状态都由 transition() 记账；但历史库、手工导入或旧版本
+    # 直接更新 jobs.status 的数据可能只有岗位当前状态，没有完整事件链。统计页不能
+    # 因为台账缺一条就把整张卡显示成 0，因此只对「当前岗位缺失的事件」做内存中的
+    # 近似回填。标记为 backfill，沿用迁移回填的可信度提示，不伪装成精确事实。
+    rows_by_id = {job.id: job for job in rows}
+    events_by_job: dict[str, list[tuple]] = {}
+    for row in event_rows:
+        events_by_job.setdefault(row[0], []).append(row)
+
+    for job_id, job in rows_by_id.items():
+        job_events = events_by_job.setdefault(job_id, [])
+        has_create = any(row[1] is None for row in job_events)
+        max_rank = max(
+            (_STAGE_RANK.get(row[2], -1) for row in job_events),
+            default=-1,
+        )
+
+        if not has_create:
+            row = (
+                job_id,
+                None,
+                "greeting_sent",
+                EVENT_SOURCE_BACKFILL,
+                _utc_naive(job.created_at or job.updated_at),
+            )
+            event_rows.append(row)
+            job_events.append(row)
+
+        target = job.status
+        target_rank = _STAGE_RANK.get(target)
+        if target_rank is not None and max_rank < target_rank:
+            previous = next(
+                (
+                    status
+                    for status, rank in _STAGE_RANK.items()
+                    if rank == max_rank
+                ),
+                "greeting_sent",
+            )
+            row = (
+                job_id,
+                previous,
+                target,
+                EVENT_SOURCE_BACKFILL,
+                _utc_naive(job.updated_at or job.created_at),
+            )
+            event_rows.append(row)
+            job_events.append(row)
+            max_rank = target_rank
+
+        if target == JOB_STATUS_CLOSED and not any(
+            row[2] == JOB_STATUS_CLOSED for row in job_events
+        ):
+            previous = next(
+                (
+                    status
+                    for status, rank in _STAGE_RANK.items()
+                    if rank == max_rank
+                ),
+                "greeting_sent",
+            )
+            row = (
+                job_id,
+                previous,
+                JOB_STATUS_CLOSED,
+                EVENT_SOURCE_BACKFILL,
+                _utc_naive(job.updated_at or job.created_at),
+            )
+            event_rows.append(row)
+            job_events.append(row)
 
     # 按卡聚合：首次建卡时刻、曾达到的最高阶段、首次投递时刻
     first_create_at: dict[str, datetime] = {}
@@ -225,6 +305,11 @@ async def compute_job_stats(
     total_jobs = len(rows)
     active = sum(
         1 for j in rows if j.status in JOB_STATUS_ACTIVE
+    )
+    active_now = sum(
+        1
+        for j in rows
+        if j.id in cohort_job_ids and j.status in JOB_STATUS_ACTIVE
     )
     applied_now = status_distribution.get(JOB_STATUS_APPLIED, 0)
     closed_now = status_distribution.get(JOB_STATUS_CLOSED, 0)
@@ -329,6 +414,7 @@ async def compute_job_stats(
         "totals": {
             "jobs": total_jobs,
             "active": active,
+            "active_now": active_now,
             "applied_now": applied_now,
             "closed_now": closed_now,
             "applied_ever": applied_ever,
