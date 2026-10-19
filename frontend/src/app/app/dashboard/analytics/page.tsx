@@ -285,7 +285,7 @@ export default function AnalyticsPage() {
               <KpiCard
                 label={t("kpiAppliedEver")}
                 value={formatCount(stats.totals.applied_ever, locale)}
-                hint={`${t("kpiActiveLabel")} ${formatCount(stats.totals.applied_now, locale)} · ${t("kpiArchivedLabel")} ${formatCount(stats.totals.closed_now, locale)}`}
+                hint={`${t("kpiActiveLabel")} ${formatCount(stats.totals.active_now, locale)} · ${t("kpiArchivedLabel")} ${formatCount(stats.totals.closed_now, locale)}`}
               />
               <KpiCard
                 label={t("kpiAppliedRate")}

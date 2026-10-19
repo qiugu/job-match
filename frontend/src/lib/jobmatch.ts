@@ -491,6 +491,8 @@ export interface JobStatsRange {
 export interface JobStatsTotals {
   jobs: number;
   active: number;
+  /** 所选时间段新建的岗位 cohort 中，当前仍处于进行中阶段的卡数 */
+  active_now: number;
   /** 所选时间段新建的岗位 cohort 中，当前状态仍为「已投递」的卡数 */
   applied_now: number;
   /** 所选时间段新建的岗位 cohort 中，当前状态为「已结束」的卡数 */
