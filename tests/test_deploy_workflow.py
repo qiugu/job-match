@@ -29,6 +29,16 @@ def test_deploy_workflow_pulls_both_images_concurrently_and_reports_transfer_met
     assert "date +%s" in text
 
 
+def test_backend_build_persists_buildkit_mounts_for_playwright_cache():
+    text = WORKFLOW.read_text()
+
+    assert "actions/cache@v4" in text
+    assert "reproducible-containers/buildkit-cache-dance@v3" in text
+    assert "path: .buildkit-cache" in text
+    assert "cache-dir: .buildkit-cache" in text
+    assert "matrix.image == 'backend'" in text
+
+
 @pytest.mark.parametrize(
     ("failures", "failure_code", "expected_attempts", "succeeds"),
     [(0, 1, 1, True), (1, 1, 2, True), (1, 124, 2, True), (99, 1, 3, False)],

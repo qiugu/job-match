@@ -19,6 +19,11 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_CACHE_DIR=/root/.cache/uv \
+    # Chromium is copied into this stable runtime path below. Keeping the
+    # runtime path separate from the BuildKit cache mount makes the browser
+    # available in the image while still allowing later builds to reuse the
+    # downloaded archive.
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     # 防御性兜底：放宽依赖下载超时，避免 CI/远端构建在拉取较大 wheel 时因
     # 瞬时网络抖动而失败（默认仅 30s，曾导致 pypdfium2 下载超时阻断构建）。
     UV_HTTP_TIMEOUT=300 \
@@ -49,14 +54,21 @@ RUN --mount=type=cache,target=/var/cache/apt,id=apt \
     && apt-get install -y --no-install-recommends fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
 
-# Playwright Chromium：浏览器二进制直接装入镜像层（注意：不可用 BuildKit cache mount 缓存
-# ms-playwright，否则运行时容器内不包含浏览器）。下载走 PLAYWRIGHT_DOWNLOAD_HOST 镜像源
-# （国内构建可覆盖）；GitHub Actions 将该参数置空，使用官方 CDN。
+# Playwright Chromium：下载目录使用独立的 BuildKit cache mount。安装命令先把浏览器
+# 放入缓存目录，再复制到 /ms-playwright 这个最终镜像路径；这样缓存命中时不会重新
+# 从 CDN 下载 Chromium，同时运行时镜像仍然自带浏览器。下载走 PLAYWRIGHT_DOWNLOAD_HOST
+# 镜像源（国内构建可覆盖）；GitHub Actions 将该参数置空，使用官方 CDN。
 # PDF 服务使用默认无头模式，只安装 headless shell，不下载完整 Chromium。
 # 上游依赖层不变时复用浏览器层；任何依赖层变化都可能使本层失效。
 # --with-deps 所需系统库走上方 apt 缓存。
 RUN --mount=type=cache,target=/var/cache/apt,id=apt \
-    .venv/bin/playwright install --with-deps --only-shell chromium
+    --mount=type=cache,target=/var/lib/apt/lists,id=apt-lists \
+    --mount=type=cache,target=/root/.cache/ms-playwright,id=playwright-browsers,sharing=locked \
+    PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright \
+    .venv/bin/playwright install --with-deps --only-shell chromium \
+    && rm -rf /ms-playwright \
+    && mkdir -p /ms-playwright \
+    && cp -a /root/.cache/ms-playwright/. /ms-playwright/
 
 # 拷贝后端代码
 COPY app ./app

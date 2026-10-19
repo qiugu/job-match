@@ -90,6 +90,26 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        id: setup-buildx
+
+      - name: Cache backend BuildKit mounts
+        if: ${{ matrix.image == 'backend' }}
+        uses: actions/cache@v4
+        id: backend-build-cache
+        with:
+          path: .buildkit-cache
+          key: job-matcher-backend-buildkit-${{ runner.os }}-${{ hashFiles('Dockerfile', 'pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            job-matcher-backend-buildkit-${{ runner.os }}-
+
+      - name: Restore backend BuildKit cache mounts
+        if: ${{ matrix.image == 'backend' }}
+        uses: reproducible-containers/buildkit-cache-dance@v3
+        with:
+          builder: ${{ steps.setup-buildx.outputs.name }}
+          cache-dir: .buildkit-cache
+          dockerfile: Dockerfile
+          skip-extraction: ${{ steps.backend-build-cache.outputs.cache-hit }}
 
       - name: Log in to image registry
         env:

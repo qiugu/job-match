@@ -10,6 +10,7 @@ Dockerfile
 __pycache__
 *.pyc
 .pytest_cache
+.buildkit-cache
 .git
 .gitignore
 migrations/versions/__pycache__
