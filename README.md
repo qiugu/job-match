@@ -80,6 +80,68 @@ GitHub Runner 的 Playwright 下载使用官方 CDN；后端只安装 PDF 导出
 
 工作流会使用同一注册表构建并推送，服务器端并行拉取 backend/frontend，并输出每个镜像的 `pull_seconds` 与本地解包大小。这样可以区分网络吞吐、镜像体积和重试造成的耗时；未配置上述变量时仍兼容 GHCR。
 
+#### 配置同地域镜像仓库
+
+推荐让 GitHub Runner 和生产服务器都访问同一个云厂商的镜像仓库。先在 TCR/ACR 控制台创建命名空间和 `job-match` 仓库，并创建只具备该仓库推送/拉取权限的服务账号或访问凭证。注册表域名必须从控制台复制，不能填写 `https://` 或仓库路径。
+
+在服务器上先验证凭据和网络：
+
+```bash
+# 腾讯云 TCR 示例；企业版域名以控制台显示的实例域名为准
+printf '%s' '<TCR密码或临时Token>' | docker login ccr.ccs.tencentyun.com \
+  --username '<TCR用户名>' --password-stdin
+docker pull ccr.ccs.tencentyun.com/<命名空间>/job-match/backend:<已有标签>
+
+# 阿里云 ACR 示例；杭州个人版/企业版只是示例，地域和实例名按控制台替换
+printf '%s' '<ACR Registry密码>' | docker login \
+  <实例名>-registry.cn-hangzhou.cr.aliyuncs.com \
+  --username '<ACR访问凭证用户名>' --password-stdin
+docker pull <实例名>-registry.cn-hangzhou.cr.aliyuncs.com/<命名空间>/job-match/backend:<已有标签>
+```
+
+服务器验证通过后，在仓库的 **Settings → Secrets and variables → Actions** 中设置：
+
+```text
+Variables:
+  DEPLOY_IMAGE_REGISTRY   = <控制台提供的注册表域名>
+  DEPLOY_IMAGE_REPOSITORY = <命名空间>/job-match
+
+Secrets:
+  DEPLOY_REGISTRY_USERNAME = <访问凭证用户名>
+  DEPLOY_REGISTRY_PASSWORD = <访问凭证密码或Token>
+```
+
+下一次 workflow 会先登录该注册表，再直接把 backend/frontend 构建并推送到这里，服务器也从这里拉取；不需要先把镜像复制到 GHCR。首次切换后应检查 Build job 中的 `docker push` 和 Deploy job 中的 `docker pull` 是否都使用了相同的完整镜像地址。
+
+#### 给远程 Docker daemon 配置代理
+
+如果暂时不能使用同地域 Registry，需要在**生产服务器上**配置一个服务器可访问的 HTTP 代理。`127.0.0.1:7890` 只有在代理程序运行于生产服务器本机时才有效，本地电脑上的代理地址不会被 SSH 传递给 Docker daemon。
+
+以 systemd 管理的 Docker Engine 为例：
+
+```bash
+sudo mkdir -p /etc/systemd/system/docker.service.d
+sudo tee /etc/systemd/system/docker.service.d/http-proxy.conf >/dev/null <<'EOF'
+[Service]
+Environment="HTTP_PROXY=http://<代理主机>:<端口>"
+Environment="HTTPS_PROXY=http://<代理主机>:<端口>"
+Environment="NO_PROXY=localhost,127.0.0.1,.local"
+EOF
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+sudo systemctl show --property=Environment docker
+```
+
+验证代理确实作用于 daemon，而不是只作用于当前 shell：
+
+```bash
+curl -I https://ghcr.io/v2/
+curl -I https://pkg-containers.githubusercontent.com/
+docker pull ghcr.io/qiugu/job-match/backend:<标签>
+```
+
+Docker daemon 代理变更会重启 Docker 服务，建议在维护窗口执行。若服务器在云厂商 VPC 内，优先使用同地域 Registry；代理只作为 GHCR 仍需保留时的网络方案。
+
 ### 手动启动（分服务）
 
 ```bash
