@@ -24,3 +24,17 @@ def test_backend_build_persists_buildkit_mounts_for_playwright_cache():
     assert "path: .buildkit-cache" in text
     assert "cache-dir: .buildkit-cache" in text
     assert "matrix.image == 'backend'" in text
+
+
+def test_code_upload_excludes_local_worktrees_and_has_transfer_guardrails():
+    text = WORKFLOW.read_text()
+
+    assert "--exclude '.worktrees/'" in text
+    assert "--exclude '.workbuddy/'" in text
+    assert "--exclude '.deploy-images/'" in text
+    assert "--partial" in text
+    assert "--append-verify" in text
+    assert "--timeout=60" in text
+    assert "--info=progress2,stats2" in text
+    assert "timeout --signal=TERM --kill-after=30s 25m" in text
+    assert "timeout-minutes: 120" in text
