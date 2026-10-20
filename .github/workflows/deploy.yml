@@ -151,8 +151,8 @@ jobs:
     needs: build
     # no_build intentionally skips build; failed/cancelled builds must never deploy.
     if: ${{ !cancelled() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
-    # 代码上传最多 25 分钟、镜像归档传输最多 60 分钟，留出 compose/健康检查余量。
-    timeout-minutes: 120
+    # 代码上传最多 25 分钟、镜像归档传输与加载最多 140 分钟，留出 compose/健康检查余量。
+    timeout-minutes: 180
     runs-on: ubuntu-latest
     # 避免因密钥缺失导致静默成功
     environment: production
@@ -305,7 +305,7 @@ jobs:
 
       - name: Transfer images over SSH
         if: ${{ github.event.inputs.no_build != 'true' }}
-        timeout-minutes: 60
+        timeout-minutes: 140
         run: |
           set -euo pipefail
           .github/scripts/transfer-images.sh \

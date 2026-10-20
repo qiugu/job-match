@@ -37,4 +37,4 @@ def test_code_upload_excludes_local_worktrees_and_has_transfer_guardrails():
     assert "--timeout=60" in text
     assert "--info=progress2,stats2" in text
     assert "timeout --signal=TERM --kill-after=30s 25m" in text
-    assert "timeout-minutes: 120" in text
+    assert "timeout-minutes: 180" in text
