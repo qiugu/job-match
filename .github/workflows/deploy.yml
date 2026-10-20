@@ -151,7 +151,8 @@ jobs:
     needs: build
     # no_build intentionally skips build; failed/cancelled builds must never deploy.
     if: ${{ !cancelled() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
-    timeout-minutes: 90
+    # 代码上传最多 25 分钟、镜像归档传输最多 60 分钟，留出 compose/健康检查余量。
+    timeout-minutes: 120
     runs-on: ubuntu-latest
     # 避免因密钥缺失导致静默成功
     environment: production
@@ -235,27 +236,59 @@ jobs:
           REMOTE_HOST="${REMOTE%%:*}"
           REMOTE_PATH="${REMOTE#*:}"
           SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
-          RSYNC_SSH="ssh -o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_deploy -o PreferredAuthentications=publickey -o PasswordAuthentication=no"
+          RSYNC_SSH="ssh -o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30 -o ServerAliveCountMax=4 -i ~/.ssh/id_deploy -o PreferredAuthentications=publickey -o PasswordAuthentication=no"
 
           echo "==> 上传代码到 ${REMOTE}"
           # 确保远端目标目录存在（兼容需 root 的场景，用 sudo 创建并改属主）
           RP=$(printf '%q' "$REMOTE_PATH")
           ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "sudo mkdir -p ${RP} && sudo chown \$(id -u):\$(id -g) ${RP}"
 
-          # 排除：git、依赖、构建产物、数据库、本地 .env（服务器 .env 为唯一真相）
-          rsync -az -e "$RSYNC_SSH" \
+          # 排除：git、依赖、构建产物、隔离工作树、数据库、本地 .env（服务器 .env 为唯一真相）。
+          # .worktrees 可能包含多个完整 node_modules/venv，不能随代码上传。
+          RSYNC_ARGS=(
+            -az
+            --partial
+            --append-verify
+            --timeout=60
+            --info=progress2,stats2
             --exclude '.git/' \
             --exclude '.venv/' \
             --exclude 'node_modules/' \
             --exclude 'frontend/node_modules/' \
             --exclude 'frontend/dist/' \
+            --exclude '.worktrees/' \
+            --exclude '.workbuddy/' \
+            --exclude '.superpowers/' \
+            --exclude '.codex/' \
+            --exclude '.agents/' \
+            --exclude '.deploy-images/' \
+            --exclude '.logs/' \
+            --exclude '.pids/' \
+            --exclude '.pytest_cache/' \
+            --exclude '.history/' \
+            --exclude '.agent/' \
+            --exclude '.tanstack/' \
             --exclude '__pycache__/' \
             --exclude '*.pyc' \
             --exclude '*.db' \
             --exclude '.env' \
             --exclude '.env.*' \
-            --exclude '.DS_Store' \
-            ./ "$REMOTE/"
+            --exclude '.DS_Store'
+          )
+          echo "==> 统计代码上传规模"
+          rsync --dry-run --stats --human-readable -e "$RSYNC_SSH" "${RSYNC_ARGS[@]}" ./ "$REMOTE/" | tail -n 12
+
+          echo "==> 上传代码到 ${REMOTE}（单次最长 25 分钟，断点可续传）"
+          set +e
+          timeout --signal=TERM --kill-after=30s 25m \
+            rsync -e "$RSYNC_SSH" "${RSYNC_ARGS[@]}" ./ "$REMOTE/"
+          rsync_status=$?
+          set -e
+          if (( rsync_status != 0 )); then
+            echo "::error::rsync 上传失败或超时（exit=${rsync_status}）；检查远端磁盘和网络后可重试断点上传" >&2
+            ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "df -h ${RP} /tmp" || true
+            exit "$rsync_status"
+          fi
 
           # 首次播种 .env：仅当服务器不存在 .env 且 Secrets 中提供了 DEPLOY_ENV_FILE
           if [[ -n "${DEPLOY_ENV_FILE:-}" ]]; then
