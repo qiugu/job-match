@@ -64,21 +64,24 @@ docker compose down           # 停止并移除容器（保留数据卷）
 
 ### GitHub Actions 构建与镜像拉取优化
 
-前后端镜像通过 matrix 在独立 Runner 上并行构建，两者成功后才进入部署；手动 `no_build=true` 仍可跳过构建。构建使用 `docker/build-push-action` 自动接入 GHA 缓存认证，前后端分别保留缓存；临时 Runner 的 cache mount 不会随层缓存自动恢复。缓存导出最多等待 5 分钟，导出失败不阻断镜像归档生成。
+GitHub Actions 通过 rsync 上传代码，在服务器上顺序构建 backend/frontend，再备份数据库、执行迁移并启动服务。手动 `no_build=true` 可跳过构建。构建期间保留现有服务运行；两个镜像都构建成功后才进入迁移阶段。
 
-GitHub Runner 的 Playwright 下载使用官方 CDN；后端只安装 PDF 导出所需的 Chromium headless shell，减少下载和镜像体积。本地 Docker 构建保留国内镜像源默认值。
+镜像层和 BuildKit 下载缓存保留在服务器。APT 的索引与 `.deb` 包使用加锁的缓存挂载，并关闭基础镜像自动删除 `.deb` 的配置；缓存不进入最终镜像。Playwright 只安装 headless shell，浏览器下载缓存保留在同一 builder，最终镜像仅复制当前版本需要的浏览器目录。
 
-每个构建 job 最多运行 30 分钟，部署 job 最多 90 分钟。构建 Runner 使用 `load: true` 保留本地镜像，压缩为 Actions Artifact；部署 Job 下载两个归档后，通过现有 SSH 凭据和 rsync 断点续传到服务器，再执行 `docker load`。部署路径不执行 `docker pull`，因此生产服务器不需要访问 GHCR/TCR。SSH 传输每个归档最多尝试 3 次，单次 rsync 最多 55 分钟；`--timeout=60` 只限制连续 60 秒无数据，允许 1GB 级归档在慢链路上正常完成。传输或加载失败会停止部署，不进入数据库迁移。无需新增 Secrets。服务器需有归档与镜像解包所需的空闲磁盘；成功后清理临时归档，失败时保留 `.deploy-images/` 中的部分归档以便下次断点续传。
+国内服务器的 Compose 构建默认通过清华 HTTPS 镜像下载 Debian 字体和 Playwright 系统库，保留 Debian 的签名验证。可在服务器 `.env` 中覆盖下面两个构建参数（不需要新增 GitHub Secrets）；如在海外构建，可改为官方源：
 
-上述超时属于异常保护，不代表保证在该时间内构建成功。排查时分别查看 `Build (backend)`、`Build (frontend)`、`Download image archives`、`Transfer images over SSH` 和远程 `docker load` 输出，区分构建、Artifact 下载、SSH 传输与服务器解包耗时。生产部署继续串行执行，避免新提交中途取消正在进行的数据库迁移。
+```dotenv
+DEBIAN_MIRROR=https://deb.debian.org/debian
+DEBIAN_SECURITY_MIRROR=https://deb.debian.org/debian-security
+```
 
-生产部署由 `.github/workflows/deploy.yml` 在 GitHub Runner 构建镜像，再通过 SSH 上传到服务器。GHCR/TCR 不参与部署，也不需要为本工作流配置注册表登录凭据。若需要给其他环境共享或长期保存镜像，可以另行发布到镜像仓库，但这不会影响当前服务器部署。
+部署 job 上限为 180 分钟，代码上传上限为 25 分钟，这些只是异常保护。排查时查看 `Upload code via rsync`、`Build images on remote` 和迁移/健康检查步骤，区分网络下载、镜像构建与应用启动。生产部署串行执行。
 
-旧版本工作流曾使用注册表构建并推送，再由服务器拉取；当前工作流已改为 SSH 传输，避免生产服务器访问跨境镜像服务。
+当前工作流不上传或拉取应用镜像归档，不需要应用镜像仓库凭据。不过首次构建仍需访问 Dockerfile 引用的基础镜像（包括 GHCR 上的 uv 镜像）、Python/npm 依赖源和 Playwright 下载源；缓存不能替代首次下载的网络连通性。
 
 #### 可选：发布镜像到同地域仓库
 
-如果还需要给其他机器共享镜像，可以在 TCR/ACR 控制台创建命名空间和 `job-match` 仓库，并创建只具备该仓库推送/拉取权限的服务账号或访问凭证。该仓库不参与本项目的服务器部署；部署仍通过 SSH 上传归档。注册表域名必须从控制台复制，不能填写 `https://` 或仓库路径。
+如果还需要给其他机器共享镜像，可以在 TCR/ACR 控制台创建命名空间和 `job-match` 仓库，并创建只具备该仓库推送/拉取权限的服务账号或访问凭证。该仓库不参与本项目的服务器部署。注册表域名必须从控制台复制，不能填写 `https://` 或仓库路径。
 
 在服务器上先验证凭据和网络：
 

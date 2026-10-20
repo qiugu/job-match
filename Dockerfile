@@ -42,27 +42,33 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev
 
+# 本地/海外构建默认使用 Debian 官方源；Compose 的国内部署可覆盖为 HTTPS 镜像。
+# 同时覆盖安全更新源，保留发行版及 Debian 签名验证。
+ARG DEBIAN_MIRROR=https://deb.debian.org/debian
+ARG DEBIAN_SECURITY_MIRROR=https://deb.debian.org/debian-security
+COPY scripts/configure-apt.sh /usr/local/bin/configure-apt
+RUN sh /usr/local/bin/configure-apt "$DEBIAN_MIRROR" "$DEBIAN_SECURITY_MIRROR"
+
 # 服务端 PDF 导出（矢量渲染）依赖：
 #   - playwright install --with-deps --only-shell chromium：安装无头 Chromium 及系统依赖
 #     （镜像体积 +~200MB，属一次性成本；渲染在首次请求时懒加载）
 #   - fonts-noto-cjk：中文字体兜底。若 EXPORT_FONT_ORIGIN 指向的前端字体源
 #     不可达，Chromium 仍能渲染中文，避免豆腐块（主字体仍走站点字体源）
 # 系统依赖 + 中文字体兜底（仅安装一次；apt 缓存挂载加速重装，已装库仍写入镜像层）
-RUN --mount=type=cache,target=/var/cache/apt,id=apt \
-    --mount=type=cache,target=/var/lib/apt/lists,id=apt-lists \
+RUN --mount=type=cache,target=/var/cache/apt,id=apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,id=apt-lists,sharing=locked \
     apt-get update \
-    && apt-get install -y --no-install-recommends fonts-noto-cjk \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends fonts-noto-cjk
 
 # Playwright Chromium：下载目录使用独立的 BuildKit cache mount。安装命令先把浏览器
 # 放入缓存目录，再复制到 /ms-playwright 这个最终镜像路径；这样缓存命中时不会重新
 # 从 CDN 下载 Chromium，同时运行时镜像仍然自带浏览器。下载走 PLAYWRIGHT_DOWNLOAD_HOST
-# 镜像源（国内构建可覆盖）；GitHub Actions 将该参数置空，使用官方 CDN。
+# 镜像源（可覆盖）；GitHub Actions 通过 SSH 在服务器上执行此构建。
 # PDF 服务使用默认无头模式，只安装 headless shell，不下载完整 Chromium。
 # 上游依赖层不变时复用浏览器层；任何依赖层变化都可能使本层失效。
 # --with-deps 所需系统库走上方 apt 缓存。
-RUN --mount=type=cache,target=/var/cache/apt,id=apt \
-    --mount=type=cache,target=/var/lib/apt/lists,id=apt-lists \
+RUN --mount=type=cache,target=/var/cache/apt,id=apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,id=apt-lists,sharing=locked \
     --mount=type=cache,target=/root/.cache/ms-playwright,id=playwright-browsers,sharing=locked \
     required_browser_dirs="$(PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright .venv/bin/playwright install --dry-run --only-shell chromium | sed -n 's/^  Install location: //p')" \
     && PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright \
