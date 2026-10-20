@@ -11,7 +11,7 @@
 #   SSH_PRIVATE_KEY       : 服务器登录私钥（PEM 内容，注意 *.pem 已被 .gitignore 忽略，需手动在 Secrets 配置）
 #   KNOWN_HOSTS           : （可选）ssh-keyscan 输出，留空则自动 accept-new
 #   DEPLOY_REQUIRED_VARS  : （可选）覆盖 .env 必填项检查，逗号分隔，默认 LLM_API_KEY,AUTH_SECRET_KEY,AUTH_BOOTSTRAP_PASSWORD
-#   镜像部署：构建 Runner 将镜像导出为 Actions Artifact，再通过 SSH 上传到服务器；部署过程不访问 GHCR/TCR。
+#   镜像部署：代码通过 SSH 上传，镜像在目标服务器本地构建并复用 Docker 层缓存；部署过程不访问 GHCR/TCR。
 #   如需另行发布镜像到 Registry，可在独立 workflow 中配置注册表凭据，不参与本部署链路。
 #   TLS_CERT              : （推荐）TLS 证书全文（fullchain PEM，即本地 jdmatch.site_bundle.crt 的完整内容，
 #                           含 leaf + 中间证书的所有 BEGIN/END CERTIFICATE 块）
@@ -54,109 +54,9 @@ concurrency:
 permissions:
   contents: read
 
-jobs:
-  # Independent runners avoid serial backend/frontend builds and memory contention.
-  build:
-    name: Build (${{ matrix.image }})
-    if: ${{ github.event.inputs.no_build != 'true' }}
-    runs-on: ubuntu-latest
-    environment: production
-    timeout-minutes: 30
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - image: backend
-            context: .
-            dockerfile: Dockerfile
-            # GitHub-hosted runners use the official CDN, not a China mirror.
-            build_args: PLAYWRIGHT_DOWNLOAD_HOST=
-          - image: frontend
-            context: ./frontend
-            dockerfile: frontend/Dockerfile
-            build_args: |
-              VITE_JOBMATCH_API=
-              VITE_SITE_URL=https://jdmatch.site
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        id: setup-buildx
-
-      - name: Cache backend BuildKit mounts
-        if: ${{ matrix.image == 'backend' }}
-        uses: actions/cache@v4
-        id: backend-build-cache
-        with:
-          path: .buildkit-cache
-          key: job-matcher-backend-buildkit-${{ runner.os }}-${{ hashFiles('Dockerfile', 'pyproject.toml', 'uv.lock') }}
-          restore-keys: |
-            job-matcher-backend-buildkit-${{ runner.os }}-
-
-      - name: Restore backend BuildKit cache mounts
-        if: ${{ matrix.image == 'backend' }}
-        uses: reproducible-containers/buildkit-cache-dance@v3
-        with:
-          builder: ${{ steps.setup-buildx.outputs.name }}
-          cache-dir: .buildkit-cache
-          dockerfile: Dockerfile
-          skip-extraction: ${{ steps.backend-build-cache.outputs.cache-hit }}
-
-      - name: Prepare image tag
-        id: image
-        env:
-          IMAGE_NAME: ${{ matrix.image }}
-        run: |
-          set -euo pipefail
-          echo "tag=job-matcher-${IMAGE_NAME}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-
-      # The action supplies the GHA cache runtime URL/token and GitHub API token.
-      # Cache export is best effort; it must not hold a published image indefinitely.
-      - name: Build image for SSH deployment
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          platforms: linux/amd64
-          load: true
-          tags: ${{ steps.image.outputs.tag }}
-          build-args: ${{ matrix.build_args }}
-          cache-from: type=gha,scope=job-matcher-${{ matrix.image }},timeout=5m
-          cache-to: type=gha,scope=job-matcher-${{ matrix.image }},mode=max,timeout=5m,ignore-error=true
-
-      - name: Export image archive
-        env:
-          IMAGE_TAG: ${{ steps.image.outputs.tag }}
-          IMAGE_NAME: ${{ matrix.image }}
-        run: |
-          set -euo pipefail
-          archive="$RUNNER_TEMP/jobmatch-${IMAGE_NAME}-${GITHUB_SHA}.tar.gz"
-          docker image inspect "$IMAGE_TAG" >/dev/null
-          image_size_bytes="$(docker image inspect --format '{{.Size}}' "$IMAGE_TAG")"
-          echo "METRIC image=${IMAGE_NAME} uncompressed_bytes=${image_size_bytes}"
-          docker save "$IMAGE_TAG" | gzip -1 > "$archive"
-          archive_bytes="$(stat -c%s "$archive")"
-          echo "METRIC image=${IMAGE_NAME} compressed_bytes=${archive_bytes}"
-          du -h "$archive"
-          sha256sum "$archive"
-
-      - name: Upload image archive
-        uses: actions/upload-artifact@v4
-        with:
-          name: jobmatch-image-${{ matrix.image }}
-          path: ${{ runner.temp }}/jobmatch-${{ matrix.image }}-${{ github.sha }}.tar.gz
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 1
-
   deploy:
     name: Deploy
-    needs: build
-    # no_build intentionally skips build; failed/cancelled builds must never deploy.
-    if: ${{ !cancelled() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
-    # 代码上传最多 25 分钟、镜像归档传输与加载最多 140 分钟，留出 compose/健康检查余量。
+    # 镜像在目标服务器本地构建，复用 Docker 层缓存，避免跨公网传输约 900MB 归档。
     timeout-minutes: 180
     runs-on: ubuntu-latest
     # 避免因密钥缺失导致静默成功
@@ -192,25 +92,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update -y
           sudo apt-get install -y --no-install-recommends openssh-client rsync
-          # docker / docker compose 仅用于本地前置校验一致性提示；实际部署在远端执行
-
-      - name: Download image archives
-        if: ${{ github.event.inputs.no_build != 'true' }}
-        uses: actions/download-artifact@v4
-        with:
-          pattern: jobmatch-image-*
-          path: .deploy-images
-          merge-multiple: true
-
-      - name: Validate image archives
-        if: ${{ github.event.inputs.no_build != 'true' }}
-        run: |
-          set -euo pipefail
-          for image in backend frontend; do
-            archive=".deploy-images/jobmatch-${image}-${GITHUB_SHA}.tar.gz"
-            [[ -s "$archive" ]] || { echo "::error::缺少镜像归档 $archive" >&2; exit 1; }
-            echo "$(du -h "$archive" | cut -f1) $archive"
-          done
+          # 镜像在目标服务器构建；这里只安装 rsync 用于上传代码。
 
       - name: Configure SSH
         run: |
@@ -308,16 +190,21 @@ jobs:
         env:
           DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
 
-      - name: Transfer images over SSH
+      - name: Build images on remote
         if: ${{ github.event.inputs.no_build != 'true' }}
-        timeout-minutes: 140
         run: |
           set -euo pipefail
-          .github/scripts/transfer-images.sh \
-            ".deploy-images/jobmatch-backend-${GITHUB_SHA}.tar.gz" \
-            ".deploy-images/jobmatch-frontend-${GITHUB_SHA}.tar.gz" \
-            "job-matcher-backend:${GITHUB_SHA}" \
-            "job-matcher-frontend:${GITHUB_SHA}"
+          REMOTE="${REMOTE_DEPLOY_TARGET}"
+          REMOTE_HOST="${REMOTE%%:*}"
+          REMOTE_PATH="${REMOTE#*:}"
+          SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
+          RP=$(printf '%q' "$REMOTE_PATH")
+
+          echo "==> 停止服务并在服务器本地构建 backend/frontend（复用 Docker 层缓存）"
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} down --remove-orphans || true"
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build backend"
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build frontend"
+          echo "    服务器镜像构建完成"
 
       # ---------- 第 4 步：服务器端 .env 与数据库迁移（对应 deploy.sh [4/5]） ----------
       - name: Server env check & database migration
@@ -457,9 +344,7 @@ jobs:
           TLS_KEY: ${{ secrets.TLS_KEY }}
 
       # ---------- 第 5 步：docker compose 启动（对应 deploy.sh [5/5]） ----------
-      #
-      # Images have already been built on GitHub-hosted runners and loaded on
-      # the server over SSH. Keep existing services running until Compose replaces them.
+      # 镜像已在前一步服务器本地构建，且 Docker 层缓存保留在服务器上。
       - name: Start services (docker compose up -d)
         run: |
           set -euo pipefail

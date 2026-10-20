@@ -20,7 +20,6 @@ def test_large_archive_transfer_has_a_long_hard_deadline():
     assert "--human-readable" in script
     assert "backend_pid=$!" in script
     assert "frontend_pid=$!" in script
-    assert "timeout-minutes: 140" in workflow
     assert "timeout-minutes: 180" in workflow
     assert "docker pull" not in script
 
