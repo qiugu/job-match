@@ -22,7 +22,9 @@ def test_remote_build_reuses_docker_layers_for_playwright_cache():
     text = WORKFLOW.read_text()
 
     assert "复用 Docker 层缓存" in text
-    assert "docker compose --project-directory ${RP} down --remove-orphans" in text
+    build_step = text.split("- name: Build images on remote", 1)[1].split("- name:", 1)[0]
+    assert " down " not in build_step
+    assert " stop " not in build_step
     assert "docker compose --project-directory ${RP} build backend" in text
     assert "docker compose --project-directory ${RP} build frontend" in text
 

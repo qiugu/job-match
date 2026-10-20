@@ -201,8 +201,7 @@ jobs:
           SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
           RP=$(printf '%q' "$REMOTE_PATH")
 
-          echo "==> 停止服务并在服务器本地构建 backend/frontend（复用 Docker 层缓存）"
-          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} down --remove-orphans || true"
+          echo "==> 保持现有服务运行，在服务器本地构建 backend/frontend（复用 Docker 层缓存）"
           ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build backend"
           ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build frontend"
           echo "    服务器镜像构建完成"

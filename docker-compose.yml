@@ -33,8 +33,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # GitHub Actions loads the built image on the server over SSH, then tags it
-    # here so Compose can start the published build without compiling on the VM.
+      args:
+        # 国内服务器构建：字体和 Playwright 系统库都使用此源。
+        # 可在服务器 .env 中覆盖；海外构建可改回 Debian 官方 HTTPS 源。
+        DEBIAN_MIRROR: "${DEBIAN_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/debian}"
+        DEBIAN_SECURITY_MIRROR: "${DEBIAN_SECURITY_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/debian-security}"
+    # GitHub Actions 上传代码后在服务器构建，后续部署复用本地镜像。
     image: job-matcher-backend:deploy
     # 统一使用 8005：Dockerfile EXPOSE、run 启动端口、nginx 转发三者一致
     expose:
