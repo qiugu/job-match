@@ -7,6 +7,7 @@ WORKFLOW = Path(__file__).parents[1] / ".github" / "workflows" / "deploy.yml"
 def test_deploy_workflow_builds_images_on_server_without_registry_or_archives():
     text = WORKFLOW.read_text()
 
+    assert "\njobs:\n  deploy:" in text
     assert "Build images on remote" in text
     assert "docker compose --project-directory ${RP} build backend" in text
     assert "docker compose --project-directory ${RP} build frontend" in text
