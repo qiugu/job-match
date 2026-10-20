@@ -16,7 +16,12 @@ def test_large_archive_transfer_has_a_long_hard_deadline():
     workflow = WORKFLOW.read_text()
 
     assert "bounded 55m rsync" in script
-    assert "timeout-minutes: 60" in workflow
+    assert "--info=progress2,stats2" in script
+    assert "--human-readable" in script
+    assert "backend_pid=$!" in script
+    assert "frontend_pid=$!" in script
+    assert "timeout-minutes: 140" in workflow
+    assert "timeout-minutes: 180" in workflow
     assert "docker pull" not in script
 
 
@@ -36,10 +41,13 @@ case "$name" in
         exec "$@"
         ;;
     rsync)
+        label=backend
+        [[ "$*" == *frontend.tar.gz* ]] && label=frontend
+        attempts_file="$TEST_DIR/attempts-$label"
         count=0
-        if [[ -f "$TEST_DIR/attempts" ]]; then read -r count < "$TEST_DIR/attempts"; fi
+        if [[ -f "$attempts_file" ]]; then read -r count < "$attempts_file"; fi
         count=$((count + 1))
-        printf '%s\n' "$count" > "$TEST_DIR/attempts"
+        printf '%s\n' "$count" > "$attempts_file"
         if [[ "$TRANSFER_FAILS" == 1 ]] || (( count == 1 )); then exit 23; fi
         ;;
     ssh)
@@ -76,9 +84,9 @@ esac
         },
     )
     assert (result.returncode == 0) is (not transfer_fails), result.stderr
-    # A healthy run retries the first archive once, then transfers the second;
-    # a permanently failing run exhausts three attempts on the first archive.
-    assert int((tmp_path / "attempts").read_text()) == 3
+    # Each archive retries once; the two archives are transferred concurrently.
+    assert int((tmp_path / "attempts-backend").read_text()) == 2
+    assert int((tmp_path / "attempts-frontend").read_text()) == 2
     assert (tmp_path / "remote-script").exists() is (not transfer_fails)
     commands = (tmp_path / "commands").read_text()
     assert "--partial --append-verify" in commands

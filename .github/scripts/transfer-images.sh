@@ -48,15 +48,20 @@ bounded 30s ssh "${ssh_opts[@]}" "$remote_host" \
 transfer_archive() {
   local local_archive="$1" remote_archive="$2" label="$3"
   local attempt
-  for attempt in {1..3}; do
-    echo "==> SSH 上传 ${label} 镜像归档（第 ${attempt}/3 次，支持断点续传）"
+  local archive_bytes
+  archive_bytes="$(wc -c < "$local_archive" | tr -d ' ')"
+  echo "==> ${label} 镜像归档大小：${archive_bytes} bytes"
+  for attempt in {1..2}; do
+    echo "==> SSH 上传 ${label} 镜像归档（第 ${attempt}/2 次，支持断点续传）"
     # The 55m limit is per attempt; --timeout=60 is only an idle timeout.
+    # progress2/stats2 makes throughput and the remaining bytes visible in Actions.
     if bounded 55m rsync --partial --append-verify --protect-args --timeout=60 \
+      --info=progress2,stats2 --human-readable \
       -e "$ssh_command" "$local_archive" "${remote_host}:${remote_archive}"; then
-      echo "METRIC image_transfer=ssh image=${label} compressed_bytes=$(wc -c < "$local_archive")"
+      echo "METRIC image_transfer=ssh image=${label} compressed_bytes=${archive_bytes}"
       return 0
     fi
-    if (( attempt < 3 )); then
+    if (( attempt < 2 )); then
       echo "    ${label} 上传中断，10s 后重试"
       sleep 10
     fi
@@ -65,8 +70,21 @@ transfer_archive() {
   return 1
 }
 
-transfer_archive "$backend_archive" "$backend_remote_archive" backend
-transfer_archive "$frontend_archive" "$frontend_remote_archive" frontend
+echo "==> 并行上传 backend/frontend 镜像归档（每个归档最多 2 次、每次 55 分钟）"
+transfer_archive "$backend_archive" "$backend_remote_archive" backend &
+backend_pid=$!
+transfer_archive "$frontend_archive" "$frontend_remote_archive" frontend &
+frontend_pid=$!
+
+backend_status=0
+frontend_status=0
+wait "$backend_pid" || backend_status=$?
+wait "$frontend_pid" || frontend_status=$?
+if (( backend_status != 0 || frontend_status != 0 )); then
+  echo "::error::镜像归档 SSH 传输失败（backend=${backend_status}, frontend=${frontend_status}）" >&2
+  bounded 30s ssh "${ssh_opts[@]}" "$remote_host" "df -h ${remote_dir_q} /tmp" || true
+  exit 1
+fi
 
 printf -v backend_image_q '%q' "$backend_image"
 printf -v frontend_image_q '%q' "$frontend_image"

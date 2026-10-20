@@ -134,7 +134,12 @@ jobs:
           set -euo pipefail
           archive="$RUNNER_TEMP/jobmatch-${IMAGE_NAME}-${GITHUB_SHA}.tar.gz"
           docker image inspect "$IMAGE_TAG" >/dev/null
+          image_size_bytes="$(docker image inspect --format '{{.Size}}' "$IMAGE_TAG")"
+          echo "METRIC image=${IMAGE_NAME} uncompressed_bytes=${image_size_bytes}"
           docker save "$IMAGE_TAG" | gzip -1 > "$archive"
+          archive_bytes="$(stat -c%s "$archive")"
+          echo "METRIC image=${IMAGE_NAME} compressed_bytes=${archive_bytes}"
+          du -h "$archive"
           sha256sum "$archive"
 
       - name: Upload image archive
@@ -151,8 +156,8 @@ jobs:
     needs: build
     # no_build intentionally skips build; failed/cancelled builds must never deploy.
     if: ${{ !cancelled() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
-    # 代码上传最多 25 分钟、镜像归档传输最多 60 分钟，留出 compose/健康检查余量。
-    timeout-minutes: 120
+    # 代码上传最多 25 分钟、镜像归档传输与加载最多 140 分钟，留出 compose/健康检查余量。
+    timeout-minutes: 180
     runs-on: ubuntu-latest
     # 避免因密钥缺失导致静默成功
     environment: production
@@ -305,7 +310,7 @@ jobs:
 
       - name: Transfer images over SSH
         if: ${{ github.event.inputs.no_build != 'true' }}
-        timeout-minutes: 60
+        timeout-minutes: 140
         run: |
           set -euo pipefail
           .github/scripts/transfer-images.sh \
