@@ -134,7 +134,12 @@ jobs:
           set -euo pipefail
           archive="$RUNNER_TEMP/jobmatch-${IMAGE_NAME}-${GITHUB_SHA}.tar.gz"
           docker image inspect "$IMAGE_TAG" >/dev/null
+          image_size_bytes="$(docker image inspect --format '{{.Size}}' "$IMAGE_TAG")"
+          echo "METRIC image=${IMAGE_NAME} uncompressed_bytes=${image_size_bytes}"
           docker save "$IMAGE_TAG" | gzip -1 > "$archive"
+          archive_bytes="$(stat -c%s "$archive")"
+          echo "METRIC image=${IMAGE_NAME} compressed_bytes=${archive_bytes}"
+          du -h "$archive"
           sha256sum "$archive"
 
       - name: Upload image archive

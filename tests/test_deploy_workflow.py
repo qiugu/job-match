@@ -14,6 +14,8 @@ def test_deploy_workflow_builds_and_transfers_archives_without_registry_pulls():
     assert "docker pull" not in text
     assert "DEPLOY_IMAGE_REGISTRY" not in text
     assert "DEPLOY_REGISTRY_PASSWORD" not in text
+    assert "docker image inspect --format" in text
+    assert "archive_bytes=\"$(stat -c%s \"$archive\")\"" in text
 
 
 def test_backend_build_persists_buildkit_mounts_for_playwright_cache():

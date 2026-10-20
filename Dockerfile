@@ -64,11 +64,16 @@ RUN --mount=type=cache,target=/var/cache/apt,id=apt \
 RUN --mount=type=cache,target=/var/cache/apt,id=apt \
     --mount=type=cache,target=/var/lib/apt/lists,id=apt-lists \
     --mount=type=cache,target=/root/.cache/ms-playwright,id=playwright-browsers,sharing=locked \
-    PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright \
-    .venv/bin/playwright install --with-deps --only-shell chromium \
+    required_browser_dirs="$(PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright .venv/bin/playwright install --dry-run --only-shell chromium | sed -n 's/^  Install location: //p')" \
+    && PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright \
+       .venv/bin/playwright install --with-deps --only-shell chromium \
     && rm -rf /ms-playwright \
     && mkdir -p /ms-playwright \
-    && cp -a /root/.cache/ms-playwright/. /ms-playwright/
+    && for browser_dir in $required_browser_dirs; do \
+         test -d "$browser_dir" \
+           || { echo "Missing Playwright browser directory: $browser_dir" >&2; exit 1; }; \
+         cp -a "$browser_dir" /ms-playwright/; \
+       done
 
 # 拷贝后端代码
 COPY app ./app
