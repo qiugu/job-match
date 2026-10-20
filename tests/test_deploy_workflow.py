@@ -4,28 +4,26 @@ from pathlib import Path
 WORKFLOW = Path(__file__).parents[1] / ".github" / "workflows" / "deploy.yml"
 
 
-def test_deploy_workflow_builds_and_transfers_archives_without_registry_pulls():
+def test_deploy_workflow_builds_images_on_server_without_registry_or_archives():
     text = WORKFLOW.read_text()
 
-    assert "load: true" in text
-    assert "actions/upload-artifact@v4" in text
-    assert "actions/download-artifact@v4" in text
-    assert "Transfer images over SSH" in text
+    assert "Build images on remote" in text
+    assert "docker compose --project-directory ${RP} build backend" in text
+    assert "docker compose --project-directory ${RP} build frontend" in text
+    assert "actions/upload-artifact@v4" not in text
+    assert "actions/download-artifact@v4" not in text
+    assert "Transfer images over SSH" not in text
+    assert "docker save" not in text
     assert "docker pull" not in text
-    assert "DEPLOY_IMAGE_REGISTRY" not in text
-    assert "DEPLOY_REGISTRY_PASSWORD" not in text
-    assert "docker image inspect --format" in text
-    assert "archive_bytes=\"$(stat -c%s \"$archive\")\"" in text
 
 
-def test_backend_build_persists_buildkit_mounts_for_playwright_cache():
+def test_remote_build_reuses_docker_layers_for_playwright_cache():
     text = WORKFLOW.read_text()
 
-    assert "actions/cache@v4" in text
-    assert "reproducible-containers/buildkit-cache-dance@v3" in text
-    assert "path: .buildkit-cache" in text
-    assert "cache-dir: .buildkit-cache" in text
-    assert "matrix.image == 'backend'" in text
+    assert "复用 Docker 层缓存" in text
+    assert "docker compose --project-directory ${RP} down --remove-orphans" in text
+    assert "docker compose --project-directory ${RP} build backend" in text
+    assert "docker compose --project-directory ${RP} build frontend" in text
 
 
 def test_code_upload_excludes_local_worktrees_and_has_transfer_guardrails():
@@ -40,3 +38,13 @@ def test_code_upload_excludes_local_worktrees_and_has_transfer_guardrails():
     assert "--info=progress2,stats2" in text
     assert "timeout --signal=TERM --kill-after=30s 25m" in text
     assert "timeout-minutes: 180" in text
+
+
+def test_deploy_builds_images_on_server_and_does_not_transfer_archives():
+    text = WORKFLOW.read_text()
+
+    assert "Build images on remote" in text
+    assert "docker compose --project-directory ${RP} build backend" in text
+    assert "docker compose --project-directory ${RP} build frontend" in text
+    assert "Transfer images over SSH" not in text
+    assert "docker save \"$IMAGE_TAG\"" not in text
