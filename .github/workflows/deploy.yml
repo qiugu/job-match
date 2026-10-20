@@ -54,6 +54,7 @@ concurrency:
 permissions:
   contents: read
 
+jobs:
   deploy:
     name: Deploy
     # 镜像在目标服务器本地构建，复用 Docker 层缓存，避免跨公网传输约 900MB 归档。
