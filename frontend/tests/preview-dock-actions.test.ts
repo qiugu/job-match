@@ -10,7 +10,6 @@ describe("workbench floating dock actions", () => {
     const dock = source("src/components/preview/PreviewDock.tsx");
 
     expect(dock).toContain("onClick={handleGrammarCheck}");
-    expect(dock).toContain("onClick={toggleSidePanel}");
     expect(dock).toContain("onClick={toggleEditPanel}");
     expect(dock).toContain("onClick={togglePreviewPanel}");
     expect(dock).toContain("onClick={handleCopyResume}");
@@ -24,5 +23,21 @@ describe("workbench floating dock actions", () => {
     const workbench = source("src/app/app/workbench/[id]/page.tsx");
 
     expect(workbench).toContain("ref={resumeContentRef}");
+    expect(workbench).toContain(
+      "editorPanelCollapsed={editPanelCollapsed}"
+    );
+    expect(workbench).toContain(
+      "previewPanelCollapsed={previewPanelCollapsed}"
+    );
+  });
+
+  it("binds the dock panel states to the rendered markdown workbench", () => {
+    const markdownWorkbench = source(
+      "src/components/editor/MarkdownWorkbench.tsx"
+    );
+
+    expect(markdownWorkbench).toContain("editorPanelCollapsed");
+    expect(markdownWorkbench).toContain("previewPanelCollapsed");
+    expect(markdownWorkbench).toContain("resumeContentRef");
   });
 });

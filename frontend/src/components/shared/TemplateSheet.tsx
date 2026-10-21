@@ -102,7 +102,11 @@ const TemplatePreview = ({
   );
 };
 
-const TemplateSheet = () => {
+interface TemplateSheetProps {
+  trigger?: React.ReactNode;
+}
+
+const TemplateSheet = ({ trigger }: TemplateSheetProps) => {
   const t = useTranslations("templates");
   const tNames = useTranslations("dashboard.templates");
   const { activeResume, setTemplate } = useResumeStore();
@@ -114,7 +118,11 @@ const TemplateSheet = () => {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <PanelsLeftBottom size={20} />
+        {trigger || (
+          <button type="button" aria-label={t("switchTemplate")}>
+            <PanelsLeftBottom size={20} />
+          </button>
+        )}
       </SheetTrigger>
       <SheetContent side="left" forceMount className="w-1/2 sm:max-w-1/2">
         <SheetHeader>

@@ -14,16 +14,24 @@ import {
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 
+interface MarkdownWorkbenchProps {
+  editorPanelCollapsed: boolean;
+  previewPanelCollapsed: boolean;
+  resumeContentRef: React.RefObject<HTMLDivElement>;
+}
+
 // Markdown 编辑模式主布局：左为 Markdown 编辑器，右为实时预览。
 // 数据流：Markdown 源 -> 编辑器 -> store.markdownContent
 //        -> 预览组件解析渲染（同时驱动 PDF 导出）。
-const MarkdownWorkbench = () => {
+const MarkdownWorkbench = ({
+  editorPanelCollapsed,
+  previewPanelCollapsed,
+  resumeContentRef,
+}: MarkdownWorkbenchProps) => {
   const { activeResume, updateResume, setThemeColor, updateGlobalSettings, saveActiveResumeToBackend, syncedIds } =
     useResumeStore();
   const t = useTranslations("markdownEditor");
   const tTheme = useTranslations("workbench.sidePanel.theme");
-  const previewRef = useRef<HTMLDivElement>(null);
-
   // 主题色改动后自动落库（防抖），避免「在编辑器选了不同主题色、没点保存就回列表页，
   // 列表页从后端重载把未保存的改动覆盖掉」导致缩略图显示的还是旧色、不同简历同色。
   const themeColorSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -99,179 +107,183 @@ const MarkdownWorkbench = () => {
       <div className="flex-1 min-h-0">
         <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
           {/* 左：Markdown 编辑器 */}
-          <ResizablePanel
-            id="markdown-editor-panel"
-            order={1}
-            defaultSize={50}
-            minSize={30}
-            className="bg-background min-h-0"
-          >
-            <div className="h-full min-h-0 flex flex-col">
-              <div
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 text-xs font-medium",
-                  "border-b bg-background border-border text-muted-foreground"
-                )}
-              >
-                <p className="xai-eyebrow">{t("editorTitle")}</p>
+          {!editorPanelCollapsed && (
+            <ResizablePanel
+              id="markdown-editor-panel"
+              order={1}
+              defaultSize={previewPanelCollapsed ? 100 : 50}
+              minSize={30}
+              className="min-h-0 bg-background"
+            >
+              <div className="flex h-full min-h-0 flex-col">
+                <div
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 text-xs font-medium",
+                    "border-b bg-background border-border text-muted-foreground"
+                  )}
+                >
+                  <p className="xai-eyebrow">{t("editorTitle")}</p>
+                </div>
+                <div className="min-h-0 flex-1">
+                  <MarkdownEditor
+                    value={activeResume.markdownContent ?? ""}
+                    onChange={handleChange}
+                    placeholder={t("placeholder")}
+                  />
+                </div>
               </div>
-              <div className="flex-1 min-h-0">
-                <MarkdownEditor
-                  value={activeResume.markdownContent ?? ""}
-                  onChange={handleChange}
-                  placeholder={t("placeholder")}
-                />
-              </div>
-            </div>
-          </ResizablePanel>
+            </ResizablePanel>
+          )}
 
-          <ResizableHandle />
+          {!editorPanelCollapsed && !previewPanelCollapsed && <ResizableHandle />}
 
           {/* 右：实时预览 */}
-          <ResizablePanel
-            id="markdown-preview-panel"
-            order={2}
-            defaultSize={50}
-            minSize={30}
-            className="bg-muted min-h-0"
-          >
-            <div className="h-full min-h-0 flex flex-col">
-              <div
-                className={cn(
-                  "flex items-center gap-3 px-4 py-2 text-xs font-medium border-b bg-background border-border text-muted-foreground overflow-x-auto"
-                )}
-              >
-                <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
-                  <Eye className="w-3.5 h-3.5" />
-                  <p className="xai-eyebrow">{t("previewTitle")}</p>
-                </div>
+          {!previewPanelCollapsed && (
+            <ResizablePanel
+              id="markdown-preview-panel"
+              order={2}
+              defaultSize={editorPanelCollapsed ? 100 : 50}
+              minSize={30}
+              className="min-h-0 bg-muted"
+            >
+              <div className="flex h-full min-h-0 flex-col">
+                <div
+                  className={cn(
+                    "flex items-center gap-3 overflow-x-auto border-b bg-background px-4 py-2 text-xs font-medium text-muted-foreground"
+                  )}
+                >
+                  <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+                    <Eye className="h-3.5 w-3.5" />
+                    <p className="xai-eyebrow">{t("previewTitle")}</p>
+                  </div>
 
-                {/* 行高 / 字号 / 边距 调节（分页按内容真实块边界切分，文字不会被页边界截断） */}
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 ml-auto">
-                  {/* 一页纸开关 chip：开启后超出单页的内容自动缩放至一页 */}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateGlobalSettings({
-                        autoOnePage: !activeResume.globalSettings?.autoOnePage,
-                      })
-                    }
-                    className={cn(
-                      "inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-[10px] transition-colors",
-                      activeResume.globalSettings?.autoOnePage
-                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                        : "border-border text-muted-foreground hover:text-foreground"
-                    )}
-                    title="超出单页的内容自动缩放至一页"
-                  >
-                    <span
+                  {/* 行高 / 字号 / 边距 调节（分页按内容真实块边界切分，文字不会被页边界截断） */}
+                  <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2">
+                    {/* 一页纸开关 chip：开启后超出单页的内容自动缩放至一页 */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateGlobalSettings({
+                          autoOnePage: !activeResume.globalSettings?.autoOnePage,
+                        })
+                      }
                       className={cn(
-                        "h-1.5 w-1.5 rounded-full",
+                        "inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-[10px] transition-colors",
                         activeResume.globalSettings?.autoOnePage
-                          ? "bg-emerald-400"
-                          : "bg-muted-foreground/40"
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                          : "border-border text-muted-foreground hover:text-foreground"
                       )}
-                    />
-                    一页纸已开启
-                  </button>
+                      title="超出单页的内容自动缩放至一页"
+                    >
+                      <span
+                        className={cn(
+                          "h-1.5 w-1.5 rounded-full",
+                          activeResume.globalSettings?.autoOnePage
+                            ? "bg-emerald-400"
+                            : "bg-muted-foreground/40"
+                        )}
+                      />
+                      一页纸已开启
+                    </button>
 
-                  <label className="flex items-center gap-1.5" title="行高">
-                    <span>行高</span>
-                    <input
-                      type="range"
-                      min={1.15}
-                      max={2}
-                      step={0.05}
-                      value={activeResume.globalSettings?.lineHeight || 1.5}
-                      onChange={(e) =>
-                        updateGlobalSettings({
-                          lineHeight: Number(e.target.value),
-                        })
-                      }
-                      className="w-20 accent-primary"
-                    />
-                    <span className="w-8 tabular-nums text-right">
-                      {(activeResume.globalSettings?.lineHeight || 1.5).toFixed(2)}
-                    </span>
-                  </label>
+                    <label className="flex items-center gap-1.5" title="行高">
+                      <span>行高</span>
+                      <input
+                        type="range"
+                        min={1.15}
+                        max={2}
+                        step={0.05}
+                        value={activeResume.globalSettings?.lineHeight || 1.5}
+                        onChange={(e) =>
+                          updateGlobalSettings({
+                            lineHeight: Number(e.target.value),
+                          })
+                        }
+                        className="w-20 accent-primary"
+                      />
+                      <span className="w-8 text-right tabular-nums">
+                        {(activeResume.globalSettings?.lineHeight || 1.5).toFixed(2)}
+                      </span>
+                    </label>
 
-                  <label className="flex items-center gap-1.5" title="字体大小">
-                    <span>字号</span>
-                    <input
-                      type="range"
-                      min={12}
-                      max={20}
-                      step={1}
-                      value={activeResume.globalSettings?.baseFontSize || 16}
-                      onChange={(e) =>
-                        updateGlobalSettings({
-                          baseFontSize: Number(e.target.value),
-                        })
-                      }
-                      className="w-20 accent-primary"
-                    />
-                    <span className="w-8 tabular-nums text-right">
-                      {activeResume.globalSettings?.baseFontSize || 16}
-                    </span>
-                  </label>
+                    <label className="flex items-center gap-1.5" title="字体大小">
+                      <span>字号</span>
+                      <input
+                        type="range"
+                        min={12}
+                        max={20}
+                        step={1}
+                        value={activeResume.globalSettings?.baseFontSize || 16}
+                        onChange={(e) =>
+                          updateGlobalSettings({
+                            baseFontSize: Number(e.target.value),
+                          })
+                        }
+                        className="w-20 accent-primary"
+                      />
+                      <span className="w-8 text-right tabular-nums">
+                        {activeResume.globalSettings?.baseFontSize || 16}
+                      </span>
+                    </label>
 
-                  <label className="flex items-center gap-1.5" title="页面内边距">
-                    <span>边距</span>
-                    <input
-                      type="range"
-                      min={16}
-                      max={64}
-                      step={2}
-                      value={activeResume.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING}
-                      onChange={(e) =>
-                        updateGlobalSettings({
-                          pagePadding: Number(e.target.value),
-                        })
-                      }
-                      className="w-20 accent-primary"
-                    />
-                    <span className="w-8 tabular-nums text-right">
-                      {activeResume.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING}
-                    </span>
-                  </label>
+                    <label className="flex items-center gap-1.5" title="页面内边距">
+                      <span>边距</span>
+                      <input
+                        type="range"
+                        min={16}
+                        max={64}
+                        step={2}
+                        value={activeResume.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING}
+                        onChange={(e) =>
+                          updateGlobalSettings({
+                            pagePadding: Number(e.target.value),
+                          })
+                        }
+                        className="w-20 accent-primary"
+                      />
+                      <span className="w-8 text-right tabular-nums">
+                        {activeResume.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING}
+                      </span>
+                    </label>
 
-                  {/* 模块间距：h2 顶级模块标题上方的留白（px）。
-                      未设置时与预览渲染一致（半行高），拖动滑块后写入 sectionSpacing 固定像素值 */}
-                  <label
-                    className="flex items-center gap-1.5"
-                    title="模块间距：h2 顶级模块标题上方的留白"
-                  >
-                    <span>模块间距</span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={64}
-                      step={2}
-                      value={moduleSpacing}
-                      onChange={(e) =>
-                        updateGlobalSettings({
-                          sectionSpacing: Number(e.target.value),
-                        })
-                      }
-                      className="w-20 accent-primary"
-                    />
-                    <span className="w-8 tabular-nums text-right">
-                      {moduleSpacing}
-                    </span>
-                  </label>
+                    {/* 模块间距：h2 顶级模块标题上方的留白（px）。
+                        未设置时与预览渲染一致（半行高），拖动滑块后写入 sectionSpacing 固定像素值 */}
+                    <label
+                      className="flex items-center gap-1.5"
+                      title="模块间距：h2 顶级模块标题上方的留白"
+                    >
+                      <span>模块间距</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={64}
+                        step={2}
+                        value={moduleSpacing}
+                        onChange={(e) =>
+                          updateGlobalSettings({
+                            sectionSpacing: Number(e.target.value),
+                          })
+                        }
+                        className="w-20 accent-primary"
+                      />
+                      <span className="w-8 text-right tabular-nums">
+                        {moduleSpacing}
+                      </span>
+                    </label>
+                  </div>
                 </div>
-              </div>
-              <div className="flex-1 min-h-0">
+                <div className="min-h-0 flex-1">
                 {/* 显式传入 activeResume：版式变体按 resume.templateId 解析，
                     用户在模板页选的版式在进入编辑器后才不会丢。 */}
                 <MarkdownPreview
-                  ref={previewRef}
+                  ref={resumeContentRef}
                   markdown={activeResume.markdownContent ?? ""}
                   resume={activeResume}
                 />
+                </div>
               </div>
-            </div>
-          </ResizablePanel>
+            </ResizablePanel>
+          )}
         </ResizablePanelGroup>
       </div>
     </div>

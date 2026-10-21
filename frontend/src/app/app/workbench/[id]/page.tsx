@@ -176,10 +176,7 @@ export default function Home() {
   const [editMode, setEditMode] = useState<"form" | "markdown">("form");
   const t = useTranslations();
 
-  // Create a ref for the resume content that PreviewDock can access
-  // Currently we can't get the inner ref easily across component boundaries
-  // But we need to pass a mock or implement forwardRef in PreviewPanel later
-  // For now we pass null to satisfy the prop requirement
+  // Share the preview DOM node with the floating actions (for example grammar check).
   const resumeContentRef = React.useRef<HTMLDivElement>(null);
 
   const toggleSidePanel = () => {
@@ -362,6 +359,7 @@ export default function Home() {
           data-preview-scroll-container="true"
         >
           <PreviewPanel
+            ref={resumeContentRef}
             sidePanelCollapsed={sidePanelCollapsed}
             editPanelCollapsed={editPanelCollapsed}
             previewPanelCollapsed={previewPanelCollapsed}
@@ -393,15 +391,17 @@ export default function Home() {
             {ModeSwitch}
           </div> */}
           <div className="flex-1 min-h-0 flex flex-col">
-            <MarkdownWorkbench />
+            <MarkdownWorkbench
+              editorPanelCollapsed={editPanelCollapsed}
+              previewPanelCollapsed={previewPanelCollapsed}
+              resumeContentRef={resumeContentRef}
+            />
           </div>
         </div>
 
         <PreviewDock
-          sidePanelCollapsed={sidePanelCollapsed}
           editPanelCollapsed={editPanelCollapsed}
           previewPanelCollapsed={previewPanelCollapsed}
-          toggleSidePanel={toggleSidePanel}
           toggleEditPanel={toggleEditPanel}
           togglePreviewPanel={togglePreviewPanel}
           resumeContentRef={resumeContentRef}
