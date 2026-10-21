@@ -392,7 +392,6 @@ export default function Home() {
           </div> */}
           <div className="flex-1 min-h-0 flex flex-col">
             <MarkdownWorkbench
-              editorPanelCollapsed={editPanelCollapsed}
               previewPanelCollapsed={previewPanelCollapsed}
               resumeContentRef={resumeContentRef}
             />
@@ -400,11 +399,8 @@ export default function Home() {
         </div>
 
         <PreviewDock
-          editPanelCollapsed={editPanelCollapsed}
           previewPanelCollapsed={previewPanelCollapsed}
-          toggleEditPanel={toggleEditPanel}
           togglePreviewPanel={togglePreviewPanel}
-          resumeContentRef={resumeContentRef}
         />
       </div>
 

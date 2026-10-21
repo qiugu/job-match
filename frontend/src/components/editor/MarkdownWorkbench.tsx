@@ -15,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 
 interface MarkdownWorkbenchProps {
-  editorPanelCollapsed: boolean;
   previewPanelCollapsed: boolean;
   resumeContentRef: React.RefObject<HTMLDivElement>;
 }
@@ -24,7 +23,6 @@ interface MarkdownWorkbenchProps {
 // 数据流：Markdown 源 -> 编辑器 -> store.markdownContent
 //        -> 预览组件解析渲染（同时驱动 PDF 导出）。
 const MarkdownWorkbench = ({
-  editorPanelCollapsed,
   previewPanelCollapsed,
   resumeContentRef,
 }: MarkdownWorkbenchProps) => {
@@ -107,42 +105,40 @@ const MarkdownWorkbench = ({
       <div className="flex-1 min-h-0">
         <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
           {/* 左：Markdown 编辑器 */}
-          {!editorPanelCollapsed && (
-            <ResizablePanel
-              id="markdown-editor-panel"
-              order={1}
-              defaultSize={previewPanelCollapsed ? 100 : 50}
-              minSize={30}
-              className="min-h-0 bg-background"
-            >
-              <div className="flex h-full min-h-0 flex-col">
-                <div
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 text-xs font-medium",
-                    "border-b bg-background border-border text-muted-foreground"
-                  )}
-                >
-                  <p className="xai-eyebrow">{t("editorTitle")}</p>
-                </div>
-                <div className="min-h-0 flex-1">
-                  <MarkdownEditor
-                    value={activeResume.markdownContent ?? ""}
-                    onChange={handleChange}
-                    placeholder={t("placeholder")}
-                  />
-                </div>
+          <ResizablePanel
+            id="markdown-editor-panel"
+            order={1}
+            defaultSize={previewPanelCollapsed ? 100 : 50}
+            minSize={30}
+            className="min-h-0 bg-background"
+          >
+            <div className="flex h-full min-h-0 flex-col">
+              <div
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 text-xs font-medium",
+                  "border-b bg-background border-border text-muted-foreground"
+                )}
+              >
+                <p className="xai-eyebrow">{t("editorTitle")}</p>
               </div>
-            </ResizablePanel>
-          )}
+              <div className="min-h-0 flex-1">
+                <MarkdownEditor
+                  value={activeResume.markdownContent ?? ""}
+                  onChange={handleChange}
+                  placeholder={t("placeholder")}
+                />
+              </div>
+            </div>
+          </ResizablePanel>
 
-          {!editorPanelCollapsed && !previewPanelCollapsed && <ResizableHandle />}
+          {!previewPanelCollapsed && <ResizableHandle />}
 
           {/* 右：实时预览 */}
           {!previewPanelCollapsed && (
             <ResizablePanel
               id="markdown-preview-panel"
               order={2}
-              defaultSize={editorPanelCollapsed ? 100 : 50}
+              defaultSize={50}
               minSize={30}
               className="min-h-0 bg-muted"
             >

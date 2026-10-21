@@ -1,13 +1,5 @@
 import React, { useCallback } from "react";
-import {
-  Edit2,
-  SpellCheck2,
-  Home,
-  Copy,
-  Download,
-  Eye,
-  FileText
-} from "lucide-react";
+import { Home, Copy, Download, Eye } from "lucide-react";
 import { PanelsLeftBottom } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -21,18 +13,13 @@ import {
   TooltipTrigger
 } from "@/components/ui/tooltip";
 import TemplateSheet from "@/components/shared/TemplateSheet";
-import { cn } from "@/lib/utils";
-import { useGrammarCheck } from "@/hooks/useGrammarCheck";
 import { useResumeStore } from "@/store/useResumeStore";
 import { FAQDialog } from "./FAQDialog";
 import PdfExport from "@/components/shared/PdfExport";
 
 interface PreviewDockProps {
-  editPanelCollapsed: boolean;
   previewPanelCollapsed: boolean;
-  toggleEditPanel: () => void;
   togglePreviewPanel: () => void;
-  resumeContentRef: React.RefObject<HTMLDivElement>;
 }
 
 const MagicThread = ({ height = 40 }: { height?: number }) => (
@@ -56,41 +43,13 @@ const MagicThread = ({ height = 40 }: { height?: number }) => (
   </div>
 );
 const PreviewDock = ({
-  editPanelCollapsed,
   previewPanelCollapsed,
-  toggleEditPanel,
-  togglePreviewPanel,
-  resumeContentRef
+  togglePreviewPanel
 }: PreviewDockProps) => {
   const router = useRouter();
   const t = useTranslations("previewDock");
-  const { checkGrammar, isChecking } = useGrammarCheck();
 
-  const { duplicateResume, setActiveResume, activeResumeId, activeResume, updateGlobalSettings } = useResumeStore();
-  const { globalSettings = {} } = activeResume || {};
-
-  // ... (keep other hooks)
-
-  const handleGrammarCheck = useCallback(async () => {
-    try {
-      const previewContent =
-        resumeContentRef.current || document.getElementById("resume-preview");
-      if (!previewContent) {
-        toast.error(t("grammarCheck.errorToast"));
-        return;
-      }
-
-      const text = previewContent.innerText?.trim();
-      if (!text) {
-        toast.error(t("grammarCheck.errorToast"));
-        return;
-      }
-
-      await checkGrammar(text);
-    } catch (error) {
-      toast.error(t("grammarCheck.errorToast"));
-    }
-  }, [resumeContentRef, checkGrammar, t]);
+  const { duplicateResume, setActiveResume, activeResumeId } = useResumeStore();
 
   const handleCopyResume = useCallback(() => {
     if (!activeResumeId) return;
@@ -113,8 +72,6 @@ const PreviewDock = ({
 
   const dockButtonClass =
     "flex h-7 w-7 items-center justify-center rounded-lg transition-all hover:bg-muted/50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50";
-  const panelButtonClass =
-    "flex h-[30px] w-[30px] items-center justify-center rounded-sm transition-all hover:bg-muted/50 active:scale-95";
 
   return (
     <div className="fixed right-3 top-1/2 z-[50] hidden -translate-y-1/2 flex-col items-center md:flex">
@@ -138,66 +95,6 @@ const PreviewDock = ({
                 />
                 <TooltipContent side="left" sideOffset={10}>
                   <p>{t("switchTemplate")}</p>
-                </TooltipContent>
-              </Tooltip>
-            </DockIcon>
-
-            <DockIcon>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={
-                      isChecking
-                        ? t("grammarCheck.checking")
-                        : t("grammarCheck.idle")
-                    }
-                    disabled={isChecking}
-                    className={cn(dockButtonClass, isChecking && "animate-pulse")}
-                    onClick={handleGrammarCheck}
-                  >
-                    <SpellCheck2
-                      className={cn("h-4 w-4", isChecking && "animate-spin")}
-                    />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="left" sideOffset={10}>
-                  <p>
-                    {isChecking
-                      ? t("grammarCheck.checking")
-                      : t("grammarCheck.idle")}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </DockIcon>
-
-            <DockIcon>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={t("autoOnePage.tooltip")}
-                    className={cn(
-                      dockButtonClass,
-                      globalSettings?.autoOnePage &&
-                        "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
-                    )}
-                    onClick={() => {
-                      updateGlobalSettings({
-                        autoOnePage: !globalSettings?.autoOnePage,
-                      });
-                      toast.success(
-                        globalSettings?.autoOnePage
-                          ? t("autoOnePage.disabled")
-                          : t("autoOnePage.enabled")
-                      );
-                    }}
-                  >
-                    <FileText className="h-4 w-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="left" sideOffset={10}>
-                  <p>{t("autoOnePage.tooltip")}</p>
                 </TooltipContent>
               </Tooltip>
             </DockIcon>
@@ -247,48 +144,14 @@ const PreviewDock = ({
                   <button
                     type="button"
                     aria-label={
-                      editPanelCollapsed
-                        ? t("editPanel.expand")
-                        : t("editPanel.collapse")
-                    }
-                    disabled={!editPanelCollapsed && previewPanelCollapsed}
-                    onClick={toggleEditPanel}
-                    className={cn(
-                      panelButtonClass,
-                      !editPanelCollapsed &&
-                        "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
-                    )}
-                  >
-                    <Edit2 size={20} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="left" sideOffset={10}>
-                  {editPanelCollapsed
-                    ? t("editPanel.expand")
-                    : t("editPanel.collapse")}
-                </TooltipContent>
-              </Tooltip>
-            </DockIcon>
-
-            <DockIcon>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={
                       previewPanelCollapsed
                         ? t("previewPanel.expand")
                         : t("previewPanel.collapse")
                     }
-                    disabled={!previewPanelCollapsed && editPanelCollapsed}
                     onClick={togglePreviewPanel}
-                    className={cn(
-                      panelButtonClass,
-                      !previewPanelCollapsed &&
-                        "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
-                    )}
+                    className={dockButtonClass}
                   >
-                    <Eye size={20} />
+                    <Eye className="h-4 w-4" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="left" sideOffset={10}>
