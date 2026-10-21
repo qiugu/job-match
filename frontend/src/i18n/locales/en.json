@@ -1169,23 +1169,23 @@
   },
   "faqDialog": {
     "title": "Frequently Asked Questions (FAQ)",
-    "description": "Common tips and solutions for the JDMatch workbench.",
+    "description": "Common tips for editing, previewing, and exporting your resume.",
     "items": {
-      "browser-compatibility": {
-        "question": "Which browser is recommended?",
-        "answer": "We recommend using the latest version of Chrome or Edge for the best layout and export experience. Some outdated browsers may cause styling issues."
+      "markdown-editor": {
+        "question": "How do I edit my resume and see the live preview?",
+        "answer": "Edit the content in the Markdown editor on the left and the live preview on the right will update with it. You can adjust line height, font size, page padding, and section spacing from the preview toolbar."
       },
-      "export-failure": {
-        "question": "What if export fails or style is broken?",
-        "answer": "1. We recommend using Google Chrome (https://www.google.cn/intl/zh-CN/chrome/) for best compatibility.\n2. If it still fails, try in 'Incognito Mode' to exclude extension interference.\n3. Alternatively, click 'PDF (Backup)' in the export menu and select 'Save as PDF' in the print dialog."
+      "preview-panel": {
+        "question": "How do I expand or collapse the live preview?",
+        "answer": "Click the eye button in the floating toolbar on the right to toggle the live preview. When collapsed, the editor uses the full workspace; click the eye button again to restore the preview."
       },
-      "export-methods": {
-        "question": "What's the difference between the two export methods?",
-        "answer": "• Export PDF: Uses a backend service for high-precision rendering, 100% restoring the layout. Recommended for formal submission to HR.\n\n• Browser Print: Invokes your current browser's native print function (Save as PDF). Suitable when the backend export service is busy or you need to fine-tune print margins via your browser."
+      "pdf-export": {
+        "question": "How do I export my resume as a PDF?",
+        "answer": "Click the export button in the floating toolbar and use server PDF export for consistent layout rendering. If server export is temporarily unavailable, use the browser print option to save the current preview as a PDF."
       },
-      "drag-and-drop": {
-        "question": "How do I drag and drop to reorder modules?",
-        "answer": "In the 'Layout' settings of the left edit panel, hover your cursor over the 'Drag Handle' (usually represented by a six-dot icon) on the left side of the module card. Click and hold the left mouse button to drag the module up or down to reorder the sections of your entire resume."
+      "resume-management": {
+        "question": "How do I switch templates or duplicate the current resume?",
+        "answer": "Use the template button in the floating toolbar to switch the current resume's layout. Use the copy button to create and open a duplicate for continued editing; the original resume remains unchanged."
       }
     }
   },

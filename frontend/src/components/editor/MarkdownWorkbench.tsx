@@ -1,6 +1,7 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { FileText, Eye, Palette } from "lucide-react";
+import { type ImperativePanelHandle } from "react-resizable-panels";
 import { useResumeStore } from "@/store/useResumeStore";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/i18n/compat/client";
@@ -30,6 +31,16 @@ const MarkdownWorkbench = ({
     useResumeStore();
   const t = useTranslations("markdownEditor");
   const tTheme = useTranslations("workbench.sidePanel.theme");
+  const previewPanelRef = useRef<ImperativePanelHandle>(null);
+
+  useEffect(() => {
+    if (previewPanelCollapsed) {
+      previewPanelRef.current?.collapse();
+    } else {
+      previewPanelRef.current?.expand(50);
+    }
+  }, [previewPanelCollapsed]);
+
   // 主题色改动后自动落库（防抖），避免「在编辑器选了不同主题色、没点保存就回列表页，
   // 列表页从后端重载把未保存的改动覆盖掉」导致缩略图显示的还是旧色、不同简历同色。
   const themeColorSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -108,7 +119,7 @@ const MarkdownWorkbench = ({
           <ResizablePanel
             id="markdown-editor-panel"
             order={1}
-            defaultSize={previewPanelCollapsed ? 100 : 50}
+            defaultSize={50}
             minSize={30}
             className="min-h-0 bg-background"
           >
@@ -131,17 +142,19 @@ const MarkdownWorkbench = ({
             </div>
           </ResizablePanel>
 
-          {!previewPanelCollapsed && <ResizableHandle />}
+          <ResizableHandle />
 
           {/* 右：实时预览 */}
-          {!previewPanelCollapsed && (
-            <ResizablePanel
-              id="markdown-preview-panel"
-              order={2}
-              defaultSize={50}
-              minSize={30}
-              className="min-h-0 bg-muted"
-            >
+          <ResizablePanel
+            ref={previewPanelRef}
+            id="markdown-preview-panel"
+            order={2}
+            collapsible
+            collapsedSize={0}
+            defaultSize={50}
+            minSize={30}
+            className="min-h-0 bg-muted"
+          >
               <div className="flex h-full min-h-0 flex-col">
                 <div
                   className={cn(
@@ -278,8 +291,7 @@ const MarkdownWorkbench = ({
                 />
                 </div>
               </div>
-            </ResizablePanel>
-          )}
+          </ResizablePanel>
         </ResizablePanelGroup>
       </div>
     </div>

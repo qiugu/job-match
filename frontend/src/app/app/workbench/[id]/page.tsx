@@ -188,7 +188,7 @@ export default function Home() {
   };
 
   const togglePreviewPanel = () => {
-    setPreviewPanelCollapsed(!previewPanelCollapsed);
+    setPreviewPanelCollapsed((collapsed) => !collapsed);
   };
 
   const updateLayout = (sizes: number[]) => {

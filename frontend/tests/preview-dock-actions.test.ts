@@ -33,6 +33,7 @@ describe("workbench floating dock actions", () => {
   });
 
   it("binds the dock panel states to the rendered markdown workbench", () => {
+    const workbench = source("src/app/app/workbench/[id]/page.tsx");
     const markdownWorkbench = source(
       "src/components/editor/MarkdownWorkbench.tsx"
     );
@@ -40,5 +41,17 @@ describe("workbench floating dock actions", () => {
     expect(markdownWorkbench).toContain("previewPanelCollapsed");
     expect(markdownWorkbench).toContain("resumeContentRef");
     expect(markdownWorkbench).not.toContain("editorPanelCollapsed");
+    expect(markdownWorkbench).toContain("ImperativePanelHandle");
+    expect(markdownWorkbench).toContain("previewPanelRef");
+    expect(markdownWorkbench).toContain("collapsible");
+    expect(markdownWorkbench).toContain("collapsedSize={0}");
+    expect(markdownWorkbench).toContain(
+      "previewPanelRef.current?.collapse()"
+    );
+    expect(markdownWorkbench).toContain("previewPanelRef.current?.expand(50)");
+
+    expect(workbench).toContain(
+      "setPreviewPanelCollapsed((collapsed) => !collapsed)"
+    );
   });
 });

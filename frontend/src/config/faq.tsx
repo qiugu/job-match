@@ -1,6 +1,6 @@
 export const FAQ_KEYS = [
-  "browser-compatibility",
-  "export-methods",
-  "export-failure",
-  "drag-and-drop"
+  "markdown-editor",
+  "preview-panel",
+  "pdf-export",
+  "resume-management",
 ];
