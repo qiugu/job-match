@@ -18,7 +18,7 @@ describe("workbench floating dock actions", () => {
     expect(dock).not.toContain("handleGrammarCheck");
     expect(dock).not.toContain("toggleEditPanel");
     expect(dock).not.toContain("SpellCheck2");
-    expect(dock).not.toContain("autoOnePage: !globalSettings?.autoOnePage");
+    expect(dock).not.toContain("autoOnePage");
     expect(dock).not.toContain("<Edit2");
     expect(dock).not.toContain("{/* <DockIcon>");
   });
@@ -53,5 +53,30 @@ describe("workbench floating dock actions", () => {
     expect(workbench).toContain(
       "setPreviewPanelCollapsed((collapsed) => !collapsed)"
     );
+  });
+});
+
+describe("one-page feature removal", () => {
+  it("removes the broken one-page toggle from the desktop workbench", () => {
+    const markdownWorkbench = source(
+      "src/components/editor/MarkdownWorkbench.tsx"
+    );
+
+    expect(markdownWorkbench).not.toContain("autoOnePage");
+    expect(markdownWorkbench).not.toContain("一页纸");
+  });
+
+  it("removes the dead one-page wiring from preview, types, i18n and hooks", () => {
+    expect(source("src/components/preview/index.tsx")).not.toContain(
+      "autoOnePage"
+    );
+    expect(source("src/components/preview/index.tsx")).not.toContain(
+      "useAutoOnePage"
+    );
+    expect(source("src/types/resume.ts")).not.toContain("autoOnePage");
+    expect(source("src/i18n/locales/zh.json")).not.toContain("autoOnePage");
+    expect(source("src/i18n/locales/en.json")).not.toContain("autoOnePage");
+    // useAutoOnePage hook 文件应已删除
+    expect(() => source("src/hooks/useAutoOnePage.ts")).toThrow();
   });
 });
