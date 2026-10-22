@@ -1,12 +1,9 @@
 
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import throttle from "lodash/throttle";
-import { toast } from "sonner";
 import { DEFAULT_TEMPLATES } from "@/components/templates/registry";
 import { cn } from "@/lib/utils";
 import { useResumeStore } from "@/store/useResumeStore";
-import { useAutoOnePage } from "@/hooks/useAutoOnePage";
-import { useTranslations } from "@/i18n/compat/client";
 import { normalizeFontFamily } from "@/utils/fonts";
 import { DEFAULT_PAGE_PADDING } from "@/types/resume";
 import ResumeTemplateComponent from "../templates";
@@ -69,7 +66,6 @@ const PreviewPanel = React.forwardRef<HTMLDivElement, PreviewPanelProps>(
     const selectedFontFamily = normalizeFontFamily(
       activeResume?.globalSettings?.fontFamily
     );
-    const t = useTranslations("previewDock");
     const template = useMemo(() => {
       return (
         DEFAULT_TEMPLATES.find((t) => t.id === activeResume?.templateId) ||
@@ -134,21 +130,6 @@ const PreviewPanel = React.forwardRef<HTMLDivElement, PreviewPanelProps>(
     }, [activeResume]);
 
     const pagePadding = activeResume?.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING;
-    const autoOnePageEnabled = activeResume?.globalSettings?.autoOnePage || false;
-
-    const { scaleFactor, isScaled, cannotFit } = useAutoOnePage({
-      contentHeight,
-      pagePadding,
-      enabled: autoOnePageEnabled,
-    });
-
-    useEffect(() => {
-      if (cannotFit) {
-        toast.warning(t("autoOnePage.cannotFit"), {
-          duration: 4000,
-        });
-      }
-    }, [cannotFit, t]);
 
     const { contentPerPagePx, pageBreakCount } = useMemo(() => {
       const MM_TO_PX = 3.78;
@@ -156,28 +137,16 @@ const PreviewPanel = React.forwardRef<HTMLDivElement, PreviewPanelProps>(
 
       // 与 Puppeteer PDF 导出一致：margin: pagePadding px（上下各一份）
       // 每页可用内容高度 = A4 总高度 - 上 margin - 下 margin
-      const baseContentPerPage = A4_HEIGHT_PX - 2 * pagePadding;
-
-      // 一页纸模式启用且内容能完美一页时，才隐藏分页线
-      // cannotFit 时内容仍超出一页，需要保留分页线
-      if ((isScaled && !cannotFit) || contentHeight <= 0) {
-        return { contentPerPagePx: baseContentPerPage, pageBreakCount: 0 };
-      }
-
-      // 缩放时，在容器本地坐标系下每页能容纳更多内容
-      // 因为视觉上 effectiveContentPerPage * scaleFactor = baseContentPerPage
-      const effectiveContentPerPage = isScaled
-        ? baseContentPerPage / scaleFactor
-        : baseContentPerPage;
+      const contentPerPage = A4_HEIGHT_PX - 2 * pagePadding;
 
       // contentHeight 包含 #resume-preview 的 padding（上+下）
       // 实际内容高度 = contentHeight - 2 * pagePadding
       const actualContentHeight = contentHeight - 2 * pagePadding;
-      const pageCount = Math.max(1, Math.ceil(actualContentHeight / effectiveContentPerPage));
+      const pageCount = Math.max(1, Math.ceil(actualContentHeight / contentPerPage));
       const pageBreakCount = Math.max(0, pageCount - 1);
 
-      return { contentPerPagePx: effectiveContentPerPage, pageBreakCount };
-    }, [contentHeight, pagePadding, isScaled, cannotFit, scaleFactor]);
+      return { contentPerPagePx: contentPerPage, pageBreakCount };
+    }, [contentHeight, pagePadding]);
 
     if (!activeResume) return null;
 
@@ -222,15 +191,8 @@ const PreviewPanel = React.forwardRef<HTMLDivElement, PreviewPanelProps>(
               style={{
                 fontFamily: selectedFontFamily,
                 // 复用上方归一化的 pagePadding（缺失时回退 DEFAULT_PAGE_PADDING），
-                // 保证实际渲染边距与分页数学 / autoOnePage 计算同口径。
+                // 保证实际渲染边距与分页数学同口径。
                 padding: `${pagePadding}px`,
-                ...(isScaled
-                  ? {
-                    transform: `scale(${scaleFactor})`,
-                    transformOrigin: "top left",
-                    width: `${100 / scaleFactor}%`,
-                  }
-                  : {}),
               }}
               // 保留 resume-preview class：排版规则统一按 class 生效（#resume-preview
               // id 只作为导出/打印的 DOM 句柄，不参与样式匹配）。

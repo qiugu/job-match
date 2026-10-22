@@ -105,7 +105,6 @@ class GlobalSettings(BaseModel):
     useIconMode: Optional[bool] = None
     centerSubtitle: Optional[bool] = None
     flexibleHeaderLayout: Optional[bool] = None
-    autoOnePage: Optional[bool] = None
 
 
 class MenuSection(BaseModel):
