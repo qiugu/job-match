@@ -1,22 +1,74 @@
-# 简历匹配 Agent 后端
+# JDMatch · AI 简历匹配与定制助手
 
-独立的 Python 后端服务（FastAPI + LangChain + LangGraph + SQLite），为前端 `frontend/`（magic-resume）提供简历匹配能力。
+[![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-blue.svg)](https://polyformproject.org/licenses/noncommercial/1.0.0)
 
-## 功能
+> AI Resume Matcher & Tailoring for Any JD
 
-- 上传简历（**仅 PDF**），提取文本并存储（SQLite），作为匹配时可选择的简历
-- 手动创建简历，使用 Markdown 编辑器编辑简历，保存并提取文本存储
-- 创建匹配简历：根据粘贴的岗位描述（JD）文本，对所选**简历（markdown 文本）**进行匹配优化
-  - 匹配方式（关键词优化 `optimize` / 全部重写 `rewrite`）由 AI 在匹配时**自动判断**，无需用户手动选择
-  - 匹配入口直接接收所选简历的 markdown 文本，不再依赖「主简历」溯源概念
-- 可选求职信：约 150 字纯文本
-- 衍生简历为独立的匹配结果记录，支持二次编辑回写
-- 账号登录：所有业务与 AI 接口需登录后调用，数据按用户隔离（详见「登录与鉴权」）
-- 先接国产大模型（默认 DeepSeek 兼容接口，可换通义/智谱等）
+上传简历、粘贴目标岗位描述（JD），由大模型完成针对性匹配与改写，产出可直接投递的定制简历与求职话术。配套所见即所得的简历编辑器、A4 实时预览、PDF 导出、岗位投递跟踪与统计分析。
 
-## 运行
+前后端分离：后端为独立的 Python 服务（仓库根目录 `app/`），前端为 `frontend/`（TanStack Start 应用），通过 `/api` 前缀的 REST 接口通信；生产环境经 Nginx 同源代理，前端以相对路径 `/api` 调用，无需跨域。
 
-> 后端代码位于仓库根目录（`app/`、`pyproject.toml`、`uv.lock`、`run.py` 等），使用 [uv](https://docs.astral.sh/uv/) 管理依赖与虚拟环境，无需进入子目录。
+## 界面预览
+
+> 截图来自本地开发环境，数据为虚构演示内容；高清原图见 [`docs/screenshots/`](docs/screenshots/)。
+
+**落地页** —— 产品介绍与使用入口
+
+![落地页](docs/screenshots/landing.webp)
+
+**简历工作台** —— 左侧 Markdown 编辑，右侧 A4 实时预览，一键导出 PDF（所见即所得）
+
+![简历工作台](docs/screenshots/workbench.webp)
+
+**岗位卡与投递跟踪** —— JD 归一化查重建档，操作驱动的投递漏斗状态机
+
+![岗位卡与投递跟踪](docs/screenshots/jobs.webp)
+
+**投递分析** —— 漏斗、每日投递趋势、连续投递天数与转化洞察
+
+![投递分析](docs/screenshots/analytics.webp)
+
+## 功能特性
+
+**简历工作台**
+
+- 上传 PDF 简历（自动提取文本存储）或手动创建，数据按用户隔离
+- 结构化表单 / Markdown 所见即所得（Tiptap）双编辑模式，右侧 A4 纸张实时预览
+- 一键导出 PDF：服务端 headless Chromium 渲染打印版式
+- 编辑态 AI 助手：润色、语法检查、简历导入
+
+**AI 匹配与求职话术**
+
+- JD 匹配：以所选简历的 Markdown 文本为对象做针对性优化，「关键词优化 / 全部重写」由 AI 自动判断，无需手动选择
+- 求职话术：独立资源，支持生成、二次编辑、重新生成
+- 匹配结果可一键「接受」落库为我的简历，支持二次编辑回写
+
+**岗位卡与投递分析**
+
+- 岗位卡（Job Tracking）：JD 归一化查重复用建档，操作驱动的投递漏斗状态机（由操作触发流转，不开放手动切换）
+- 投递统计：多时间窗漏斗、区间连续投递（streak）、每日趋势图表（ECharts），口径见 [`docs/ANALYTICS.md`](docs/ANALYTICS.md)
+
+**账号与积分**
+
+- 用户名 + 口令（scrypt 加盐哈希）、HS256 JWT；登出即使该账号已签发令牌立即失效
+- 注册码制发放账号；积分（credits）为唯一余额：匹配 5 分/次、话术 1 分/次，LLM 调用前原子预扣、失败自动归还，管理员账号（`credits = -1`）不限
+
+**其他**
+
+- 中英文 i18n；品牌视觉规范见 [`docs/BRAND.md`](docs/BRAND.md)
+- 默认接 DeepSeek（OpenAI 兼容端点，可换通义千问 / 智谱等）
+
+## 技术栈
+
+| 层 | 选型 |
+| --- | --- |
+| 后端 | Python 3.12 · FastAPI · SQLAlchemy 2（async + aiosqlite）· Pydantic v2 · LangChain / LangGraph · Alembic · PyJWT |
+| 前端 | React 18 · TanStack Start / Router · Vite 7 · Tailwind CSS 3 · HeroUI · Tiptap v3 · Zustand · ECharts |
+| 基础设施 | Docker Compose · Nginx 同源代理 · Playwright（服务端 PDF 渲染）· SQLite |
+
+## 快速开始
+
+> 后端代码位于仓库根目录（`app/`、`pyproject.toml`、`run.py` 等），依赖用 [uv](https://docs.astral.sh/uv/) 管理，无需进入子目录；前端在 `frontend/`，用 pnpm 管理。
 
 ### 方式一：一键本地启动（开发模式）
 
@@ -27,12 +79,10 @@
 ./start.sh --build    # 首次或依赖变更时，强制安装依赖后启动
 ```
 
-启动后访问：
-
 - 前端：http://localhost:3005
 - 后端健康检查：http://localhost:8005/health
 
-> 脚本会自动从 `.env.example` 复制生成后端 `.env`（若不存在），请填入 `LLM_API_KEY` 等配置后重启。
+> 脚本会自动从 `.env.example` 复制生成 `.env`（若不存在），填入 `LLM_API_KEY` 等配置后重启。
 
 ### 方式二：Docker Compose 一键部署（生产模式）
 
@@ -41,18 +91,10 @@ cp .env.example .env          # 填入 LLM_API_KEY 等
 docker compose up -d --build  # 构建并后台启动 nginx + 后端 + 前端
 ```
 
-启动后访问：
-
 - 前端（经 Nginx 同源代理）：http://localhost
 - 健康检查：http://localhost/health
 
-**架构**：`nginx` 是唯一对外入口（宿主仅暴露 80/443），将 `/` 转发到 `frontend:3005`、将 `/api` 与 `/health` 转发到 `backend:8005`。`backend` 与 `frontend` 不再直接映射宿主端口，仅容器网络内可见，更安全。
-
-数据持久化：后端 SQLite 数据库挂载在 `backend-data` 卷中（`/app/data/jobmatch.db`）。
-
-> 启用 HTTPS：将真实证书放入 `nginx/certs/`（fullchain.pem / privkey.pem），在 `docker-compose.yml` 的 `nginx` 服务取消注释 `nginx.ssl.conf` 挂载与 `443` 端口，并注释掉 `nginx.conf` 那行；证书缺失时 `nginx.ssl.conf` 已内置自签名示例（`nginx/certs/selfsigned.*`，仅本地测试用）。
-
-> 注意：前端通过 `import.meta.env.VITE_JOBMATCH_API` 在**构建期**确定后端地址。经 Nginx 同源代理时该值置空，前端以相对路径 `/api` 调用后端（彻底无跨域），无需直连后端端口。若需脱离代理直连（如纯开发），可传入 `http://backend:8005` 并重新 `docker compose up -d --build frontend`。
+架构：`nginx` 是唯一对外入口（宿主仅暴露 80/443），`/` 转发到 `frontend:3005`，`/api` 与 `/health` 转发到 `backend:8005`；两个业务容器不直映宿主端口，仅容器网络内可见。SQLite 数据持久化在 `backend-data` 卷（`/app/data/jobmatch.db`）。启用 HTTPS 与反代细节见 `nginx/` 与 `docker-compose.yml` 内注释。
 
 常用命令：
 
@@ -62,280 +104,126 @@ docker compose logs -f        # 查看日志
 docker compose down           # 停止并移除容器（保留数据卷）
 ```
 
-### GitHub Actions 构建与镜像拉取优化
-
-GitHub Actions 通过 rsync 上传代码，在服务器上顺序构建 backend/frontend，再备份数据库、执行迁移并启动服务。手动 `no_build=true` 可跳过构建。构建期间保留现有服务运行；两个镜像都构建成功后才进入迁移阶段。
-
-镜像层和 BuildKit 下载缓存保留在服务器。APT 的索引与 `.deb` 包使用加锁的缓存挂载，并关闭基础镜像自动删除 `.deb` 的配置；缓存不进入最终镜像。Playwright 只安装 headless shell，浏览器下载缓存保留在同一 builder，最终镜像仅复制当前版本需要的浏览器目录。
-
-国内服务器的 Compose 构建默认通过清华 HTTPS 镜像下载 Debian 字体和 Playwright 系统库，保留 Debian 的签名验证。可在服务器 `.env` 中覆盖下面两个构建参数（不需要新增 GitHub Secrets）；如在海外构建，可改为官方源：
-
-```dotenv
-DEBIAN_MIRROR=https://deb.debian.org/debian
-DEBIAN_SECURITY_MIRROR=https://deb.debian.org/debian-security
-```
-
-部署 job 上限为 180 分钟，代码上传上限为 25 分钟，这些只是异常保护。排查时查看 `Upload code via rsync`、`Build images on remote` 和迁移/健康检查步骤，区分网络下载、镜像构建与应用启动。生产部署串行执行。
-
-当前工作流不上传或拉取应用镜像归档，不需要应用镜像仓库凭据。不过首次构建仍需访问 Dockerfile 引用的基础镜像（包括 GHCR 上的 uv 镜像）、Python/npm 依赖源和 Playwright 下载源；缓存不能替代首次下载的网络连通性。
-
-#### 可选：发布镜像到同地域仓库
-
-如果还需要给其他机器共享镜像，可以在 TCR/ACR 控制台创建命名空间和 `job-match` 仓库，并创建只具备该仓库推送/拉取权限的服务账号或访问凭证。该仓库不参与本项目的服务器部署。注册表域名必须从控制台复制，不能填写 `https://` 或仓库路径。
-
-在服务器上先验证凭据和网络：
+### 方式三：分服务手动启动
 
 ```bash
-# 腾讯云 TCR 示例；企业版域名以控制台显示的实例域名为准
-printf '%s' '<TCR密码或临时Token>' | docker login ccr.ccs.tencentyun.com \
-  --username '<TCR用户名>' --password-stdin
-docker pull ccr.ccs.tencentyun.com/<命名空间>/job-match/backend:<已有标签>
-
-# 阿里云 ACR 示例；杭州个人版/企业版只是示例，地域和实例名按控制台替换
-printf '%s' '<ACR Registry密码>' | docker login \
-  <实例名>-registry.cn-hangzhou.cr.aliyuncs.com \
-  --username '<ACR访问凭证用户名>' --password-stdin
-docker pull <实例名>-registry.cn-hangzhou.cr.aliyuncs.com/<命名空间>/job-match/backend:<已有标签>
-```
-
-上述命令只用于手动验证或其他环境拉取。当前 `deploy.yml` 不读取这些注册表变量，也不会让生产服务器从该仓库拉取镜像。
-
-#### 给远程 Docker daemon 配置代理
-
-如果暂时不能使用同地域 Registry，需要在**生产服务器上**配置一个服务器可访问的 HTTP 代理。`127.0.0.1:7890` 只有在代理程序运行于生产服务器本机时才有效，本地电脑上的代理地址不会被 SSH 传递给 Docker daemon。
-
-以 systemd 管理的 Docker Engine 为例：
-
-```bash
-sudo mkdir -p /etc/systemd/system/docker.service.d
-sudo tee /etc/systemd/system/docker.service.d/http-proxy.conf >/dev/null <<'EOF'
-[Service]
-Environment="HTTP_PROXY=http://<代理主机>:<端口>"
-Environment="HTTPS_PROXY=http://<代理主机>:<端口>"
-Environment="NO_PROXY=localhost,127.0.0.1,.local"
-EOF
-sudo systemctl daemon-reload
-sudo systemctl restart docker
-sudo systemctl show --property=Environment docker
-```
-
-验证代理确实作用于 daemon，而不是只作用于当前 shell：
-
-```bash
-curl -I https://ghcr.io/v2/
-curl -I https://pkg-containers.githubusercontent.com/
-docker pull ghcr.io/qiugu/job-match/backend:<标签>
-```
-
-Docker daemon 代理变更会重启 Docker 服务，建议在维护窗口执行。若服务器在云厂商 VPC 内，优先使用同地域 Registry；代理只作为 GHCR 仍需保留时的网络方案。
-
-### 手动启动（分服务）
-
-```bash
-# 后端（需先安装 uv：https://docs.astral.sh/uv/getting-started/installation/）
+# 后端
 uv sync --no-dev              # 创建 .venv 并安装依赖
 cp .env.example .env          # 填入 LLM_API_KEY 等
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
-# 或直接使用虚拟环境
-./.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
+
+# 前端（另开终端）
+cd frontend
+pnpm install
+pnpm dev                      # http://localhost:3005
 ```
 
-健康检查：`GET http://localhost/health`（经 Nginx）；后端直连为 `http://localhost:8005/health`
+## 登录、注册码与积分
 
-## 登录与鉴权
+所有业务接口（简历 / 匹配 / 话术 / 岗位）与 AI 接口都要求登录——后端统一持有 `LLM_API_KEY`，接口匿名可调用等同于公开额度。
 
-所有业务接口（简历 / 匹配）与 AI 接口（润色 / 语法检查 / 简历导入）都要求登录：
+- 注册需提供注册码（`POST /api/auth/register` 的 `code` 字段），可用 `AUTH_ALLOW_REGISTRATION=false` 关闭注册
+- 注册码自助领取：`GET /api/auth/registration-code/status` 查看当日剩余名额与重置时间，`POST /api/auth/registration-code` 领取一枚；全站每日限量（`REGISTRATION_DAILY_LIMIT`，默认 10，北京时间 0 点重置），每个网络每日限领 3 个，有效期 `REGISTRATION_CODE_VALIDITY_DAYS`（默认 30 天）
+- 积分：注册码授予（默认 50），JD 匹配 5 分/次（`RESUME_MATCH_COST`）、话术生成/重生成 1 分/次（`COVER_LETTER_COST`），两者共享同一余额；不足时消耗型接口返回 403
+- 初始账号（即管理员，`credits = -1` 无限）由 `AUTH_BOOTSTRAP_USERNAME` / `AUTH_BOOTSTRAP_PASSWORD` 配置，服务启动时自动创建并接管登录前的历史数据
 
-- 后端统一持有 `LLM_API_KEY`，接口匿名可调用等同于把额度公开，因此登录后才能使用。
-- 自建账号体系（用户名 + 口令）：口令用 `scrypt`（内存硬）加随机盐哈希，令牌为 HS256 JWT。
-- 数据按用户隔离：列表只返回自己的简历，访问/修改他人资源一律返回 404。
-- 简历标题唯一性的作用域是「用户内」，不同用户可以有同名简历。
+## 配置（环境变量）
 
-| 接口                            | 说明                                              |
-| ------------------------------- | ------------------------------------------------- |
-| `POST /api/auth/register`       | 注册并登录（可用 `AUTH_ALLOW_REGISTRATION=false` 关闭） |
-| `POST /api/auth/login`          | 登录，返回 `token` 与用户信息                     |
-| `POST /api/auth/logout`         | 登出：递增 token_version，该账号已签发的令牌立即失效 |
-| `GET  /api/auth/me`             | 当前登录用户                                      |
-| `POST /api/auth/change-password`| 修改口令并返回新令牌                              |
+复制 `.env.example` 为 `.env` 后按需修改；完整列表见 [`.env.example`](.env.example) 与 [`AGENTS.md`](AGENTS.md)。常用项：
 
-前端：`frontend/src/lib/auth.ts` 负责令牌存取，`jobmatch.ts` 与 AI 代理路由
-（`frontend/src/routes/api/*`）统一携带 `Authorization: Bearer <token>`；
-收到 401 会清理令牌并跳转 `/login?redirect=<原路径>`。
-
-### 注册码与积分（credits）
-
-注册账号必须提供注册码（`POST /api/auth/register` 的 `code` 字段）：
-
-- 每个注册码带**过期时间**和**授予的积分**（默认 50 积分，JD 简历匹配与话术生成共享同一余额，可用 `REGISTRATION_DEFAULT_CREDITS` 调整）；
-- 用该码注册的账号获得对应的积分余额——JD 简历匹配每次消耗 5 积分（`RESUME_MATCH_COST`）、JD 话术生成/重生成每次消耗 1 积分（`COVER_LETTER_COST`），调用 LLM **之前**原子预扣、失败自动归还，即只在真正产出结果时才消耗；
-- 积分用完后消耗型接口返回 403「积分不足」；
-- 管理员账号（初始账号）不受限制：`credits = -1` 表示无限。
-
-发放注册码：官网「常见问题 → 使用需要登录吗」提供**自助领取**入口
-（`GET/POST /api/auth/registration-code`），是注册码唯一的发放渠道：
-
-- 每日限量 `REGISTRATION_DAILY_LIMIT`（默认 10 个），北京时间 0 点重置，
-  每个网络每日限领 3 个；
-- 领取的注册码有效期 `REGISTRATION_CODE_VALIDITY_DAYS`（默认 30 天），
-  授予积分 `REGISTRATION_DEFAULT_CREDITS`（默认 50 积分）；
-- 弹框顶部会展示当日剩余名额与下次重置时间。
-
-### 初始账号与历史数据
-
-升级到带登录的版本后，迁移会把登录前已有的简历挂到**不可登录**的 `legacy` 账号名下
-（新注册用户看不到他人数据）。在 `.env` 中配置初始账号，服务启动时会自动创建它，
-并把这些历史数据划归该账号——用初始账号登录即可继续看到原有简历：
-
-```bash
-AUTH_BOOTSTRAP_USERNAME=admin
-AUTH_BOOTSTRAP_PASSWORD=至少8位
-```
-
-未配置初始账号时，自行注册的账号是空白的（看不到历史数据）。
-
-> 升级后存量数据都挂在不可登录的 `legacy` 账号下。若已经升级过、想让某个已有账号接管，
-> 可直接改归属（`<账号>` 换成目标用户名）：
->
-> ```bash
-> sqlite3 jobmatch.db "UPDATE master_resumes SET user_id = (SELECT id FROM users WHERE username='<账号>');"
-> sqlite3 jobmatch.db "UPDATE derived_resumes SET user_id = (SELECT id FROM users WHERE username='<账号>');"
-> sqlite3 jobmatch.db "DELETE FROM users WHERE username='legacy';"
-> ```
-
-## 环境变量（.env）
-
-| 变量           | 说明                                                    |
-| -------------- | ------------------------------------------------------- |
-| `LLM_API_KEY`  | 国产大模型 API Key（必填，否则匹配接口返回 503）        |
-| `LLM_BASE_URL` | OpenAI 兼容接口地址，如 `https://api.deepseek.com/v1`   |
-| `LLM_MODEL`    | 模型名，如 `deepseek-chat`                              |
-| `CORS_ORIGINS` | 前端来源，默认含 dev(3005)、经 Nginx 同源代理(80)、容器内 `http://frontend:3005` |
+| 变量 | 说明 |
+| --- | --- |
+| `LLM_API_KEY` | 大模型 API Key（必填，缺失时匹配接口返回 503） |
+| `LLM_BASE_URL` / `LLM_MODEL` / `LLM_PROVIDER` | OpenAI 兼容接口地址、模型名、厂商标识（默认 DeepSeek） |
+| `CORS_ORIGINS` | 允许的前端来源 |
 | `DATABASE_URL` | SQLite 路径（默认 `sqlite+aiosqlite:///./jobmatch.db`） |
 | `AUTH_SECRET_KEY` | JWT 签名密钥（生产必填，≥32 字节；留空则重启即失效） |
-| `AUTH_TOKEN_EXPIRE_MINUTES` | 登录令牌有效期（分钟，默认 10080）        |
-| `AUTH_ALLOW_REGISTRATION` | 是否开放注册（默认 true）                      |
-| `AUTH_BOOTSTRAP_USERNAME` / `AUTH_BOOTSTRAP_PASSWORD` | 初始账号（即管理员），创建时接管历史数据 |
-| `REGISTRATION_DEFAULT_CREDITS` | 注册码默认授予的积分（默认 50，JD 简历匹配与话术生成共享） |
-| `RESUME_MATCH_COST` | 每次 JD 简历匹配消耗的积分（默认 5） |
-| `COVER_LETTER_COST` | 每次 JD 话术生成/重生成消耗的积分（默认 1） |
-| `REGISTRATION_DAILY_LIMIT` | 官网每日自助发放的注册码上限（默认 10，北京时间 0 点重置） |
-| `REGISTRATION_CODE_VALIDITY_DAYS` | 自助领取的注册码有效期（天，默认 30） |
+| `AUTH_TOKEN_EXPIRE_MINUTES` | 登录令牌有效期（分钟，默认 10080） |
+| `AUTH_ALLOW_REGISTRATION` | 是否开放注册（默认 true） |
+| `AUTH_BOOTSTRAP_USERNAME` / `AUTH_BOOTSTRAP_PASSWORD` | 初始账号（管理员），创建时接管历史数据 |
+| `REGISTRATION_DEFAULT_CREDITS` | 注册码默认授予积分（默认 50，匹配与话术共享） |
+| `RESUME_MATCH_COST` / `COVER_LETTER_COST` | 匹配 / 话术单次消耗积分（默认 5 / 1） |
+| `REGISTRATION_DAILY_LIMIT` / `REGISTRATION_CODE_VALIDITY_DAYS` | 注册码每日发放上限（默认 10）/ 有效期（默认 30 天） |
+| `PDF_EXPORT_FONT_ORIGIN` | 服务端 PDF 渲染的字体源（compose 默认 `http://frontend:3005`；本机 uvicorn 直跑需设 `http://localhost:3005`） |
 
-## 数据库迁移（Alembic）
+## 数据库迁移
 
-数据库 schema 由 [Alembic](https://alembic.sqlalchemy.org/) 统一管理（替代原先启动时 `Base.metadata.create_all` 的方式），可追踪、可回滚、可演进。
-
-- 迁移目录：`migrations/versions/`，配置：`alembic.ini`（位于仓库根）。
-- `migrations/env.py` 动态读取 `app.core.config` 的 `DATABASE_URL`，无需硬编码；使用**同步引擎**执行迁移，避免 SQLite 在异步驱动（aiosqlite）下 DDL 脱离事务导致「表已建但版本未记录」的不一致。
-- 应用启动时（`app.core.database.init_db`）会自动执行 `alembic upgrade head`，保证开发/生产环境 schema 始终最新且幂等。
-
-### 升级前先备份
-
-因为**重启后端就会自动升级**，所以在重启之前先备份，需要回退时把备份拷回 `jobmatch.db` 即可：
+Schema 由 Alembic 统一管理（`migrations/`），应用启动时自动执行 `alembic upgrade head`（幂等）。**重启即自动升级，重启前先备份**，需要回退时把备份拷回 `jobmatch.db` 即可：
 
 ```bash
 cp jobmatch.db "jobmatch.db.bak.$(date +%Y%m%d%H%M%S)"
 ```
 
-### 登录与注册码相关的两个迁移
-
-| 版本              | 内容                                                                                                                                              |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `e5b7c1a94d2f`    | 登录鉴权：建 `users` 表；`master_resumes` / `derived_resumes` 增加 `user_id`，存量数据统一挂到不可登录的 `legacy` 账号；标题唯一性改为 `(user_id, title)` |
-| `a3f8e1c7b4d2`    | 注册码与匹配额度：建 `registration_codes` 表；`users` 增加 `role` / `match_quota` / `registered_code`，存量账号额度设为 `-1`（沿用不限制）            |
-| `d3e5f6a7b8c9`    | 配额改积分（credits）：`users.match_quota` → `users.credits`（非 admin 存量统一重置 50，admin `-1` 保留）；`registration_codes.grant_matches` → `grant_credits`（存量值保留） |
-
-升级后存量数据会挂在 `legacy` 账号下，需要先用初始账号接管才能看到，见
-[「初始账号与历史数据」](#初始账号与历史数据)。
-
-降级注意：`e5b7c1a94d2f` 降级会把标题唯一性恢复为全局唯一，若存在多用户同名简历会失败，
-需先手工处理同名数据。
-
-常用命令（需在仓库根目录执行，且 `.venv` 已就绪）：
+常用命令（仓库根目录、`.venv` 就绪）：
 
 ```bash
-# 升级到最新版本（应用启动会自动执行，亦可手动运行）
-uv run alembic upgrade head
-
-# 查看迁移历史与当前版本
-uv run alembic history
-uv run alembic current
-
-# 生成新的迁移（修改模型后）
+uv run alembic upgrade head      # 升级到最新（应用启动会自动执行）
+uv run alembic history           # 查看迁移历史
+uv run alembic current           # 查看当前版本
 uv run alembic revision --autogenerate -m "描述本次变更"
-
-# 回滚到上一个版本（或 base 回到空库）
-uv run alembic downgrade -1
-uv run alembic downgrade base
-
-# 将现有数据库标记为已应用某版本（不实际执行 DDL，用于初始化已有库）
-uv run alembic stamp head
+uv run alembic downgrade -1      # 回滚一步
 ```
-
-> 注意：`alembic` 命令读取 `DATABASE_URL` 环境变量（与 `.env` 一致）。修改模型字段后务必跑 `--autogenerate` 并核对生成的 SQL 再提交。
 
 ## API 一览
 
-> 除 `/api/auth/*` 与 `/health` 外，以下接口均需在请求头携带 `Authorization: Bearer <token>`。
+除 `/api/auth/*` 与 `/health` 外均需携带 `Authorization: Bearer <token>`。交互式文档：启动后访问 `/docs`（Swagger UI）。
 
-- `POST /api/auth/register`、`POST /api/auth/login`、`POST /api/auth/logout`、`GET /api/auth/me`
-- `POST /api/master-resumes` 上传简历 PDF
-- `GET  /api/master-resumes` 列表
-- `GET  /api/master-resumes/{id}` 详情
-- `PUT  /api/master-resumes/{id}` 更新结构化数据
-- `POST /api/derived-resumes` 创建匹配简历（触发 Agent），请求体携带简历文本 `resumeText`
-- `GET  /api/derived-resumes` 列表
-- `GET  /api/derived-resumes/{id}` 详情（含求职信）
-- `PUT  /api/derived-resumes/{id}` 二次编辑回写
-- `GET  /api/derived-resumes/{id}/cover-letter` 求职信
+| 资源 | 端点 |
+| --- | --- |
+| 认证 | `POST /api/auth/register` · `POST /api/auth/login` · `POST /api/auth/logout` · `GET /api/auth/me` · `POST /api/auth/change-password` · `GET /api/auth/registration-code/status` · `POST /api/auth/registration-code` |
+| 简历 | `POST /api/master-resumes`（上传 PDF）· `POST /api/master-resumes/json` · `GET /api/master-resumes` · `GET / PUT / DELETE /api/master-resumes/{id}` |
+| 匹配 | `POST /api/derived-resumes`（触发 Agent）· `GET /api/derived-resumes` · `GET / PUT /api/derived-resumes/{id}` · `POST /api/derived-resumes/{id}/accept` |
+| 话术 | `POST /api/cover-letters` · `GET /api/cover-letters` · `GET / PUT / DELETE /api/cover-letters/{id}` · `POST /api/cover-letters/{id}/regenerate` |
+| 岗位卡 | `GET /api/jobs` · `GET /api/jobs/stats` · `GET / PATCH / DELETE /api/jobs/{job_id}` · `POST /api/jobs` · `POST /api/jobs/{job_id}/mark` · `POST /api/jobs/{job_id}/reopen` · `POST /api/jobs/detect` |
+| AI | `POST /api/ai/polish` · `POST /api/ai/grammar` · `POST /api/ai/resume-import` |
+| 导出 | `POST /api/export/pdf` |
 
-## 数据契约
-
-前后端共用 `ResumeData` 结构化 JSON（对齐 `frontend/src/types/resume.ts`），用于简历存储与编辑器。
-注意：匹配接口（`POST /api/derived-resumes`）的匹配对象为所选简历的 **markdown 文本**（前端直接传 `resumeText`），其产出的衍生简历 `resume_json` 也是 **markdown 文本**，而非 `ResumeData` JSON。
-
-## 验收
-
-需求清单与检查单见 [CHECKLIST.md](./CHECKLIST.md)，全部项已验证通过。
-
-## 前端：Markdown 编辑模式（所见即所得）
-
-除原有的结构化表单编辑外，工作台（Workbench）新增 **Markdown 编辑模式**，满足偏好纯文本撰写的用户。
-
-### 架构
+## 项目结构
 
 ```
-Markdown 源 ──► Tiptap 编辑器 ──► 实时 Markdown 文本
-                                      │
-                                      ▼
-                            markdown-it 解析（Markdown Parser）
-                                      │
-                                      ▼
-                            React 渲染（A4 纸张 / HTML·CSS）
-                                      │
-                          ┌───────────┴───────────┐
-                          ▼                       ▼
-                       实时预览                  PDF 导出（复用服务端 Playwright）
+matcher/
+├── app/                # 后端（FastAPI）
+│   ├── api/            # 路由层（auth / resume / match / cover_letter / jobs / ai / export ...）
+│   ├── core/           # 配置、数据库、LLM 客户端
+│   ├── models/         # SQLAlchemy 模型
+│   ├── schemas/        # Pydantic 请求/响应模型（与前端共用 ResumeData 契约）
+│   └── services/       # 业务逻辑、Agent、LLM 调用
+├── frontend/           # 前端（TanStack Start + React + Vite）
+├── migrations/         # Alembic 迁移
+├── nginx/              # 生产反代与 HTTPS 配置
+├── docs/               # 项目文档（方案 / 修复复盘 / 规范，入口 docs/README.md）
+├── tests/              # 后端测试（pytest）
+├── scripts/            # 运维脚本
+├── docker-compose.yml  # 前后端一体编排（nginx + backend + frontend）
+└── start.sh            # 本地一键启动（开发模式）
 ```
 
-### 关键文件
+## 文档
 
-- `frontend/src/components/editor/MarkdownEditor.tsx` — 基于 Tiptap + `tiptap-markdown` 的 Markdown 源编辑器
-- `frontend/src/utils/markdownRender.ts` — 基于 `markdown-it` 的 Markdown Parser（输出 HTML）
-- `frontend/src/components/preview/MarkdownPreview.tsx` — React Renderer（A4 纸张渲染 + 导出锚点 `#resume-preview`）
-- `frontend/src/components/editor/MarkdownWorkbench.tsx` — 左编辑器 / 右预览分栏布局
-- `frontend/src/app/app/workbench/[id]/page.tsx` — 在工作台顶部提供「表单编辑 / Markdown 编辑」切换
-- `ResumeData.markdownContent`（`frontend/src/types/resume.ts`）— 存放 Markdown 源，与结构化数据并存
+| 文档 | 内容 |
+| --- | --- |
+| [`AGENTS.md`](AGENTS.md) | 工程约定、环境变量、常用命令 |
+| [`docs/README.md`](docs/README.md) | 文档地图（活跃 / 归档） |
+| [`docs/BRAND.md`](docs/BRAND.md) | 品牌视觉规范 |
+| [`docs/ANALYTICS.md`](docs/ANALYTICS.md) | 投递统计口径 |
+| [`Plan.md`](Plan.md) | 路线图（批次、优先级、验收） |
+| [`CHECKLIST.md`](CHECKLIST.md) | 需求验收清单 |
 
-### 使用
+## CI/CD
 
-1. 打开任意简历工作台（`/app/workbench/:id`）。
-2. 顶部切换为「Markdown 编辑」。
-3. 左侧编写 Markdown，右侧实时预览，可一键「导出 PDF」（所见即所得）。
+`.github/workflows/deploy.yml`：推送后经 rsync 上传代码，在服务器本地顺序构建 backend/frontend 镜像（构建期间保留现有服务，两个镜像就绪后才进入迁移阶段），随后备份数据库、执行迁移并做健康检查。镜像层、APT 与 Playwright 下载缓存保留在服务器，缩短后续构建。
 
-### 新增依赖
+## 开源许可
 
-- `tiptap-markdown`（Tiptap v3 官方 Markdown 扩展）
-- `markdown-it`（Markdown 解析）
-- `@tiptap/extension-placeholder`（编辑区占位提示）
+本项目采用 [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0)（PolyForm 非商业许可证 1.0.0）——源码可见，个人与非商业组织可自由使用、修改、分发，**禁止商用**：
+
+- ✅ **允许**：个人学习、研究、试验、测试、个人项目等非商业用途的使用、修改与分发
+- ✅ **允许**：慈善组织、教育机构、公共研究机构、公共安全/健康机构、环保组织、政府机构使用（无论资金来源）
+- ❌ **禁止**：任何商业用途——包括但不限于将本项目（或其修改版）用于商业产品、对外提供付费服务 / SaaS、企业内部商业部署等
+- 💼 **商业授权**：如需商业使用，请联系作者单独获取授权：<https://github.com/qiugu>
+
+完整条款以仓库根目录 [`LICENSE`](LICENSE) 为准（英文原文具有法律效力）。
+
+## 免责声明
+
+本项目按「现状」提供，不附带任何明示或默示担保，使用风险由使用者自行承担。请遵守目标网站与大模型服务商的使用条款，勿将本项目用于任何违法用途。

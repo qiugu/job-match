@@ -2,6 +2,7 @@
   "name": "job-match",
   "version": "1.0.0",
   "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "packageManager": "pnpm@8.14.3",
   "scripts": {

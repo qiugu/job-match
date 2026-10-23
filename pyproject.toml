@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "简历匹配 Agent 后端服务（FastAPI）"
 readme = "README.md"
 requires-python = ">=3.12"
+# 与根目录 LICENSE（PolyForm Noncommercial License 1.0.0）保持一致
+license = { text = "PolyForm-Noncommercial-1.0.0" }
 dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",

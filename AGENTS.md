@@ -138,5 +138,6 @@ docker compose ps / logs -f / down
 - **数据库迁移**：schema 变更必须走 Alembic 迁移（`uv run alembic revision --autogenerate`），禁止改模型后不写迁移；应用启动会自动 `upgrade head`，因此**重启后端前先备份** `jobmatch.db`。
 - **LLM 调用**：统一经由 `app/core` 中的客户端封装，便于切换厂商（DeepSeek / 通义 / 智谱等）。
 - **品牌标识**：改标只改 `frontend/public/logo.svg`（唯一几何源），随后执行 `pnpm generate:brand-icons` 同步 `icon.png` / `favicon.ico`，并递增 `src/routes/__root.tsx` 中 favicon 的 `?v=` 版本号以刷新浏览器缓存。完整规范见 `docs/BRAND.md`。
+- **开源许可**：仓库根目录 `LICENSE` 是唯一许可源（PolyForm Noncommercial License 1.0.0，允许个人与非商业组织使用、禁止商用）；`pyproject.toml` 与 `frontend/package.json` 中的 `license` 声明须与之保持一致，README 中的许可章节说明随之同步。
 - **前端构建产物**：`frontend/dist/` 为构建输出，勿手动编辑。
 - **提交前**：确保 linter/类型检查通过；新增脚本（如 `start.sh`）需 `chmod +x`。
