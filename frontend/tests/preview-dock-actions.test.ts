@@ -48,7 +48,15 @@ describe("workbench floating dock actions", () => {
     expect(markdownWorkbench).toContain(
       "previewPanelRef.current?.collapse()"
     );
-    expect(markdownWorkbench).toContain("previewPanelRef.current?.expand(50)");
+    // expand() 不传尺寸：恢复到 collapse 前宽度（传 50 会把窄自定义宽度顶回 50%）
+    expect(markdownWorkbench).toContain(
+      "previewPanelRef.current?.expand();"
+    );
+    // 竞态修复：面板挂载（activeResume 就绪）后必须同步当前折叠态
+    expect(markdownWorkbench).toContain("const resumeReady = !!activeResume;");
+    expect(markdownWorkbench).toContain(
+      "[previewPanelCollapsed, resumeReady]"
+    );
 
     expect(workbench).toContain(
       "setPreviewPanelCollapsed((collapsed) => !collapsed)"

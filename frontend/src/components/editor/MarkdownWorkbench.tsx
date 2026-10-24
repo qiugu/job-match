@@ -32,14 +32,27 @@ const MarkdownWorkbench = ({
   const t = useTranslations("markdownEditor");
   const tTheme = useTranslations("workbench.sidePanel.theme");
   const previewPanelRef = useRef<ImperativePanelHandle>(null);
+  // activeResume 就绪前组件整体 return null，面板未挂载、ref 为 null；
+  // 若这期间用户切换了折叠态，collapse/expand 会静默丢失（旧版故障模式）。
+  // 把就绪状态纳入依赖，确保面板挂载后立即同步当前折叠态。
+  const resumeReady = !!activeResume;
 
   useEffect(() => {
-    if (previewPanelCollapsed) {
-      previewPanelRef.current?.collapse();
-    } else {
-      previewPanelRef.current?.expand(50);
-    }
-  }, [previewPanelCollapsed]);
+    // 面板与 PanelGroup 可能同帧挂载（activeResume 刚就绪的瞬间）：此时 Group
+    // 的内部布局尚未初始化完毕，同帧调用 collapse 会读到未就绪状态而静默失败
+    // （表现为「状态显示已收起、面板却没收起」——旧版故障模式）。
+    // 延后一帧，确保 Group 完成初始化后再同步折叠态。
+    const raf = requestAnimationFrame(() => {
+      if (previewPanelCollapsed) {
+        previewPanelRef.current?.collapse();
+      } else {
+        // 不传尺寸：rrp 会恢复到 collapse 前的宽度（只要不小于面板 minSize）；
+        // 传 50 会把用户自定义过的窄宽度顶回 50%。
+        previewPanelRef.current?.expand();
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [previewPanelCollapsed, resumeReady]);
 
   // 主题色改动后自动落库（防抖），避免「在编辑器选了不同主题色、没点保存就回列表页，
   // 列表页从后端重载把未保存的改动覆盖掉」导致缩略图显示的还是旧色、不同简历同色。
