@@ -43,6 +43,9 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
   const [mode, setMode] = useState<Mode>("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  // 注册态「两次密码不一致」的本地校验错误：前端先拦，不占用 store 的接口 error
+  const [passwordMismatch, setPasswordMismatch] = useState(false);
   const [cooldownLeft, setCooldownLeft] = useState(0);
 
   // 冷却倒计时：归零时自动解除，用户无需刷新页面
@@ -63,12 +66,20 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
 
   const switchMode = (next: Mode) => {
     setMode(next);
+    setConfirmPassword("");
+    setPasswordMismatch(false);
     clearError();
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (submitting || cooldownLeft > 0) return;
+    if (mode === "register" && password !== confirmPassword) {
+      // 跑到后端只会拿到一条泛指错误，用户还得猜是哪一步；本地先拦
+      setPasswordMismatch(true);
+      return;
+    }
+    setPasswordMismatch(false);
     try {
       if (mode === "login") {
         await login(username.trim(), password);
@@ -142,12 +153,13 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
           </ul>
         </div>
 
-        <span className="pp-sticker relative w-fit -rotate-3">免信用卡 · 30 秒注册</span>
+        <span className="pp-sticker relative w-fit -rotate-3">PDF 导出免费</span>
       </section>
 
-      {/* ── 右栏：表单卡（全页唯一硬阴影对象）──────────────────── */}
-      <section className="relative flex flex-1 items-center justify-center px-4 py-12">
-        <Card className="relative mx-auto w-full max-w-[380px] border-2 border-ink bg-ppcard shadow-punch">
+      {/* ── 右栏：表单卡 + 备案悬挂位，同轴纵向堆叠居中──────────────
+          右栏必须是 flex-col：行向布局会把备案号挤成卡片的兄弟节点甩到最右 */}
+      <section className="relative flex flex-1 flex-col items-center justify-center px-4 py-12">
+        <Card className="relative w-full max-w-[380px] border-2 border-ink bg-ppcard shadow-punch">
           <CardHeader className="space-y-3 text-center">
             <div className="mx-auto flex items-center gap-2 lg:hidden">
               <Logo size={36} />
@@ -156,34 +168,14 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
               </span>
             </div>
             <CardTitle className="font-display text-2xl font-extrabold text-ink">
-              {t("title")}
+              {mode === "login" ? t("title") : t("registerTitle")}
             </CardTitle>
-            <CardDescription className="text-ink-2">{t("subtitle")}</CardDescription>
+            <CardDescription className="text-ink-2">
+              {mode === "login" ? t("subtitle") : t("registerSubtitle")}
+            </CardDescription>
           </CardHeader>
 
           <CardContent>
-            {/* 登录 / 注册：segmented 原地切换，不跳路由 */}
-            <div className="pp-seg mb-5 w-full" role="tablist">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === "login"}
-                className={mode === "login" ? "on" : ""}
-                onClick={() => switchMode("login")}
-              >
-                {t("submitLogin")}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === "register"}
-                className={mode === "register" ? "on" : ""}
-                onClick={() => switchMode("register")}
-              >
-                {t("submitRegister")}
-              </button>
-            </div>
-
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="space-y-2">
                 <Label htmlFor="username" className="text-ink-2">{t("username")}</Label>
@@ -206,16 +198,41 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
                   type="password"
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    setPasswordMismatch(false);
+                  }}
                   placeholder={t("passwordPlaceholder")}
                   className="h-11 border-line-strong bg-paper text-ink placeholder:text-ink-3 focus-visible:ring-cobalt"
                   required
                 />
               </div>
 
-              {error && (
+              {/* 注册态才出现：密码确认框，与登录态的极简表单区分开 */}
+              {mode === "register" && (
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password" className="text-ink-2">
+                    {t("registerConfirmPassword")}
+                  </Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(event) => {
+                      setConfirmPassword(event.target.value);
+                      setPasswordMismatch(false);
+                    }}
+                    placeholder={t("registerConfirmPasswordPlaceholder")}
+                    className="h-11 border-line-strong bg-paper text-ink placeholder:text-ink-3 focus-visible:ring-cobalt"
+                    required
+                  />
+                </div>
+              )}
+
+              {(error || passwordMismatch) && (
                 <p className="rounded-lg border border-danger bg-blush px-3 py-2 text-sm font-medium text-danger">
-                  {error}
+                  {passwordMismatch ? t("registerPasswordMismatch") : error}
                 </p>
               )}
 
@@ -233,6 +250,17 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
               </button>
             </form>
 
+            {/* 登录 / 注册：文字链接点击切换，不跳路由 */}
+            <div className="mt-5 text-center text-sm">
+              <button
+                type="button"
+                className="font-semibold text-cobalt underline-offset-4 transition-colors hover:underline"
+                onClick={() => switchMode(mode === "login" ? "register" : "login")}
+              >
+                {mode === "login" ? t("toRegister") : t("toLogin")}
+              </button>
+            </div>
+
             <p className="mt-6 text-center text-xs leading-relaxed text-ink-3">
               {t("notice")}
             </p>
@@ -240,7 +268,7 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
         </Card>
 
         {/* 合规悬挂位：备案号居中展示，并链接至工信部备案管理系统 / 全国互联网安全管理服务平台 */}
-        <div className="mt-6 flex flex-col items-center gap-1.5 text-center">
+        <div className="mt-8 flex flex-col items-center gap-1.5 text-center">
           <IcpFilingLink className="text-[11.5px] text-ink-3 hover:text-ink" />
           <PublicSecurityFilingLink />
         </div>

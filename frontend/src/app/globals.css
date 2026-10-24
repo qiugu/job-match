@@ -531,33 +531,6 @@
     box-shadow: 0 0 0 3px rgb(43 58 255 / 0.16);
   }
 
-  /* 分段切换（登录/注册、字体选择） */
-  .pp-seg {
-    display: inline-flex;
-    gap: 4px;
-    padding: 4px;
-    background: var(--paper-2);
-    border: 1px solid var(--line);
-    border-radius: 999px;
-  }
-  .pp-seg button {
-    flex: 1;
-    height: 32px;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    font-family: var(--font-body);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--ink-3);
-    cursor: pointer;
-    transition: background-color 0.15s, color 0.15s;
-  }
-  .pp-seg button.on {
-    background: var(--ink);
-    color: var(--paper);
-  }
-
   /* 纸面点阵纹理（Loud 档氛围层，禁 blur） */
   .pp-dotgrid {
     position: absolute;
