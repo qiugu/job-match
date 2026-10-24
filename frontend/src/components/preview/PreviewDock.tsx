@@ -16,6 +16,7 @@ import TemplateSheet from "@/components/shared/TemplateSheet";
 import { useResumeStore } from "@/store/useResumeStore";
 import { FAQDialog } from "./FAQDialog";
 import PdfExport from "@/components/shared/PdfExport";
+import { cn } from "@/lib/utils";
 
 interface PreviewDockProps {
   previewPanelCollapsed: boolean;
@@ -149,7 +150,12 @@ const PreviewDock = ({
                         : t("previewPanel.collapse")
                     }
                     onClick={togglePreviewPanel}
-                    className={dockButtonClass}
+                    className={cn(
+                      dockButtonClass,
+                      // 选中态：预览面板展开（未收起）时按钮高亮，与收起态形成可辨识对比
+                      !previewPanelCollapsed &&
+                        "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                    )}
                   >
                     <Eye className="h-4 w-4" />
                   </button>
