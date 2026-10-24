@@ -384,7 +384,9 @@ export default function Home() {
       <div className="hidden md:block h-[calc(100vh-64px)] relative flex w-full">
         <div className={cn(
           "h-full flex flex-col transition-all duration-300",
-          previewPanelCollapsed ? "w-[calc(100%-4rem)]" : "w-full"
+          // 预览收起时编辑区同样占满：dock 为 fixed 悬浮层，自行叠加在内容上方，
+          // 不再预留 4rem 占位（预留会在编辑区右侧留下空白带）
+          "w-full"
         )}>
           {/* 编辑模式切换 */}
           {/* <div className="flex justify-center py-2 border-b border-border shrink-0">
