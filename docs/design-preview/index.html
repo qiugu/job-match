@@ -465,7 +465,8 @@ html.js-reveal .rv.in{opacity:1;transform:none;transition:opacity .42s var(--eas
 .btn--calm.btn--primary{background:var(--cobalt);border-color:var(--cobalt);color:var(--paper)}
 .btn--calm.btn--primary:hover{background:var(--cobalt-deep);border-color:var(--cobalt-deep)}
 
-/* 三栏骨架：设置 224 / 编辑自适应 / 预览 396 */
+/* 三栏骨架：设置 20% / 编辑 32% / 预览 48%。实现为可拖拽百分比三栏（LAYOUT_CONFIG.DEFAULT），
+   此处按默认比例折算为像素，用于呈现视觉关系 */
 .ed__main{display:grid;grid-template-columns:224px minmax(0,1fr) 396px;flex:1;min-height:0}
 
 /* 左：设置 */
@@ -1838,7 +1839,7 @@ delay 步进 60ms，最多 6 项</code>
       <div class="review__row" data-page-node-id="OMG9ndgvjsG18FZU5NBWDF"><span class="box" data-page-node-id="p8nqP6w4GQjUCvZyszmlPj"></span><b data-page-node-id="fRVZJI9Tf3kiSIYTF4OTAE">D 字体</b><p data-page-node-id="05W7sXOt0Ja1xAOttJ50lH">Display 用 <strong data-page-node-id="bZkyaYdGj5E8uXPASf5otk">Bricolage Grotesque</strong>，正文用 <strong data-page-node-id="CARrFT04smh374cRdOgeLR">Instrument Sans</strong>，替换现有 Newsreader + Inter。</p></div>
       <div class="review__row" data-page-node-id="x7GvZ8pVdKqlqnPtJDFaKi"><span class="box" data-page-node-id="fBVUUppH6yrF76r47bCqym"></span><b data-page-node-id="XRacWbDnABzaxaldsDk3Nz">E 豁免</b><p data-page-node-id="fh97ewRDMbQjFJh46frZGy">同意<strong data-page-node-id="iAYqHpF05qesXKZaHqCAnz">简历预览 / PDF 导出不参与</strong>本次改版，保持打印契约。</p></div>
       <div class="review__row" data-page-node-id="8xdS94qANQgk0JEFA6F6Ba"><span class="box" data-page-node-id="X6etwWKzQlVUm0u4IsD3yf"></span><b data-page-node-id="yjHl2HWW3ClB24i6CMQ67O">F 顺序</b><p data-page-node-id="Q7K5L9grDE9kWKV3NsXpjL">同意 Phase 0→5 排期：先令牌与原语，再落地页，最后控制台与深色。</p></div>
-      <div class="review__row" data-page-node-id="RevG"><span class="box" data-page-node-id="RevGbox"></span><b data-page-node-id="RevGb">G 工作台</b><p data-page-node-id="RevGp">接受<strong data-page-node-id="RevGpS">设置 224 / 编辑自适应 / 预览 396 固定三栏</strong>；预览独立滚动、不加悬浮层，工具条全部 1px 无阴影。</p></div>
+      <div class="review__row" data-page-node-id="RevG"><span class="box" data-page-node-id="RevGbox"></span><b data-page-node-id="RevGb">G 工作台</b><p data-page-node-id="RevGp">接受<strong data-page-node-id="RevGpS">三栏可拖拽、默认 20/32/48</strong>；预览独立滚动、收起态由 Dock 承载，工具条全部 1px 无阴影。</p></div>
       <div class="review__row" data-page-node-id="RevH"><span class="box" data-page-node-id="RevHbox"></span><b data-page-node-id="RevHb">H 登录形态</b><p data-page-node-id="RevHp">接受登录页从<strong data-page-node-id="RevHpS">居中单卡改为「左品牌 + 右表单」分栏</strong>，备案号悬挂在卡片正下方。</p></div>
     </div>
   </div>
