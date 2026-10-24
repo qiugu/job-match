@@ -3,6 +3,12 @@
     "title": "Sign in to JDMatch",
     "subtitle": "Sign in to use resume matching and AI polishing",
     "notice": "Sign up to receive 50 trial credits shared by resume matching and pitch generation. No code required.",
+    "pitchTitle": "Resumes that actually fit the job.",
+    "pitchPoints": [
+      "Paste your resume and the JD — AI rewrites it for the role",
+      "50 free credits on sign-up, pay per use, no subscription",
+      "Your resumes stay private to your account"
+    ],
     "username": "Username",
     "usernamePlaceholder": "3-64 chars: letters, digits, _ . -",
     "password": "Password",

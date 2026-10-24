@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Instrument+Sans:wght@400..700&family=DM+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -18,63 +18,166 @@
 }
 
 @layer base {
+  /* ═══════════════════════════════════════════════════════════════
+     Paper & Punch 令牌（docs/DESIGN.md §4）     shadcn 语义变量映射到纸墨体系 ⇒ 所有既有组件（Button/Card/Input…）
+     无需逐个改写即完成换肤。hsl() 数值由 DESIGN.md 的十六进制令牌换算。
+     ═══════════════════════════════════════════════════════════════ */
   :root {
-    --background: 48 20% 97%; /* #F9F9F7 */
-    --foreground: 60 5% 10%; /* #1B1B18 */
-    --card: 48 20% 97%;
-    --card-foreground: 60 5% 10%;
-    --popover: 48 20% 97%;
-    --popover-foreground: 60 5% 10%;
-    --primary: 60 5% 10%; /* #1B1B18 - Claude Dark Charcoal */
-    --primary-foreground: 48 20% 97%;
-    --secondary: 48 18% 90%; /* #F2F0E9 */
-    --secondary-foreground: 60 5% 10%;
-    --muted: 60 2% 56%; /* #91918E */
-    --muted-foreground: 60 2% 40%;
-    --accent: 48 10% 92%; /* Neutral/Parchment Accent */
-    --accent-foreground: 60 5% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 48 10% 89%; /* #E6E6E3 */
-    --input: 48 10% 89%;
-    --ring: 60 5% 10%;
-    --radius: 0.75rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --sidebar-background: 48 20% 96%;
-    --sidebar-foreground: 60 5% 25%;
-    --sidebar-primary: 260 45% 52%;
-    --sidebar-primary-foreground: 48 20% 97%;
-    --sidebar-accent: 48 10% 92%;
-    --sidebar-accent-foreground: 260 45% 52%;
-    --sidebar-border: 48 10% 89%;
-    --sidebar-ring: 260 45% 52%;
+    --background: 42 68% 95%; /* #FBF6EA paper 画布 */
+    --foreground: 26 18% 8%; /* #171310 ink 正文 */
+    --card: 44 100% 99%; /* #FFFDF8 卡片 */
+    --card-foreground: 26 18% 8%;
+    --popover: 44 100% 99%;
+    --popover-foreground: 26 18% 8%;
+    --primary: 236 100% 58%; /* #2B3AFF cobalt 唯一信号色 */
+    --primary-foreground: 42 68% 95%;
+    --secondary: 42 49% 91%; /* #F3ECDC paper-2 凹陷区 */
+    --secondary-foreground: 26 18% 8%;
+    --muted: 42 49% 91%;
+    --muted-foreground: 31 11% 41%; /* #75695C ink-3（5.0:1） */
+    --accent: 42 49% 91%;
+    --accent-foreground: 26 18% 8%;
+    --destructive: 4 76% 40%; /* #B42318 danger */
+    --destructive-foreground: 0 0% 100%;
+    --border: 41 42% 83%; /* #E2D9C6 line 装饰线 */
+    --input: 36 20% 53%; /* #9C8B71 line-strong 控件边界 3.1:1 */
+    --ring: 236 100% 58%;
+    --radius: 0.5rem;
+
+    --chart-1: 236 100% 58%; /* cobalt */
+    --chart-2: 20 100% 56%; /* tangerine */
+    --chart-3: 211 63% 33%; /* green */
+    --chart-4: 31 11% 41%; /* ink-3 */
+    --chart-5: 47 100% 74%; /* butter */
+
+    --sidebar-background: 42 49% 91%;
+    --sidebar-foreground: 28 12% 26%; /* #4B423A ink-2 */
+    --sidebar-primary: 236 100% 58%;
+    --sidebar-primary-foreground: 42 68% 95%;
+    --sidebar-accent: 42 68% 95%;
+    --sidebar-accent-foreground: 26 18% 8%;
+    --sidebar-border: 41 42% 83%;
+    --sidebar-ring: 236 100% 58%;
+
+    /* ── Paper & Punch 具名令牌（组件与 Tailwind 均可用）────────── */
+    --paper: #fbf6ea;
+    --paper-2: #f3ecdc;
+    --pp-card: #fffdf8;
+    --ink: #171310;
+    --ink-2: #4b423a;
+    --ink-3: #75695c;
+    --line: #e2d9c6;
+    --line-strong: #9c8b71;
+    --cobalt: #2b3aff;
+    --cobalt-deep: #1a26c9;
+    --tangerine: #ff6a1f;
+    --mint: #b9f2ce;
+    --butter: #ffe27a;
+    --blush: #ffd7d3;
+    --green: #1f8a57;
+    --green-text: #146b41;
+    --danger: #b42318;
+    --shadow-color: #171310;
+
+    --font-display: "Bricolage Grotesque", "Noto Sans SC", "PingFang SC",
+      "Microsoft YaHei", system-ui, sans-serif;
+    --font-body: "Instrument Sans", "Noto Sans SC", "PingFang SC",
+      "Microsoft YaHei", system-ui, sans-serif;
+    --font-mono: "DM Mono", "Geist Mono", ui-monospace, SFMono-Regular,
+      monospace;
+
+    /* ── 双密度（docs/DESIGN.md §5）：组件只写一套，变量随档位切换 ──
+       Loud  落地页：粗墨边 + 硬偏移阴影
+       Calm  控制台：1px 细线 + 无阴影 + 撞色只留选中态 */
+    --edge-w: 2px;
+    --shadow-card: 4px 4px 0 var(--shadow-color);
+    --shadow-chip: 2px 2px 0 var(--shadow-color);
+    --radius-card: 14px;
+    --radius-sticker: 8px;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  /* ── xAI 具名语义色板（固定值，全局可用）───────────────────── */
-  :root {
-    --xai-font-sans: Inter, "Noto Sans SC", system-ui, sans-serif;
-    --xai-font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+  [data-density="calm"] {
+    --edge-w: 1px;
+    --shadow-card: none;
+    --shadow-chip: none;
+    --radius-card: 10px;
+    --radius-sticker: 6px;
+  }
+  /* dark 档（Phase 5 目标态）：纸换成墨版纸，硬阴影改纯黑投影 */
+  .dark {
+    --background: 26 18% 7%;
+    --foreground: 42 68% 95%;
+    --card: 26 14% 10%;
+    --card-foreground: 42 68% 95%;
+    --popover: 26 14% 10%;
+    --popover-foreground: 42 68% 95%;
+    --primary: 236 100% 70%;
+    --primary-foreground: 26 18% 8%;
+    --secondary: 26 12% 14%;
+    --secondary-foreground: 42 68% 95%;
+    --muted: 26 12% 14%;
+    --muted-foreground: 36 10% 62%;
+    --accent: 26 12% 14%;
+    --accent-foreground: 42 68% 95%;
+    --destructive: 4 76% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 10% 20%;
+    --input: 36 12% 32%;
+    --ring: 236 100% 70%;
 
-    /* dark（默认）：作用域 .theme-xai 默认即深色 */
-    --xai-canvas: #0a0a0a;
-    --xai-surface: #131418;
-    --xai-surface-2: #1a1c21;
-    --xai-hairline: #292b33;
-    --xai-hairline-soft: #1f2126;
-    --xai-hairline-strong: #3d4048;
-    --xai-text: #ffffff;
-    --xai-text-mid: #e7e9ec;
-    --xai-mute: #8a8f98;
-    --xai-eyebrow: #6b727b;
-    --xai-success: #6fd79e;
-    --xai-add: #86e0ac;
-    --xai-add-bg: #0f1f17;
-    --xai-del: #f0a091;
-    --xai-del-bg: #221312;
+    --paper: #14110e;
+    --paper-2: #1c1814;
+    --pp-card: #1f1a15;
+    --ink: #fbf6ea;
+    --ink-2: #c9bfaf;
+    --ink-3: #8c8175;
+    --line: #2e2822;
+    --line-strong: #4a4238;
+    --cobalt: #7c86ff;
+    --cobalt-deep: #5f6aff;
+    --tangerine: #ff7a38;
+    --mint: #1d4a33;
+    --butter: #4a3d1c;
+    --blush: #4a2622;
+    --green: #4cbf8a;
+    --green-text: #6fd7a3;
+    --danger: #f0a091;
+    --shadow-color: #000000;
+
+    --sidebar-background: 26 12% 12%;
+    --sidebar-foreground: 42 30% 88%;
+    --sidebar-primary: 236 100% 70%;
+    --sidebar-primary-foreground: 26 18% 8%;
+    --sidebar-accent: 26 12% 14%;
+    --sidebar-accent-foreground: 42 68% 95%;
+    --sidebar-border: 30 10% 20%;
+    --sidebar-ring: 236 100% 70%;
+  }
+
+  /* ── Paper & Punch 具名语义色板（与 :root 令牌同源，全局可用）─────
+     原 xAI 深色 hairline 体系已整体切换为纸墨体系：控制台、工作台、
+     落地页共用同一套 canvas/surface/hairline，差异只来自 [data-density]。 */
+  :root {
+    --xai-font-sans: var(--font-body);
+    --xai-font-mono: var(--font-mono);
+
+    /* light（默认）：奶油纸画布 + 近白卡片 + 墨色描边 */
+    --xai-canvas: #fbf6ea;
+    --xai-surface: #fffdf8;
+    --xai-surface-2: #f3ecdc;
+    --xai-hairline: #e2d9c6;
+    --xai-hairline-soft: #ece5d6;
+    --xai-hairline-strong: #9c8b71;
+    --xai-text: #171310;
+    --xai-text-mid: #4b423a;
+    --xai-mute: #75695c;
+    --xai-eyebrow: #75695c;
+    --xai-success: #1f8a57;
+    --xai-add: #146b41;
+    --xai-add-bg: #b9f2ce;
+    --xai-del: #b42318;
+    --xai-del-bg: #ffd7d3;
   }
   /* 通用滚动条样式 */
   ::-webkit-scrollbar {
@@ -112,116 +215,78 @@
     background: rgba(193, 193, 193, 0.8);
   }
 
-  .dark {
-    --background: 60 5% 10%; /* Dark Charcoal */
-    --foreground: 48 20% 97%; /* Off White text */
-    --card: 60 5% 12%;
-    --card-foreground: 48 20% 97%;
-    --popover: 60 5% 12%;
-    --popover-foreground: 48 20% 97%;
-    --primary: 48 20% 97%; /* Off White for primary buttons in dark mode or a light tint */
-    --primary-foreground: 60 5% 10%;
-    --secondary: 60 5% 15%;
-    --secondary-foreground: 48 20% 97%;
-    --muted: 60 2% 40%;
-    --muted-foreground: 60 2% 60%;
-    --accent: 60 5% 15%; /* Dark accent */
-    --accent-foreground: 48 20% 97%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 60 5% 20%;
-    --input: 60 5% 20%;
-    --ring: 48 20% 97%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-
-    --sidebar-background: 60 5% 8%;
-    --sidebar-foreground: 48 20% 90%;
-    --sidebar-primary: 260 60% 70%;
-    --sidebar-primary-foreground: 60 5% 10%;
-    --sidebar-accent: 60 5% 15%;
-    --sidebar-accent-foreground: 60 5% 90%;
-    --sidebar-border: 60 5% 15%;
-    --sidebar-ring: 260 60% 70%;
-  }
-
   /* ─────────────────────────────────────────────────────────────
-     xAI 深色主题（作用域）
-     仅套用于 dashboard / workbench 外壳，首页与落地页保持原有浅色。
-     覆盖 shadcn CSS 变量后，Button / Card / Dialog / Tabs 等组件
-     自动继承新配色，无需逐个组件改写。
+     Paper & Punch 控制台作用域（原 xAI 深色）
+     与 :root 令牌同源：覆盖 shadcn 变量后 Button / Card / Dialog /
+     Tabs 等组件自动换肤，无需逐个改写。
      ───────────────────────────────────────────────────────────── */
   .theme-xai {
-    --background: 0 0% 4%; /* #0A0A0A canvas */
-    --foreground: 0 0% 100%;
-    --card: 228 12% 8%; /* #131418 */
-    --card-foreground: 220 12% 95%; /* #F1F2F4 */
-    --popover: 228 12% 8%;
-    --popover-foreground: 220 12% 95%;
-    --primary: 0 0% 100%; /* 白 pill 主按钮 */
-    --primary-foreground: 0 0% 4%;
-    --secondary: 223 12% 12%; /* #1A1C21 */
-    --secondary-foreground: 216 12% 92%; /* #E7E9EC */
-    --muted: 223 12% 12%;
-    --muted-foreground: 219 6% 57%; /* #8A8F98 */
-    --accent: 223 12% 12%;
-    --accent-foreground: 216 12% 92%;
-    --destructive: 0 72% 51%;
+    --background: 42 68% 95%; /* paper canvas */
+    --foreground: 26 18% 8%;
+    --card: 44 100% 99%; /* #FFFDF8 */
+    --card-foreground: 26 18% 8%;
+    --popover: 44 100% 99%;
+    --popover-foreground: 26 18% 8%;
+    --primary: 236 100% 58%; /* cobalt */
+    --primary-foreground: 42 68% 95%;
+    --secondary: 42 49% 91%;
+    --secondary-foreground: 26 18% 8%;
+    --muted: 42 49% 91%;
+    --muted-foreground: 31 11% 41%;
+    --accent: 42 49% 91%;
+    --accent-foreground: 26 18% 8%;
+    --destructive: 4 76% 40%;
     --destructive-foreground: 0 0% 100%;
-    --border: 228 11% 18%; /* #292B33 hairline */
-    --input: 228 11% 18%;
-    --ring: 0 0% 100%;
+    --border: 41 42% 83%;
+    --input: 36 20% 53%;
+    --ring: 236 100% 58%;
     --radius: 0.5rem;
 
-    --sidebar-background: 220 11% 5%; /* #0C0D0F */
-    --sidebar-foreground: 215 9% 75%; /* #B9BEC5 */
-    --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 0 0% 4%;
-    --sidebar-accent: 223 12% 12%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 223 10% 14%; /* #1F2126 */
-    --sidebar-ring: 0 0% 100%;
+    --sidebar-background: 42 49% 91%;
+    --sidebar-foreground: 28 12% 26%;
+    --sidebar-primary: 236 100% 58%;
+    --sidebar-primary-foreground: 42 68% 95%;
+    --sidebar-accent: 42 68% 95%;
+    --sidebar-accent-foreground: 26 18% 8%;
+    --sidebar-border: 41 42% 83%;
+    --sidebar-ring: 236 100% 58%;
 
     @apply bg-background text-foreground;
-    font-family: var(--xai-font-sans);
+    font-family: var(--font-body);
   }
 
-  /* 投递分析是需要快速扫读的工作台：保留深色导航，分析内容切到高对比纸张色，
-     用墨蓝正文 + 珊瑚/青绿语义色，避免数据和背景黏在一起。 */
+  /* 投递分析：与全站同一套纸墨令牌，KPI 角标用钴蓝/橘/绿三色区分 */
   .theme-xai .analytics-page {
-    --xai-canvas: #f7f4ee;
+    --xai-canvas: #fbf6ea;
     --xai-surface: #fffdf8;
-    --xai-surface-2: #f1eee7;
-    --xai-hairline: #ddd7cc;
-    --xai-hairline-soft: #eae5dc;
-    --xai-hairline-strong: #c9c0b2;
-    --xai-text: #17233c;
-    --xai-text-mid: #435069;
-    --xai-mute: #6d7788;
-    --xai-eyebrow: #7f6b5a;
-    --xai-success: #147d78;
-    --xai-add: #147d78;
-    --xai-add-bg: #e2f1ed;
-    --xai-del: #c64b3d;
-    --xai-del-bg: #fbe9e4;
-    --background: 40 25% 95%;
-    --foreground: 220 45% 16%;
-    --card: 45 100% 99%;
-    --card-foreground: 220 45% 16%;
-    --border: 36 19% 83%;
-    --primary: 220 45% 16%;
-    --primary-foreground: 45 100% 99%;
+    --xai-surface-2: #f3ecdc;
+    --xai-hairline: #e2d9c6;
+    --xai-hairline-soft: #ece5d6;
+    --xai-hairline-strong: #9c8b71;
+    --xai-text: #171310;
+    --xai-text-mid: #4b423a;
+    --xai-mute: #75695c;
+    --xai-eyebrow: #75695c;
+    --xai-success: #1f8a57;
+    --xai-add: #146b41;
+    --xai-add-bg: #b9f2ce;
+    --xai-del: #b42318;
+    --xai-del-bg: #ffd7d3;
+    --background: 42 68% 95%;
+    --foreground: 26 18% 8%;
+    --card: 44 100% 99%;
+    --card-foreground: 26 18% 8%;
+    --border: 41 42% 83%;
+    --primary: 236 100% 58%;
+    --primary-foreground: 42 68% 95%;
   }
 
   .analytics-page .analytics-header {
-    background: linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(247, 244, 238, 0.88));
+    background: linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(251, 246, 234, 0.88));
   }
 
   .analytics-page .analytics-panel {
-    box-shadow: 0 1px 0 rgba(23, 35, 60, 0.04), 0 14px 34px rgba(23, 35, 60, 0.045);
+    box-shadow: none;
   }
 
   .analytics-page .analytics-kpi {
@@ -240,13 +305,16 @@
     content: "";
   }
 
-  .analytics-page .analytics-kpi:first-child::after,
+  .analytics-page .analytics-kpi:first-child::after {
+    background: #2b3aff;
+  }
+
   .analytics-page .analytics-kpi:nth-child(2)::after {
-    background: #e85d4a;
+    background: #ff6a1f;
   }
 
   .analytics-page .analytics-kpi:nth-child(3)::after {
-    background: #147d78;
+    background: #1f8a57;
   }
 
   /* 作用域内标题回到正体（xAI 风格不用衬线展示字） */
@@ -271,78 +339,81 @@
   }
 
   /* ─────────────────────────────────────────────────────────────
-     xAI light 变体：应用主题为 light 时，作用域跟随切换为浅色。
-     结构（hairline 分层 / pill 按钮 / mono eyebrow）不变，
-     仅反转中性色：近白画布 + 白卡片 + 黑 pill 主按钮。
+     dark 变体：纸换成「墨版纸」，结构不变、仅反转中性色。
+     深色下硬阴影由 --shadow-color 驱动为纯黑，避免白色投影发光。
      ───────────────────────────────────────────────────────────── */
-  html.light .theme-xai {
-    --background: 0 0% 98%; /* #FAFAFA canvas */
-    --foreground: 0 0% 4%;
-    --card: 0 0% 100%; /* #FFFFFF */
-    --card-foreground: 240 4% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 4% 10%;
-    --primary: 0 0% 4%; /* 黑 pill 主按钮 */
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 5% 96%; /* #F4F4F5 */
-    --secondary-foreground: 240 4% 14%;
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 45%; /* #71717A */
-    --accent: 240 5% 96%;
-    --accent-foreground: 240 4% 14%;
-    --border: 240 6% 90%; /* #E4E4E7 hairline */
-    --input: 240 6% 90%;
-    --ring: 0 0% 9%;
+  html.dark .theme-xai {
+    --background: 26 18% 7%;
+    --foreground: 42 68% 95%;
+    --card: 26 14% 10%;
+    --card-foreground: 42 68% 95%;
+    --popover: 26 14% 10%;
+    --popover-foreground: 42 68% 95%;
+    --primary: 236 100% 70%;
+    --primary-foreground: 26 18% 8%;
+    --secondary: 26 12% 14%;
+    --secondary-foreground: 42 68% 95%;
+    --muted: 26 12% 14%;
+    --muted-foreground: 36 10% 62%;
+    --accent: 26 12% 14%;
+    --accent-foreground: 42 68% 95%;
+    --destructive: 4 76% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 10% 20%;
+    --input: 36 12% 32%;
+    --ring: 236 100% 70%;
 
-    --sidebar-background: 240 5% 97%; /* #F6F6F7 */
-    --sidebar-foreground: 240 4% 40%;
-    --sidebar-primary: 0 0% 4%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 5% 94%;
-    --sidebar-accent-foreground: 0 0% 4%;
-    --sidebar-border: 240 6% 91%;
-    --sidebar-ring: 0 0% 9%;
+    --sidebar-background: 26 12% 12%;
+    --sidebar-foreground: 42 30% 88%;
+    --sidebar-primary: 236 100% 70%;
+    --sidebar-primary-foreground: 26 18% 8%;
+    --sidebar-accent: 26 12% 14%;
+    --sidebar-accent-foreground: 42 68% 95%;
+    --sidebar-border: 30 10% 20%;
+    --sidebar-ring: 236 100% 70%;
 
-    /* xAI 固定色板 light 映射 */
-    --xai-canvas: #fafafa;
-    --xai-surface: #ffffff;
-    --xai-surface-2: #f4f4f5;
-    --xai-hairline: #e4e4e7;
-    --xai-hairline-soft: #eeeeef;
-    --xai-hairline-strong: #cfcfd4;
-    --xai-text: #0a0a0a;
-    --xai-text-mid: #3f4249;
-    --xai-mute: #71757e;
-    --xai-eyebrow: #757a83;
-    --xai-success: #1f9d61;
-    --xai-add: #16a34a;
-    --xai-add-bg: #e8f8ee;
-    --xai-del: #dc2626;
-    --xai-del-bg: #fdeceb;
+    --xai-canvas: #14110e;
+    --xai-surface: #1f1a15;
+    --xai-surface-2: #1c1814;
+    --xai-hairline: #2e2822;
+    --xai-hairline-soft: #241f1a;
+    --xai-hairline-strong: #4a4238;
+    --xai-text: #fbf6ea;
+    --xai-text-mid: #c9bfaf;
+    --xai-mute: #8c8175;
+    --xai-eyebrow: #8c8175;
+    --xai-success: #4cbf8a;
+    --xai-add: #6fd7a3;
+    --xai-add-bg: #1d4a33;
+    --xai-del: #f0a091;
+    --xai-del-bg: #4a2622;
   }
 
-  /* light 作用域下的组件类与滚动条 */
-  html.light .theme-xai .xai-pill-primary {
-    background: #0a0a0a;
-    color: #fafafa;
+  /* 深色作用域下的滚动条 */
+  html.dark .theme-xai ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 4px;
   }
 
-  html.light .theme-xai .xai-pill-outline:hover {
-    border-color: var(--xai-hairline-strong);
-    color: var(--xai-text);
-  }
-
-  html.light .theme-xai ::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.15);
-  }
-
-  html.light .theme-xai ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.28);
+  html.dark .theme-xai ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.24);
   }
 }
 
 @layer components {
-  /* 等宽大写小标签 —— xAI 风格的 eyebrow */
+  /* 中文小标签：正文体 + 600 字重 + 0 字距。
+     禁用 mono + uppercase + letter-spacing——汉字会被拉散（DESIGN.md §7）。 */
+  .eb-zh {
+    font-family: var(--font-body);
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink-3);
+  }
+
+  /* 拉丁 eyebrow 可用 mono 大写（英文不会被拉散） */
   .xai-eyebrow {
     font-family: var(--xai-font-mono);
     font-size: 11px;
@@ -352,53 +423,201 @@
     color: var(--xai-eyebrow);
   }
 
-  /* 统一的 hairline 卡片：无阴影，靠 1px 描边分层 */
-  .xai-card {
-    background: var(--xai-surface);
-    border: 1px solid var(--xai-hairline);
+  /* Paper & Punch 卡片：Loud 档 = 墨边 + 硬偏移阴影；Calm 档 = 1px 细线 */
+  .xai-card,
+  .pp-card {
+    background: var(--pp-card);
+    border: var(--edge-w) solid var(--ink);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* 贴纸：全站唯一允许的装饰元素，Loud 档专用 */
+  .pp-sticker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border: var(--edge-w) solid var(--ink);
+    border-radius: var(--radius-sticker);
+    box-shadow: var(--shadow-chip);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--butter);
+  }
+
+  /* 主操作：钴蓝填充 + 硬阴影，按下时下沉归零 */
+  .pp-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 22px;
+    border: var(--edge-w) solid var(--ink);
     border-radius: 10px;
-  }
-
-  /* 主操作：白底 pill */
-  .xai-pill-primary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    height: 40px;
-    padding: 0 18px;
-    border-radius: 9999px;
-    background: #ffffff;
-    color: #0a0a0a;
-    font-size: 13px;
-    font-weight: 500;
-    transition: opacity 0.15s ease;
-  }
-
-  .xai-pill-primary:hover {
-    opacity: 0.88;
-  }
-
-  /* 次操作：描边 pill */
-  .xai-pill-outline {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    height: 40px;
-    padding: 0 18px;
-    border-radius: 9999px;
-    border: 1px solid var(--xai-hairline);
-    background: transparent;
-    color: var(--xai-text-mid);
-    font-size: 13px;
-    transition: border-color 0.15s ease, color 0.15s ease;
-  }
-
-  .xai-pill-outline:hover {
-    border-color: #3d4048;
+    background: var(--cobalt);
     color: #ffffff;
+    font-family: var(--font-body);
+    font-size: 14.5px;
+    font-weight: 600;
+    box-shadow: var(--shadow-card);
+    transition: transform 0.16s var(--ease-out), box-shadow 0.16s var(--ease-out),
+      background-color 0.16s var(--ease-out);
+    cursor: pointer;
   }
+  .pp-btn:hover {
+    background: var(--cobalt-deep);
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 var(--shadow-color);
+  }
+  .pp-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+  }
+  .pp-btn:disabled {
+    background: var(--paper-2);
+    color: var(--ink-3);
+    border-color: var(--line-strong);
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* 次操作：墨边白底 */
+  .pp-btn--ghost {
+    background: var(--pp-card);
+    color: var(--ink);
+  }
+  .pp-btn--ghost:hover {
+    background: var(--paper-2);
+  }
+
+  /* Calm 档按钮：1px 边、无阴影（工作台/控制台） */
+  .pp-btn--calm {
+    background: var(--pp-card);
+    color: var(--ink);
+    border-width: 1px;
+    border-color: var(--line-strong);
+    border-radius: 8px;
+    box-shadow: none;
+  }
+  .pp-btn--calm:hover {
+    background: var(--paper-2);
+    transform: none;
+    box-shadow: none;
+  }
+  .pp-btn--calm:active {
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* 输入框：1px line-strong 边界（WCAG 1.4.11，3.1:1） */
+  .pp-field {
+    height: 44px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--paper);
+    display: flex;
+    align-items: center;
+    padding: 0 13px;
+    font-size: 13.5px;
+    color: var(--ink-2);
+  }
+  .pp-field:focus-within {
+    border-color: var(--cobalt);
+    box-shadow: 0 0 0 3px rgb(43 58 255 / 0.16);
+  }
+
+  /* 分段切换（登录/注册、字体选择） */
+  .pp-seg {
+    display: inline-flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+  }
+  .pp-seg button {
+    flex: 1;
+    height: 32px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-3);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+  }
+  .pp-seg button.on {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  /* 纸面点阵纹理（Loud 档氛围层，禁 blur） */
+  .pp-dotgrid {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: radial-gradient(var(--line-strong) 1px, transparent 1px);
+    background-size: 20px 20px;
+    opacity: 0.075;
+  }
+}
+/* 主操作（pill 形态）：钴蓝填充 + 硬阴影（Paper & Punch） */
+.xai-pill-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border: var(--edge-w) solid var(--ink);
+  border-radius: 9999px;
+  background: var(--cobalt);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--shadow-chip);
+  transition: transform 0.16s var(--ease-out), box-shadow 0.16s var(--ease-out),
+    background-color 0.16s var(--ease-out);
+}
+
+.xai-pill-primary:hover {
+  background: var(--cobalt-deep);
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 var(--shadow-color);
+}
+
+.xai-pill-primary:active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
+/* 次操作：描边 pill */
+.xai-pill-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.xai-pill-outline:hover {
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
 @layer base {
@@ -415,9 +634,11 @@
   }
 
 
-  /* Apply serif to all headings globally except in resume preview */
+  /* Paper & Punch：全局标题用展示体（Bricolage Grotesque，中文回落黑体）。
+     resume-preview / resume-markdown-preview 已豁免，保持打印契约不变。 */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-serif;
+    @apply font-display;
+    letter-spacing: -0.02em;
   }
 
   /* Reset headings in resume preview to inherit or use sans.
@@ -579,69 +800,65 @@
   outline-offset: 3px;
 }
 
-/* Analytics used to own a paper/coral palette. Keep the data hierarchy, but
-   return its surfaces to the same workbench system as every other page. */
-.theme-xai .analytics-page {
-  --background: 0 0% 4%;
-  --foreground: 0 0% 100%;
-  --card: 228 12% 8%;
-  --card-foreground: 220 12% 95%;
-  --border: 228 11% 18%;
-  --primary: 0 0% 100%;
-  --primary-foreground: 0 0% 4%;
-  --xai-canvas: #0a0a0a;
-  --xai-surface: #131418;
-  --xai-surface-2: #1a1c21;
-  --xai-hairline: #292b33;
-  --xai-hairline-soft: #1f2126;
-  --xai-hairline-strong: #3d4048;
-  --xai-text: #ffffff;
-  --xai-text-mid: #e7e9ec;
-  --xai-mute: #8a8f98;
-  --xai-eyebrow: #6b727b;
-  --xai-success: #6fd79e;
-  --xai-add: #86e0ac;
-  --xai-add-bg: #0f1f17;
+/* Analytics 与全站共用纸墨令牌（深色下跟随墨版纸）。 */
+html.dark .theme-xai .analytics-page {
+  --xai-canvas: #14110e;
+  --xai-surface: #1f1a15;
+  --xai-surface-2: #1c1814;
+  --xai-hairline: #2e2822;
+  --xai-hairline-soft: #241f1a;
+  --xai-hairline-strong: #4a4238;
+  --xai-text: #fbf6ea;
+  --xai-text-mid: #c9bfaf;
+  --xai-mute: #8c8175;
+  --xai-eyebrow: #8c8175;
+  --xai-success: #4cbf8a;
+  --xai-add: #6fd7a3;
+  --xai-add-bg: #1d4a33;
   --xai-del: #f0a091;
-  --xai-del-bg: #221312;
+  --xai-del-bg: #4a2622;
 }
 
-html.light .theme-xai .analytics-page {
-  --background: 0 0% 98%;
-  --foreground: 0 0% 4%;
-  --card: 0 0% 100%;
-  --card-foreground: 240 4% 10%;
-  --border: 240 6% 90%;
-  --primary: 0 0% 4%;
-  --primary-foreground: 0 0% 98%;
-  --xai-canvas: #fafafa;
-  --xai-surface: #ffffff;
-  --xai-surface-2: #f4f4f5;
-  --xai-hairline: #e4e4e7;
-  --xai-hairline-soft: #eeeeef;
-  --xai-hairline-strong: #cfcfd4;
-  --xai-text: #0a0a0a;
-  --xai-text-mid: #3f4249;
-  --xai-mute: #71757e;
-  --xai-eyebrow: #757a83;
-  --xai-success: #1f9d61;
-  --xai-add: #16a34a;
-  --xai-add-bg: #e8f8ee;
-  --xai-del: #dc2626;
-  --xai-del-bg: #fdeceb;
+.analytics-page .analytics-kpi::after {
+  background: var(--xai-hairline);
 }
 
-.analytics-page .analytics-header,
-.analytics-page .analytics-panel {
-  background: var(--xai-surface);
-  box-shadow: none;
+/* ═══════════════════════════════════════════════════════════════
+   入场动画：渐进增强（AnimatedFeature）
+   默认可见 ⇒ 只有 JS 挂载后（html.js）才进入待入场态；
+   IO 触发后播放过渡。打印 / 爬虫 / 无 JS 场景永远可见。
+   ═══════════════════════════════════════════════════════════════ */
+.rv-guard {
+  opacity: 1;
+  transform: none;
+}
+html.js .rv-guard {
+  opacity: 0;
+  transform: translateY(14px);
+}
+html.js .rv-guard[data-shown="true"] {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
 }
 
-.analytics-page .analytics-kpi::after,
-.analytics-page .analytics-kpi:first-child::after,
-.analytics-page .analytics-kpi:nth-child(2)::after,
-.analytics-page .analytics-kpi:nth-child(3)::after {
-  background: var(--xai-text);
+@media (prefers-reduced-motion: reduce) {
+  .rv-guard,
+  html.js .rv-guard,
+  html.js .rv-guard[data-shown="true"] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+@media print {
+  html.js .rv-guard,
+  html.js .rv-guard[data-shown="true"] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

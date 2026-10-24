@@ -7,7 +7,6 @@ import { formatCountdown } from "@/utils/countdown";
 import Logo from "@/components/shared/Logo";
 import { IcpFilingLink } from "@/components/shared/IcpFiling";
 import { PublicSecurityFilingLink } from "@/components/shared/PublicSecurityFiling";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -98,91 +97,154 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
     }
   };
 
+  const pitchPoints = t.raw("pitchPoints") as string[];
+
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4 py-12">
-      <div
+    <div
+      className="relative flex min-h-screen flex-col overflow-hidden bg-paper lg:flex-row"
+      data-density="loud"
+    >
+      {/* ── 左栏：品牌海报（Loud 档唯一的重装饰面）──────────────── */}
+      <section
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,hsl(var(--primary)/0.12),transparent_70%)]"
-      />
-      <Card className="relative w-full max-w-md border-border/60 shadow-xl">
-        <CardHeader className="space-y-3 text-center">
-          <div className="mx-auto flex items-center gap-2">
-            <Logo size={40} />
-            <span className="text-lg font-bold tracking-tight">JDMatch</span>
-          </div>
-          <CardTitle className="text-2xl">{t("title")}</CardTitle>
-          <CardDescription>{t("subtitle")}</CardDescription>
-        </CardHeader>
+        className="relative hidden flex-1 flex-col justify-between overflow-hidden border-r-2 border-ink bg-paper-2 p-12 lg:flex"
+      >
+        <div className="pp-dotgrid" />
+        {/* 撞色块：橘 + 薄荷，面积受控 */}
+        <div className="pointer-events-none absolute -right-10 top-16 h-40 w-40 rotate-12 border-2 border-ink bg-tangerine" />
+        <div className="pointer-events-none absolute right-24 bottom-40 h-16 w-16 rounded-full border-2 border-ink bg-mint" />
 
-        <CardContent>
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <div className="space-y-2">
-              <Label htmlFor="username">{t("username")}</Label>
-              <Input
-                id="username"
-                autoComplete="username"
-                autoFocus
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                placeholder={t("usernamePlaceholder")}
-                required
-              />
+        <div className="relative flex items-center gap-3">
+          <Logo size={44} />
+          <span className="font-display text-xl font-extrabold tracking-tight text-ink">
+            JDMatch
+          </span>
+        </div>
+
+        <div className="relative max-w-lg">
+          <h1 className="font-display text-[42px] font-extrabold leading-[1.08] tracking-tight text-ink">
+            {t("pitchTitle")}
+          </h1>
+          <ul className="mt-8 space-y-3">
+            {pitchPoints.map((point) => (
+              <li key={point} className="flex items-start gap-3 text-[15px] text-ink-2">
+                <span
+                  aria-hidden
+                  className="mt-1.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-mint"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#171310" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </span>
+                {point}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <span className="pp-sticker relative w-fit -rotate-3">免信用卡 · 30 秒注册</span>
+      </section>
+
+      {/* ── 右栏：表单卡（全页唯一硬阴影对象）──────────────────── */}
+      <section className="relative flex flex-1 items-center justify-center px-4 py-12">
+        <Card className="relative mx-auto w-full max-w-[380px] border-2 border-ink bg-ppcard shadow-punch">
+          <CardHeader className="space-y-3 text-center">
+            <div className="mx-auto flex items-center gap-2 lg:hidden">
+              <Logo size={36} />
+              <span className="font-display text-lg font-extrabold tracking-tight text-ink">
+                JDMatch
+              </span>
+            </div>
+            <CardTitle className="font-display text-2xl font-extrabold text-ink">
+              {t("title")}
+            </CardTitle>
+            <CardDescription className="text-ink-2">{t("subtitle")}</CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            {/* 登录 / 注册：segmented 原地切换，不跳路由 */}
+            <div className="pp-seg mb-5 w-full" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "login"}
+                className={mode === "login" ? "on" : ""}
+                onClick={() => switchMode("login")}
+              >
+                {t("submitLogin")}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "register"}
+                className={mode === "register" ? "on" : ""}
+                onClick={() => switchMode("register")}
+              >
+                {t("submitRegister")}
+              </button>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">{t("password")}</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder={t("passwordPlaceholder")}
-                required
-              />
-            </div>
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              <div className="space-y-2">
+                <Label htmlFor="username" className="text-ink-2">{t("username")}</Label>
+                <Input
+                  id="username"
+                  autoComplete="username"
+                  autoFocus
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  placeholder={t("usernamePlaceholder")}
+                  className="h-11 border-line-strong bg-paper text-ink placeholder:text-ink-3 focus-visible:ring-cobalt"
+                  required
+                />
+              </div>
 
-            {error && (
-              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {error}
-              </p>
-            )}
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-ink-2">{t("password")}</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder={t("passwordPlaceholder")}
+                  className="h-11 border-line-strong bg-paper text-ink placeholder:text-ink-3 focus-visible:ring-cobalt"
+                  required
+                />
+              </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={submitting || cooldownLeft > 0}
-            >
-              {submitting && <Loader2 className="animate-spin" />}
-              {cooldownLeft > 0
-                ? t("retryIn", { time: formatCountdown(cooldownLeft) })
-                : mode === "login"
-                  ? t("submitLogin")
-                  : t("submitRegister")}
-            </Button>
-          </form>
+              {error && (
+                <p className="rounded-lg border border-danger bg-blush px-3 py-2 text-sm font-medium text-danger">
+                  {error}
+                </p>
+              )}
 
-          <div className="mt-4 text-center text-sm">
-            <button
-              type="button"
-              className="text-muted-foreground underline-offset-4 transition-colors hover:text-primary hover:underline"
-              onClick={() => switchMode(mode === "login" ? "register" : "login")}
-            >
-              {mode === "login" ? t("toRegister") : t("toLogin")}
-            </button>
-          </div>
+              <button
+                type="submit"
+                className="pp-btn w-full"
+                disabled={submitting || cooldownLeft > 0}
+              >
+                {submitting && <Loader2 className="animate-spin" />}
+                {cooldownLeft > 0
+                  ? t("retryIn", { time: formatCountdown(cooldownLeft) })
+                  : mode === "login"
+                    ? t("submitLogin")
+                    : t("submitRegister")}
+              </button>
+            </form>
 
-          <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
-            {t("noticeShort")}
-          </p>
-        </CardContent>
-      </Card>
+            <p className="mt-6 text-center text-xs leading-relaxed text-ink-3">
+              {t("notice")}
+            </p>
+          </CardContent>
+        </Card>
 
-      {/* 合规悬挂位：备案号居中展示，并链接至工信部备案管理系统 / 全国互联网安全管理服务平台 */}
-      <div className="relative mt-12 flex flex-col items-center gap-1.5">
-        <IcpFilingLink />
-        <PublicSecurityFilingLink />
-      </div>
+        {/* 合规悬挂位：备案号居中展示，并链接至工信部备案管理系统 / 全国互联网安全管理服务平台 */}
+        <div className="mt-6 flex flex-col items-center gap-1.5 text-center">
+          <IcpFilingLink className="text-[11.5px] text-ink-3 hover:text-ink" />
+          <PublicSecurityFilingLink />
+        </div>
+      </section>
     </div>
   );
 }

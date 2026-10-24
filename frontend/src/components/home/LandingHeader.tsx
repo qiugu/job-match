@@ -4,7 +4,6 @@ import { usePathname } from "@/lib/navigation";
 import { useTranslations } from "@/i18n/compat/client";
 import { Menu, Moon, Sun, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import Logo from "@/components/shared/Logo";
 import ThemeToggle from "@/components/shared/ThemeToggle";
 import LanguageSwitch from "@/components/shared/LanguageSwitch";
@@ -28,7 +27,7 @@ export default function LandingHeader() {
               onClick={() => (window.location.href = `/${locale}/`)}
             >
               <Logo size={60} />
-              <span className="font-serif text-[24px] tracking-tight font-semibold text-foreground/90">
+              <span className="font-display text-[24px] tracking-tight font-extrabold text-ink">
                 {t("header.title")}
               </span>
             </div>
@@ -36,23 +35,24 @@ export default function LandingHeader() {
             <div className="hidden md:flex items-center gap-4">
               <LanguageSwitch />
               <ThemeToggle>
-                <div className="w-9 h-9 relative cursor-pointer rounded-xl hover:bg-accent/80 flex items-center justify-center transition-colors">
+                <div className="w-9 h-9 relative cursor-pointer rounded-xl border-2 border-ink bg-ppcard hover:bg-paper-2 flex items-center justify-center transition-colors shadow-chip">
                   <Sun className="h-[1.1rem] w-[1.1rem] absolute inset-0 m-auto rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                   <Moon className="h-[1.1rem] w-[1.1rem] absolute inset-0 m-auto rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
                 </div>
               </ThemeToggle>
 
               <GoDashboard>
-                <Button
-                  className="rounded-xl px-6 h-10 font-medium transition-all hover:opacity-90 active:scale-95"
+                <button
+                  type="button"
+                  className="pp-btn h-10 px-6"
                 >
                   {t("header.startButton")}
-                </Button>
+                </button>
               </GoDashboard>
             </div>
 
             <button
-              className="md:hidden p-2.5 hover:bg-accent rounded-xl transition-colors"
+              className="md:hidden p-2.5 rounded-xl border-2 border-ink bg-ppcard hover:bg-paper-2 transition-colors"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               {isMenuOpen ? (

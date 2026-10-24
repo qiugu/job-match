@@ -26,11 +26,38 @@ const config = {
     },
     extend: {
       fontFamily: {
+        /* Paper & Punch：展示体 / 正文体 / 等宽体（中文回落 PingFang/雅黑） */
+        display: ["Bricolage Grotesque", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "system-ui", "sans-serif"],
+        sans: ["Instrument Sans", "Noto Sans SC", "PingFang SC", "system-ui", "sans-serif"],
+        mono: ["DM Mono", "Geist Mono", "ui-monospace", "SFMono-Regular", "monospace"],
         serif: ["Newsreader", "serif"],
-        sans: ["Inter", "Noto Sans SC", "system-ui", "sans-serif"],
-        mono: ["Geist Mono", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       colors: {
+        /* Paper & Punch 令牌（docs/DESIGN.md §4），与 globals.css :root 同源 */
+        paper: {
+          DEFAULT: "var(--paper)",
+          2: "var(--paper-2)",
+        },
+        ppcard: "var(--pp-card)",
+        ink: {
+          DEFAULT: "var(--ink)",
+          2: "var(--ink-2)",
+          3: "var(--ink-3)",
+        },
+        line: {
+          DEFAULT: "var(--line)",
+          strong: "var(--line-strong)",
+        },
+        cobalt: {
+          DEFAULT: "var(--cobalt)",
+          deep: "var(--cobalt-deep)",
+        },
+        tangerine: "var(--tangerine)",
+        mint: "var(--mint)",
+        butter: "var(--butter)",
+        blush: "var(--blush)",
+        "green-ink": "var(--green-text)",
+        "punch-shadow": "var(--shadow-color)",
         /* xAI 深色语义色板 —— 与 globals.css 的 --xai-* 变量同源 */
         xai: {
           canvas: "var(--xai-canvas)",
@@ -106,6 +133,11 @@ const config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)"
+      },
+      /* Paper & Punch 硬偏移阴影（禁 blur > 2px；随 [data-density] 切换） */
+      boxShadow: {
+        punch: "var(--shadow-card)",
+        chip: "var(--shadow-chip)",
       },
       keyframes: {
         "accordion-down": {

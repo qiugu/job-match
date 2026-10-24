@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useTranslations } from "@/i18n/compat/client";
 import AnimatedFeature from "./client/AnimatedFeature";
@@ -8,43 +7,34 @@ export default function CTASection() {
   const t = useTranslations("home");
 
   return (
-    <section className="py-32 md:py-48 bg-background relative overflow-hidden flex items-center justify-center min-h-[80vh]">
-      
-      {/* Giant Background Typography */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none opacity-[0.04] dark:opacity-[0.06]">
-        <div className="text-[20vw] md:text-[18vw] font-black text-foreground whitespace-nowrap leading-[0.8] tracking-tighter">
-          MAGIC
-        </div>
-        <div 
-          className="text-[20vw] md:text-[18vw] font-black text-transparent whitespace-nowrap leading-[0.8] tracking-tighter" 
-          style={{ WebkitTextStroke: '2px hsl(var(--foreground))' }}
-        >
-          RESUME
+    <section className="relative overflow-hidden flex items-center justify-center min-h-[70vh] bg-ink">
+      {/* 巨型背景字：墨版纸上唯一的「印刷感」装饰，不用渐变网格 */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none opacity-[0.07]">
+        <div className="text-[20vw] md:text-[18vw] font-display font-black text-paper whitespace-nowrap leading-[0.8] tracking-tighter">
+          JDMATCH
         </div>
       </div>
-
-      {/* Fine Premium Grid */}
-      <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_60%,transparent_100%)]" />
+      <div className="pp-dotgrid opacity-[0.05]" aria-hidden="true" />
 
       <div className="container mx-auto px-6 relative z-10 text-center">
         <AnimatedFeature>
           <div className="flex flex-col items-center max-w-4xl mx-auto">
-            <h2 className="text-5xl md:text-7xl lg:text-8xl font-serif font-medium tracking-tight text-foreground mb-8 leading-[1.1]">
+            <h2 className="text-5xl md:text-7xl font-display font-extrabold tracking-tight text-paper mb-8 leading-[1.06]">
               {t("cta.title")}
             </h2>
-            
-            <p className="text-xl md:text-2xl text-muted-foreground mb-16 max-w-2xl font-light leading-relaxed">
+
+            <p className="text-xl md:text-2xl text-paper/80 mb-16 max-w-2xl leading-relaxed">
               {t("cta.description")}
             </p>
-            
+
             <GoDashboard>
-              <Button 
-                size="lg" 
-                className="rounded-full h-16 px-12 text-xl font-medium shadow-none hover:shadow-2xl hover:-translate-y-0.5 bg-foreground text-background hover:bg-foreground/90 active:scale-95 transition-all duration-300 group"
+              <button
+                type="button"
+                className="pp-btn h-16 px-12 text-xl bg-butter text-ink border-2 border-paper hover:bg-paper group"
               >
                 {t("cta.button")}
-                <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-1.5 transition-transform duration-300" />
-              </Button>
+                <ArrowRight className="w-6 h-6 ml-2 transition-transform group-hover:translate-x-1.5" />
+              </button>
             </GoDashboard>
 
           </div>

@@ -21,26 +21,26 @@ export default function FAQSection() {
   const faqItems = t.raw("items") as FaqItem[];
 
   return (
-    <section className="py-24 md:py-40 bg-background relative overflow-hidden">
+    <section className="py-24 md:py-40 bg-paper relative overflow-hidden">
       <div className="container mx-auto px-6 max-w-3xl">
         <AnimatedFeature>
           <div className="text-center mb-16 md:mb-20">
-            <h2 className="text-4xl md:text-5xl font-serif font-semibold tracking-tight text-foreground/90">
+            <h2 className="text-4xl md:text-5xl font-display font-extrabold tracking-tight text-ink">
               {t("title")}
             </h2>
-            <div className="w-16 h-1 bg-primary/20 mx-auto rounded-full mt-6" />
+            <div className="w-16 h-2 bg-tangerine mx-auto mt-6" />
           </div>
         </AnimatedFeature>
 
         <AnimatedFeature delay={0.2}>
           <Accordion type="single" collapsible className="w-full space-y-4">
             {faqItems.map((item, index) => (
-                <AccordionItem 
-                  key={index} 
+                <AccordionItem
+                  key={index}
                   value={`item-${index}`}
-                  className="border border-border/50 rounded-2xl px-6 bg-secondary/20 hover:bg-secondary/40 transition-colors overflow-hidden"
+                  className="border-2 border-ink rounded-xl px-6 bg-ppcard hover:shadow-chip transition-shadow overflow-hidden"
                 >
-                  <AccordionTrigger className="text-left text-lg font-medium py-6 hover:no-underline">
+                  <AccordionTrigger className="text-left text-lg font-semibold py-6 hover:no-underline text-ink">
                     <span className="pr-4">{item.question}</span>
                   </AccordionTrigger>
                   {/*
@@ -53,7 +53,7 @@ export default function FAQSection() {
                   <AccordionContent
                     forceMount
                     contentClassName="data-[state=closed]:hidden"
-                    className="text-muted-foreground leading-relaxed text-base pb-6 font-light"
+                    className="text-ink-2 leading-relaxed text-base pb-6"
                   >
                     {item.answer}
                     {item.action === "registration-code" && <RegistrationCodeCTA />}

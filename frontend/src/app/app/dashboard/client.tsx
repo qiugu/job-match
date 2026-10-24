@@ -122,14 +122,14 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div
       className="theme-xai flex h-screen w-full overflow-hidden"
+      data-density="calm"
       style={{ "--sidebar-width": "228px" } as React.CSSProperties}
     >
       <SidebarProvider open={open} onOpenChange={setOpen}>
         <Sidebar
           collapsible={collapsible}
           className="border-r border-xai-hairline-soft bg-xai-canvas"
-        >
-          <SidebarHeader className="h-[66px] flex-row items-center gap-2.5 border-b border-xai-hairline-soft px-5 py-0">
+        >          <SidebarHeader className="h-[64px] flex-row items-center gap-2.5 border-b-2 border-ink px-5 py-0">
             <div
               className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5"
               onClick={() => router.push(`/${locale}`)}
@@ -170,10 +170,10 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                                 asChild
                                 isActive={active}
                                 className={cn(
-                                  "h-10 w-full rounded-full px-3.5 transition-colors duration-150",
+                                  "h-10 w-full rounded-lg px-3.5 transition-colors duration-150",
                                   active
-                                    ? "bg-xai-text text-xai-canvas hover:bg-xai-text hover:text-xai-canvas"
-                                    : "text-xai-mute hover:bg-xai-surface-2 hover:text-xai-text"
+                                    ? "bg-cobalt text-white hover:bg-cobalt-deep hover:text-white"
+                                    : "text-ink-3 hover:bg-paper-2 hover:text-ink"
                                 )}
                               >
                                 <div
@@ -202,7 +202,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                                     <div
                                       key={subItem.href}
                                       className={cn(
-                                        "cursor-pointer rounded-full px-3 py-2 text-[13px] transition-colors",
+                                        "cursor-pointer rounded-lg px-3 py-2 text-[13px] transition-colors",
                                         pathname === subItem.href
                                           ? "bg-xai-surface-2 font-medium text-xai-text"
                                           : "text-xai-mute hover:text-xai-text"
@@ -240,7 +240,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                     type="button"
                     className="flex min-w-0 flex-1 items-center gap-2.5 rounded-full text-left transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-xai-text"
                   >
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-xai-hairline bg-xai-surface-2 text-[13px] font-medium text-xai-text">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border-2 border-ink bg-paper-2 text-[13px] font-semibold text-ink">
                       {displayName?.[0]?.toUpperCase() || "U"}
                     </span>
                     {open && (
@@ -268,7 +268,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
                 <DropdownMenuContent
                   side="top"
                   align="start"
-                  className="theme-xai w-60 rounded-xl border border-xai-hairline bg-xai-surface p-1.5"
+                  className="theme-xai w-60 rounded-xl border-2 border-ink bg-ppcard p-1.5"
                 >
                   <div className="px-2.5 py-2">
                     <p
@@ -317,7 +317,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
             </div>
           </SidebarFooter>
         </Sidebar>
-        <main className="flex min-w-0 flex-1 flex-col bg-xai-canvas">
+        <main className="flex min-w-0 flex-1 flex-col bg-xai-canvas" data-density="calm">
           <div className="min-h-0 flex-1">{children}</div>
         </main>
       </SidebarProvider>

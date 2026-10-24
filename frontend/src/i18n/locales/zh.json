@@ -3,6 +3,12 @@
     "title": "登录 JDMatch",
     "subtitle": "登录后即可使用简历匹配与 AI 润色能力",
     "notice": "注册即赠送 50 试用积分；简历匹配与话术生成共享余额，无需注册码。",
+    "pitchTitle": "让下一份简历，更懂岗位。",
+    "pitchPoints": [
+      "上传简历与目标 JD，AI 自动重写优化",
+      "注册即送 50 积分，按次计费、无订阅",
+      "简历仅本人可读，数据随账号隔离"
+    ],
     "username": "用户名",
     "usernamePlaceholder": "3-64 位字母、数字或 _ . -",
     "password": "密码",

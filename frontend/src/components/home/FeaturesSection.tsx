@@ -127,15 +127,15 @@ export default function FeaturesSection() {
   };
 
   return (
-    <section className="py-24 md:py-40 bg-background overflow-hidden">
+    <section className="py-24 md:py-40 bg-paper-2 overflow-hidden">
       <div className="container mx-auto px-6 max-w-6xl">
         <AnimatedFeature>
           <div className="text-center mb-24 md:mb-32">
-            <h2 className="text-4xl md:text-5xl font-serif font-semibold tracking-tight text-foreground/90 mb-6">
+            <h2 className="text-4xl md:text-5xl font-display font-extrabold tracking-tight text-ink mb-6">
               {t("features.title")}
             </h2>
-            <div className="w-20 h-1 bg-primary/20 mx-auto rounded-full mb-8" />
-            <p className="text-xl text-muted-foreground/80 max-w-2xl mx-auto font-light leading-relaxed">
+            <div className="w-16 h-2 bg-cobalt mx-auto mb-8" />
+            <p className="text-xl text-ink-2 max-w-2xl mx-auto leading-relaxed">
               {t("features.subtitle")}
             </p>
           </div>
@@ -143,8 +143,8 @@ export default function FeaturesSection() {
 
         <div className="space-y-40">
           {features.map((category, catIndex) => (
-            <div 
-              key={catIndex} 
+            <div
+              key={catIndex}
               className={`flex flex-col gap-16 lg:gap-24 items-center ${
                 catIndex % 2 === 1 ? "lg:flex-row-reverse" : "lg:flex-row"
               }`}
@@ -153,14 +153,14 @@ export default function FeaturesSection() {
               <div className="w-full lg:w-5/12 space-y-10">
                 <AnimatedFeature delay={0.1}>
                   <div className="space-y-6">
-                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg text-sm font-medium ${category.badgeColor}`}>
+                    <div className="inline-flex items-center gap-2 rounded-lg border-2 border-ink bg-ppcard px-3 py-1 text-sm font-semibold text-ink shadow-chip">
                       <category.icon className="w-4 h-4" />
                       {t(category.badge)}
                     </div>
-                    <h3 className="text-3xl md:text-4xl font-serif font-medium tracking-tight text-foreground/90">
+                    <h3 className="text-3xl md:text-4xl font-display font-bold tracking-tight text-ink">
                       {t(category.title)}
                     </h3>
-                    <p className="text-lg text-muted-foreground/90 leading-relaxed font-light">
+                    <p className="text-lg text-ink-2 leading-relaxed">
                       {t(category.description)}
                     </p>
                   </div>
@@ -171,33 +171,33 @@ export default function FeaturesSection() {
                     <button
                       key={itemIndex}
                       onClick={() => handleSlideChange(catIndex, itemIndex)}
-                      className={`w-full text-left group p-5 rounded-2xl transition-all relative border overflow-hidden ${
+                      className={`w-full text-left group p-5 rounded-xl transition-all relative border-2 overflow-hidden ${
                         activeFeatures[catIndex] === itemIndex
-                          ? "bg-secondary border-border shadow-sm"
-                          : "bg-transparent border-transparent hover:bg-secondary/40"
+                          ? "bg-ppcard border-ink shadow-chip -translate-x-0.5 -translate-y-0.5"
+                          : "bg-transparent border-transparent hover:border-line-strong"
                       }`}
                     >
                       {/* Progress Bar */}
                       {activeFeatures[catIndex] === itemIndex && (
-                        <div 
-                          className="absolute bottom-0 left-0 h-0.5 bg-primary/30 transition-all duration-75 ease-linear"
+                        <div
+                          className="absolute bottom-0 left-0 h-1 bg-cobalt transition-all duration-75 ease-linear"
                           style={{ width: `${progresses[catIndex]}%` }}
                         />
                       )}
-                      
+
                       <div className="flex items-start justify-between">
                         <div className="space-y-1">
                           <h4 className={`font-semibold transition-colors ${
-                            activeFeatures[catIndex] === itemIndex ? "text-primary" : "text-foreground/70"
+                            activeFeatures[catIndex] === itemIndex ? "text-cobalt" : "text-ink"
                           }`}>
                             {t(item.title)}
                           </h4>
-                          <p className="text-sm text-muted-foreground line-clamp-1">
+                          <p className="text-sm text-ink-3 line-clamp-1">
                             {t(item.description)}
                           </p>
                         </div>
                         <ChevronRight className={`w-5 h-5 transition-all ${
-                          activeFeatures[catIndex] === itemIndex ? "text-primary translate-x-1" : "text-muted-foreground/30"
+                          activeFeatures[catIndex] === itemIndex ? "text-cobalt translate-x-1" : "text-ink-3"
                         }`} />
                       </div>
                     </button>
@@ -208,9 +208,8 @@ export default function FeaturesSection() {
               {/* Image Side */}
               <div className="w-full lg:w-7/12">
                 <AnimatedFeature key={`${catIndex}-${activeFeatures[catIndex]}`} delay={0.2}>
-                  <div className="relative aspect-[16/10] bg-secondary/20 rounded-3xl border border-border/50 p-6 sm:p-10 shadow-2xl backdrop-blur-sm group overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-transparent pointer-events-none" />
-                    <div className="relative w-full h-full transform group-hover:scale-[1.02] transition-transform duration-700">
+                  <div className="relative aspect-[16/10] bg-ppcard rounded-2xl border-2 border-ink p-6 sm:p-10 shadow-punch overflow-hidden">
+                    <div className="relative w-full h-full">
                       <Image
                         src={category.items[activeFeatures[catIndex]].image}
                         alt={t(category.items[activeFeatures[catIndex]].title)}

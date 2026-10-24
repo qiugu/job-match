@@ -23,7 +23,7 @@ export default function ScrollHeader({ children }: ScrollHeaderProps) {
     <header
       className={`fixed top-0 left-0 w-full z-50 transition-colors duration-200 ${
         isScrolled
-          ? "bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+          ? "bg-paper/95 border-b-2 border-ink"
           : "bg-transparent"
       }`}
     >

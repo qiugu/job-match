@@ -13,7 +13,7 @@ export default function LandingPage() {
   return (
     <>
       <LandingHeader />
-      <main className="relative bg-gradient-to-b from-[#f8f9fb] to-white dark:from-gray-900 dark:to-gray-800">
+      <main className="relative bg-paper" data-density="loud">
         <HeroSection />
         <FeaturesSection />
         <FAQSection />
