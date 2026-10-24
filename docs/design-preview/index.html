@@ -1,0 +1,1890 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="mE12OE9Px02Vo7C1yrrKHd">
+<head data-page-node-id="NLqcDZxln6FKQbN5CG4MEn">
+<meta charset="utf-8" data-page-node-id="syoB0ukVmsIDPimf6IUEhZ" />
+<meta name="viewport" content="width=device-width, initial-scale=1" data-page-node-id="jXdGc1DKntNWaVOcmovIu3" />
+<title>Paper & Punch — JDMatch 视觉语言评审稿 v0.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" data-page-node-id="AAPEnlkZIhyvVy6wSfAqvi" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin data-page-node-id="9NrUZQBZiJn4eGPnFJ9mFt" />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Instrument+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" data-page-node-id="tGf75ANqnH0C96N9G3BSPj" />
+<style>
+/* ============================================================
+   TOKENS —— 与 docs/DESIGN.md §4–§6 一一对应
+   ============================================================ */
+:root{
+  --paper:#FBF6EA; --paper-2:#F3ECDC; --card:#FFFDF8;
+  --ink:#171310; --ink-2:#4B423A; --ink-3:#75695C;
+  --line:#E2D9C6; --line-strong:#9C8B71;
+  --cobalt:#2B3AFF; --cobalt-deep:#1A26C9;
+  --tangerine:#FF6A1F; --mint:#B9F2CE; --butter:#FFE27A; --blush:#FFD7D3;
+  --green:#1F8A57; --green-text:#146B41; --amber-text:#8A5300; --danger:#B42318;
+  --shadow-color:#171310;
+
+  --font-display:"Bricolage Grotesque","PingFang SC","Noto Sans SC",sans-serif;
+  --font-body:"Instrument Sans","PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;
+  --font-mono:"DM Mono","SFMono-Regular",ui-monospace,monospace;
+
+  --edge-w:2px;
+  --r-chip:999px; --r-input:12px; --r-card:16px; --r-panel:20px; --r-sticker:4px;
+  --shadow-chip:2px 2px 0 var(--shadow-color);
+  --shadow-card:4px 4px 0 var(--shadow-color);
+  --shadow-hero:8px 8px 0 var(--shadow-color);
+  --shadow-soft:0 1px 2px rgb(23 19 16 / .05);
+
+  --ease-pop:cubic-bezier(.2,.9,.25,1.15);
+  --ease-out:cubic-bezier(.22,1,.36,1);
+
+  --lh-display:.98; --lh-body:1.65; --lh-ui:1.45;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:var(--font-body); font-size:15px; line-height:var(--lh-body);
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+h1,h2,h3,h4{font-family:var(--font-display); line-height:1.1; letter-spacing:-.035em}
+h1:lang(zh),h2:lang(zh),h3:lang(zh){letter-spacing:-.02em}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+mark{background:linear-gradient(transparent 42%,var(--butter) 42%,var(--butter) 92%,transparent 92%);color:inherit;padding:0 .08em}
+::selection{background:var(--cobalt);color:var(--paper)}
+:focus-visible{outline:3px solid var(--cobalt);outline-offset:2px}
+
+/* ---------- 通用 ---------- */
+.wrap{max-width:1180px;margin:0 auto;padding:0 32px}
+.eb{
+  font-family:var(--font-mono);font-size:11px;line-height:1.2;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:500;
+}
+.eb-zh{
+  font-family:var(--font-body);font-size:10.5px;font-weight:600;line-height:1.3;
+  letter-spacing:0;text-transform:none;color:var(--ink-3);
+}
+.dotgrid{
+  background-image:radial-gradient(var(--ink) 1px,transparent 1px);
+  background-size:22px 22px;background-position:0 0;
+}
+/* 渐进增强：默认可见；脚本确认可用后才允许隐藏并入场，避免无 JS / 打印时白屏 */
+html.js-reveal .rv{opacity:0;transform:translateY(14px)}
+html.js-reveal .rv.in{opacity:1;transform:none;transition:opacity .42s var(--ease-out),transform .42s var(--ease-out)}
+
+/* ---------- 按钮（§10.1 + §6.3） ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  height:42px;padding:0 20px;border-radius:var(--r-chip);
+  font-family:var(--font-body);font-size:13.5px;font-weight:600;letter-spacing:-.01em;
+  border:2px solid var(--ink);background:var(--paper);color:var(--ink);
+  box-shadow:var(--shadow-card);
+  transition:transform .12s var(--ease-pop),box-shadow .12s var(--ease-pop),background .12s ease,color .12s ease;
+  white-space:nowrap;
+}
+.btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--shadow-color)}
+.btn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--shadow-color)}
+.btn--primary{background:var(--cobalt);color:var(--paper)}
+.btn--primary:hover{background:var(--cobalt-deep);border-color:var(--ink)}
+.btn--danger{background:var(--blush)}
+.btn--ghost{border-color:transparent;box-shadow:none;background:transparent;color:var(--ink-2);height:36px;padding:0 12px}
+.btn--ghost:hover{transform:none;box-shadow:none;background:var(--paper-2);color:var(--ink)}
+.btn--ghost:active{transform:none;box-shadow:none}
+.btn--link{border:0;box-shadow:none;background:none;color:var(--cobalt);padding:0;height:auto;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+.btn--link:hover{transform:none;box-shadow:none;color:var(--cobalt-deep)}
+.btn--sm{height:32px;padding:0 14px;font-size:12.5px;border-width:2px;box-shadow:var(--shadow-chip)}
+.btn--sm:hover{box-shadow:4px 4px 0 var(--shadow-color)}
+.btn--lg{height:52px;padding:0 28px;font-size:15px}
+.btn:disabled{opacity:.45;transform:none;box-shadow:var(--shadow-card);cursor:not-allowed}
+
+/* ---------- chip / badge（§10.2） ---------- */
+.chip{
+  display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;
+  border-radius:var(--r-chip);border:1px solid var(--ink);
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--paper);color:var(--ink);
+}
+.chip--mint{background:var(--mint)} .chip--butter{background:var(--butter)}
+.chip--blush{background:var(--blush)} .chip--flat{background:var(--paper-2);border-color:var(--line)}
+.chip .dot{width:7px;height:7px;border-radius:50%;background:var(--ink);flex:none}
+
+/* ---------- 贴纸（§8） ---------- */
+.sticker{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 14px;border-radius:var(--r-sticker);
+  border:2px solid var(--ink);box-shadow:var(--shadow-chip);
+  font-weight:600;font-size:13px;color:var(--ink);
+}
+
+/* ============================================================
+   评审条
+   ============================================================ */
+.reviewbar{
+  position:sticky;top:0;z-index:50;
+  background:var(--ink);color:var(--paper);
+  border-bottom:2px solid var(--ink);
+}
+.reviewbar__in{
+  max-width:1180px;margin:0 auto;padding:0 32px;height:48px;
+  display:flex;align-items:center;gap:20px;
+}
+.reviewbar__tag{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  background:var(--butter);color:var(--ink);padding:4px 8px;border-radius:3px;font-weight:500;
+}
+.reviewbar__name{font-family:var(--font-display);font-weight:700;font-size:15px;letter-spacing:-.02em}
+.reviewbar nav{display:flex;gap:4px;margin-left:auto}
+.reviewbar nav a{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+  padding:6px 10px;border-radius:999px;color:#B9AE9C;transition:background .15s,color .15s;
+}
+.reviewbar nav a:hover{background:#2E2822;color:var(--paper)}
+
+/* ============================================================
+   00 封面 / 主张
+   ============================================================ */
+.cover{padding:96px 0 80px;position:relative;overflow:hidden}
+.cover::before{
+  content:"";position:absolute;inset:0;z-index:0;
+  background-image:radial-gradient(var(--ink) 1px,transparent 1px);
+  background-size:22px 22px;opacity:.055;
+  mask-image:radial-gradient(ellipse 70% 60% at 30% 20%,#000,transparent 78%);
+}
+.cover__in{position:relative;z-index:1;display:grid;grid-template-columns:1.15fr .85fr;gap:64px;align-items:end}
+.cover h1{font-size:clamp(52px,7vw,96px);font-weight:800;line-height:.92}
+.cover h1 em{font-style:normal;color:var(--cobalt)}
+.cover__lead{font-size:19px;line-height:1.7;color:var(--ink-2);max-width:44ch;margin-top:26px}
+.cover__keys{display:flex;gap:10px;flex-wrap:wrap;margin-top:32px}
+.cover__meta{
+  border-left:2px solid var(--ink);padding-left:20px;margin-top:34px;
+  font-size:13px;color:var(--ink-2);line-height:1.9;
+}
+.cover__meta b{font-family:var(--font-mono);font-weight:500;font-size:12px;letter-spacing:.04em}
+
+.palette{border:2px solid var(--ink);border-radius:var(--r-panel);overflow:hidden;box-shadow:var(--shadow-card);background:var(--card)}
+.palette__grid{display:grid;grid-template-columns:repeat(4,1fr)}
+.palette__cell{border-right:2px solid var(--ink);border-bottom:2px solid var(--ink)}
+.palette__cell:nth-child(4n){border-right:0}
+.palette__cell:nth-child(n+5){border-bottom:0}
+.palette__cell i{display:block;height:52px}
+.palette__cell div{padding:8px 10px 9px}
+.palette__cell b{display:block;font-family:var(--font-mono);font-size:10.5px;font-weight:500;letter-spacing:.02em}
+.palette__cell span{display:block;font-size:9.5px;color:var(--ink-3);line-height:1.4}
+.palette__legend{padding:16px 18px;border-top:2px solid var(--ink);background:var(--paper)}
+.palette__legend p{font-size:12.5px;color:var(--ink-2);line-height:1.6}
+.palette__legend strong{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+
+/* ============================================================
+   分节标题
+   ============================================================ */
+.spec{padding:88px 0 0;scroll-margin-top:64px}
+.spec__head{display:flex;align-items:baseline;gap:18px;padding-bottom:20px;border-bottom:2px solid var(--ink);margin-bottom:36px}
+.spec__no{font-family:var(--font-mono);font-size:12px;letter-spacing:.1em;color:var(--cobalt);font-weight:500}
+.spec__head h2{font-size:30px;font-weight:700}
+.spec__head p{margin-left:auto;font-size:13px;color:var(--ink-3);max-width:46ch;text-align:right}
+
+/* ============================================================
+   01 落地页
+   ============================================================ */
+.lp{background:var(--paper);position:relative;overflow:hidden}
+.lp__inner{max-width:1180px;margin:0 auto;padding:0 32px}
+
+.lp-nav{display:flex;align-items:center;gap:28px;height:76px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo__mark{
+  width:34px;height:34px;border-radius:9px;background:var(--ink);color:var(--paper);
+  display:grid;place-items:center;font-family:var(--font-display);font-weight:800;font-size:15px;
+  letter-spacing:-.06em;border:2px solid var(--ink);box-shadow:var(--shadow-chip);
+  transform:rotate(-3deg);transition:transform .2s var(--ease-pop);
+}
+.logo:hover .logo__mark{transform:rotate(3deg) translate(-1px,-1px)}
+.logo__word{font-family:var(--font-display);font-weight:700;font-size:19px;letter-spacing:-.03em}
+.lp-nav__links{display:flex;gap:26px;margin-left:14px}
+.lp-nav__links a{font-size:14px;color:var(--ink-2);position:relative;padding:4px 0}
+.lp-nav__links a::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--ink);
+  transform:scaleX(0);transform-origin:left;transition:transform .2s var(--ease-out);
+}
+.lp-nav__links a:hover{color:var(--ink)}
+.lp-nav__links a:hover::after{transform:scaleX(1)}
+.lp-nav__right{margin-left:auto;display:flex;align-items:center;gap:10px}
+
+.ticker{
+  background:var(--ink);color:var(--butter);overflow:hidden;height:34px;
+  display:flex;align-items:center;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);
+}
+.ticker__track{display:flex;gap:44px;white-space:nowrap;animation:tick 26s linear infinite}
+.ticker__track span{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  display:flex;align-items:center;gap:44px;
+}
+.ticker__track span::after{content:"◆";opacity:.5;font-size:8px}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+.hero{position:relative;padding:72px 0 96px;display:grid;grid-template-columns:1.04fr .96fr;gap:56px;align-items:center}
+.hero::before{
+  content:"";position:absolute;left:-40px;top:-40px;width:640px;height:520px;z-index:0;
+  background-image:radial-gradient(var(--ink) 1px,transparent 1px);
+  background-size:22px 22px;opacity:.06;
+  mask-image:radial-gradient(ellipse 60% 60% at 40% 40%,#000,transparent 72%);
+}
+.hero__l{position:relative;z-index:1}
+.hero h1{font-size:clamp(46px,5.4vw,76px);font-weight:800;line-height:.98;margin:20px 0 0}
+.hero__sub{font-size:17px;line-height:1.7;color:var(--ink-2);max-width:46ch;margin-top:24px}
+.hero__cta{display:flex;gap:14px;margin-top:34px;flex-wrap:wrap}
+.hero__proof{display:flex;align-items:center;gap:10px;margin-top:26px;font-size:12.5px;color:var(--ink-2)}
+.hero__proof .sep{width:4px;height:4px;border-radius:50%;background:var(--ink-3)}
+.hero__proof b{font-variant-numeric:tabular-nums}
+
+.hero__r{position:relative;z-index:1}
+.shot{
+  position:relative;border:2px solid var(--ink);border-radius:var(--r-panel);
+  background:var(--card);box-shadow:var(--shadow-hero);overflow:hidden;
+  transform:rotate(-1.2deg);transition:transform .3s var(--ease-pop);
+}
+.shot:hover{transform:rotate(0deg) translate(-2px,-2px)}
+.shot__bar{
+  display:flex;align-items:center;gap:6px;height:38px;padding:0 14px;
+  background:var(--paper-2);border-bottom:2px solid var(--ink);
+}
+.shot__bar i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--ink);display:block}
+.shot__url{
+  margin-left:8px;flex:1;height:22px;border-radius:999px;background:var(--card);
+  border:1px solid var(--line);display:flex;align-items:center;padding:0 10px;
+  font-family:var(--font-mono);font-size:10px;color:var(--ink-3);letter-spacing:.02em;
+}
+.shot__body{display:grid;grid-template-columns:1.15fr .85fr;gap:0}
+.shot__doc{padding:20px 18px;border-right:1px solid var(--line)}
+.shot__doc h5{font-family:var(--font-body);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin-bottom:12px}
+.shot__line{height:7px;border-radius:3px;background:var(--paper-2);margin-bottom:8px}
+.shot__line.w70{width:70%} .shot__line.w86{width:86%} .shot__line.w54{width:54%}
+.shot__para{font-size:10.5px;line-height:1.75;color:var(--ink-2);margin-bottom:12px;padding-left:10px;border-left:2px solid var(--paper-2)}
+.shot__para mark{background:linear-gradient(transparent 40%,var(--butter) 40%,var(--butter) 94%,transparent 94%)}
+.shot__score{padding:20px 16px;display:flex;flex-direction:column;gap:14px}
+.shot__big{display:flex;align-items:baseline;gap:6px}
+.shot__big b{font-family:var(--font-display);font-size:44px;font-weight:800;line-height:.9;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.shot__big span{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.shot__meter{font-size:10px;color:var(--ink-2)}
+.shot__meter .row{display:flex;justify-content:space-between;margin-bottom:5px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.03em}
+.shot__meter .bar{height:6px;border-radius:999px;background:var(--paper-2);overflow:hidden;margin-bottom:9px}
+.shot__meter .bar i{display:block;height:100%;background:var(--cobalt);border-radius:999px}
+
+.tape{
+  position:absolute;width:96px;height:28px;background:rgba(255,226,122,.86);
+  border-left:1px dashed rgba(23,19,16,.18);border-right:1px dashed rgba(23,19,16,.18);
+}
+.tape--tl{left:-26px;top:22px;transform:rotate(-38deg)}
+.tape--br{right:-26px;bottom:34px;transform:rotate(-38deg)}
+
+.hero__float{position:absolute;z-index:3}
+.hero__float--a{left:-30px;bottom:-26px;transform:rotate(-5deg)}
+.hero__float--b{right:-18px;top:-22px;transform:rotate(4deg)}
+.float-in{animation:wobble 6s ease-in-out infinite}
+@keyframes wobble{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(-2deg)}}
+
+/* 步骤流 */
+.flow{padding:24px 0 8px}
+.flow__head{display:flex;align-items:flex-end;gap:24px;margin-bottom:40px}
+.flow__head h2{font-size:clamp(30px,3.4vw,44px);font-weight:800;max-width:18ch}
+.flow__head p{margin-left:auto;max-width:34ch;font-size:14.5px;color:var(--ink-2);text-align:left;text-wrap:pretty}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;position:relative}
+.step{
+  position:relative;background:var(--card);border:2px solid var(--ink);border-radius:var(--r-card);
+  padding:26px 22px 24px;box-shadow:var(--shadow-card);
+  transition:transform .15s var(--ease-pop),box-shadow .15s var(--ease-pop);
+}
+.step:hover{transform:translate(-3px,-3px);box-shadow:7px 7px 0 var(--shadow-color)}
+.step__no{
+  width:34px;height:34px;border-radius:50%;background:var(--cobalt);color:var(--paper);
+  border:2px solid var(--ink);display:grid;place-items:center;font-weight:700;font-size:13px;
+  box-shadow:var(--shadow-chip);margin-bottom:18px;font-variant-numeric:tabular-nums;
+}
+.step h3{font-size:20px;font-weight:700;margin-bottom:10px}
+.step p{font-size:13.5px;color:var(--ink-2);line-height:1.65}
+.step__icon{position:absolute;right:20px;top:24px;opacity:.16}
+
+/* 特性 + 票根 */
+.feat{display:grid;grid-template-columns:1.05fr .95fr;gap:52px;align-items:center;padding:72px 0 84px}
+.feat h2{font-size:clamp(30px,3.4vw,42px);font-weight:800;margin-bottom:16px;max-width:16ch}
+.feat__list{margin-top:26px;display:flex;flex-direction:column;gap:2px}
+.feat__item{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--line)}
+.feat__item:last-child{border-bottom:0}
+.feat__k{width:22px;height:22px;flex:none;border-radius:6px;background:var(--mint);border:1.5px solid var(--ink);display:grid;place-items:center;margin-top:2px}
+.feat__item b{display:block;font-size:14.5px;font-weight:600;margin-bottom:3px}
+.feat__item span{font-size:13px;color:var(--ink-2);line-height:1.6}
+
+.ticket{
+  position:relative;background:var(--cobalt);color:var(--paper);
+  border:2px solid var(--ink);border-radius:var(--r-card);box-shadow:var(--shadow-card);
+  padding:30px 30px 26px;overflow:hidden;
+}
+.ticket::before,.ticket::after{
+  content:"";position:absolute;width:26px;height:26px;border-radius:50%;
+  background:var(--paper);border:2px solid var(--ink);top:calc(50% - 13px);
+}
+.ticket::before{left:-15px} .ticket::after{right:-15px}
+.ticket__eb{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;opacity:.7}
+.ticket__num{font-family:var(--font-display);font-size:64px;font-weight:800;line-height:.95;letter-spacing:-.045em;margin:10px 0 2px;font-variant-numeric:tabular-nums}
+.ticket__u{font-size:13px;opacity:.8}
+.ticket__rule{border-top:2px dashed rgba(251,246,234,.34);margin:22px 0 18px}
+.ticket__grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.ticket__grid div span{display:block;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.66}
+.ticket__grid div b{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.ticket__dots{
+  position:absolute;inset:0;opacity:.14;pointer-events:none;
+  background-image:radial-gradient(var(--paper) 1px,transparent 1px);background-size:18px 18px;
+}
+
+/* CTA 带 */
+.ctaband{position:relative;margin-top:8px;background:var(--cobalt);color:var(--paper);overflow:hidden;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink)}
+.ctaband::before{
+  content:"";position:absolute;inset:0;opacity:.16;
+  background-image:radial-gradient(var(--paper) 1px,transparent 1px);background-size:20px 20px;
+}
+.ctaband__in{position:relative;max-width:960px;margin:0 auto;padding:76px 32px;display:flex;align-items:center;gap:56px}
+.ctaband h2{font-size:clamp(32px,4vw,52px);font-weight:800;line-height:1;max-width:15ch}
+.ctaband p{margin-top:16px;font-size:15px;opacity:.82;max-width:31ch;text-wrap:pretty}
+.ctaband__act{margin-left:auto;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.ctaband .btn{background:var(--paper);color:var(--ink);border-color:var(--ink);box-shadow:4px 4px 0 #0B0F66}
+.ctaband .btn:hover{box-shadow:6px 6px 0 #0B0F66}
+
+/* 页脚 */
+.lpfoot{background:var(--paper-2);border-top:2px solid var(--ink)}
+.lpfoot__in{max-width:1180px;margin:0 auto;padding:48px 32px 40px;display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:40px}
+.lpfoot h4{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:14px;font-weight:500}
+.lpfoot a{display:block;font-size:13.5px;color:var(--ink-2);padding:5px 0}
+.lpfoot a:hover{color:var(--cobalt);text-decoration:underline;text-underline-offset:3px}
+.lpfoot__bottom{border-top:1px solid var(--line);max-width:1180px;margin:0 auto;padding:16px 32px 40px;display:flex;gap:18px;align-items:center;font-size:12px;color:var(--ink-3);flex-wrap:wrap}
+.lpfoot__bottom a{text-decoration:underline;text-underline-offset:3px}
+.lpfoot__bottom a:hover{color:var(--ink)}
+
+/* ============================================================
+   02 工作台（Calm 档）
+   ============================================================ */
+.wb-frame{
+  border:2px solid var(--ink);border-radius:var(--r-panel);overflow:hidden;
+  box-shadow:var(--shadow-hero);background:var(--card);
+}
+.wb{display:grid;grid-template-columns:228px 1fr;min-height:640px;background:var(--paper)}
+
+/* Calm 档：派生变量降级 */
+[data-density="calm"]{
+  --edge-w:1px;--shadow-card:none;--radius-card:12px;
+}
+
+.wb__side{background:var(--paper-2);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:0}
+.wb__brand{display:flex;align-items:center;gap:9px;height:60px;padding:0 18px;border-bottom:1px solid var(--line)}
+.wb__brand .logo__mark{width:26px;height:26px;font-size:12px;border-width:1.5px;box-shadow:1.5px 1.5px 0 var(--shadow-color);border-radius:7px}
+.wb__brand b{font-family:var(--font-display);font-size:14.5px;font-weight:700;letter-spacing:-.02em}
+.wb__nav{padding:18px 12px;display:flex;flex-direction:column;gap:2px;flex:1}
+.wb__group{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);padding:0 10px;margin-bottom:8px;opacity:.8}
+.wb__item{
+  display:flex;align-items:center;gap:10px;height:38px;padding:0 12px;border-radius:var(--r-chip);
+  font-size:13px;color:var(--ink-2);transition:background .12s,color .12s;
+}
+.wb__item svg{flex:none;opacity:.75}
+.wb__item:hover{background:var(--paper);color:var(--ink)}
+.wb__item.on{background:var(--cobalt);color:var(--paper);font-weight:600;box-shadow:2px 2px 0 var(--shadow-color)}
+.wb__item.on svg{opacity:1}
+.wb__user{display:flex;align-items:center;gap:9px;height:58px;padding:0 16px;border-top:1px solid var(--line)}
+.wb__avatar{width:30px;height:30px;border-radius:50%;background:var(--butter);border:1.5px solid var(--ink);display:grid;place-items:center;font-weight:700;font-size:12px}
+.wb__user b{display:block;font-size:12.5px;font-weight:600;line-height:1.3}
+.wb__user span{display:block;font-size:11px;color:var(--ink-3);line-height:1.3;font-variant-numeric:tabular-nums}
+
+.wb__main{display:flex;flex-direction:column;min-width:0}
+.wb__top{display:flex;align-items:center;gap:14px;height:60px;padding:0 26px;border-bottom:1px solid var(--line);background:var(--card)}
+.wb__top h1{font-size:16px;font-weight:700;letter-spacing:-.02em}
+.wb__top .chip{margin-left:2px}
+.wb__top__right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.search{
+  display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;width:190px;
+  border:1px solid var(--line);border-radius:999px;background:var(--paper);font-size:12.5px;color:var(--ink-3);
+}
+
+.wb__body{padding:24px 26px 30px;display:flex;flex-direction:column;gap:22px}
+
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kpi{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius-card);
+  padding:14px 16px 15px;transition:border-color .15s,box-shadow .15s,transform .15s var(--ease-pop);
+}
+.kpi:hover{border-color:var(--ink);box-shadow:2px 2px 0 var(--shadow-color);transform:translate(-1px,-1px)}
+.kpi__k{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.kpi__v{display:flex;align-items:baseline;gap:7px;margin-top:6px}
+.kpi__v b{font-family:var(--font-display);font-size:27px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1}
+.kpi__d{font-size:10.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi__d.up{color:var(--green-text)} .kpi__d.flat{color:var(--ink-3)}
+.kpi--hl{background:var(--butter);border-color:var(--ink);box-shadow:2px 2px 0 var(--shadow-color)}
+
+.wb__cols{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;align-items:start}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-card);overflow:hidden}
+.panel__h{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line)}
+.panel__h b{font-size:13px;font-weight:600}
+.panel__h .eb,.panel__h .eb-zh{margin-left:auto}
+
+.job{display:grid;grid-template-columns:1fr 96px 74px;gap:12px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line);transition:background .12s}
+.job:last-child{border-bottom:0}
+.job:hover{background:var(--paper-2)}
+.job b{display:block;font-size:13.5px;font-weight:600;margin-bottom:2px}
+.job span{font-size:11.5px;color:var(--ink-3)}
+.job__time{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3);text-align:right}
+
+.bars{display:flex;align-items:flex-end;gap:9px;height:118px;padding:18px 16px 10px}
+.bars div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%}
+.bars i{display:block;width:100%;border-radius:3px 3px 0 0;background:var(--cobalt);border:1.5px solid var(--ink);border-bottom:0}
+.bars i.dim{background:var(--paper-2)}
+.bars em{font-family:var(--font-mono);font-size:9px;color:var(--ink-3);font-style:normal}
+.bars__foot{display:flex;justify-content:space-between;padding:0 16px 14px;font-size:10.5px;color:var(--ink-3)}
+
+/* ============================================================
+   03 简历工作台（三栏 · Calm）
+   ============================================================ */
+.ed-frame{border:2px solid var(--ink);border-radius:var(--r-panel);overflow:hidden;box-shadow:var(--shadow-hero);background:var(--card)}
+.ed{display:flex;flex-direction:column;background:var(--paper);height:722px}
+
+/* 顶部操作条 */
+.ed__bar{display:flex;align-items:center;gap:9px;height:54px;padding:0 14px;background:var(--card);border-bottom:1px solid var(--line);flex:none}
+.ed__icon{
+  width:30px;height:30px;border-radius:8px;display:grid;place-items:center;
+  color:var(--ink-2);transition:background .12s,color .12s;flex:none;
+}
+.ed__icon:hover{background:var(--paper-2);color:var(--ink)}
+.ed__icon[disabled]{opacity:.32;cursor:not-allowed}
+.ed__icon[disabled]:hover{background:none;color:var(--ink-2)}
+.ed__name{display:flex;flex-direction:column;gap:1px;margin-left:1px;min-width:0}
+.ed__name b{font-size:13px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+.ed__name span{display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-3);letter-spacing:.02em}
+.ed__name span i{width:5px;height:5px;border-radius:50%;background:var(--green);display:block;flex:none}
+.ed__acts{margin-left:auto;display:flex;align-items:center;gap:5px}
+.ed__div{width:1px;height:16px;background:var(--line);margin:0 3px;flex:none}
+/* Calm 档按钮：1px 边、无阴影，避免在密集工具条里产生噪音 */
+.btn--calm{
+  border-width:1px;box-shadow:none;height:30px;padding:0 12px;font-size:12px;
+  border-radius:8px;font-weight:600;gap:6px;
+}
+.btn--calm:hover{transform:none;box-shadow:none;background:var(--paper-2);border-color:var(--ink)}
+.btn--calm:active{transform:none;box-shadow:none}
+.btn--calm.btn--primary{background:var(--cobalt);border-color:var(--cobalt);color:var(--paper)}
+.btn--calm.btn--primary:hover{background:var(--cobalt-deep);border-color:var(--cobalt-deep)}
+
+/* 三栏骨架：设置 224 / 编辑自适应 / 预览 396 */
+.ed__main{display:grid;grid-template-columns:224px minmax(0,1fr) 396px;flex:1;min-height:0}
+
+/* 左：设置 */
+.set{background:var(--paper-2);border-right:1px solid var(--line);padding:13px 0 0;overflow:hidden}
+.set__top{display:flex;align-items:center;gap:7px;padding:0 15px 11px;border-bottom:1px solid var(--line);margin-bottom:13px}
+.set__top b{font-size:12px;font-weight:600}
+.set__top .eb{margin-left:auto;font-size:9px}
+.set__sec{padding:0 15px;margin-bottom:15px}
+.set__lab{font-family:var(--font-body);font-size:10.5px;font-weight:600;letter-spacing:0;color:var(--ink-3);margin-bottom:7px}
+.seg{display:flex;gap:2px;padding:3px;background:var(--paper);border:1px solid var(--line);border-radius:8px}
+.seg button{flex:1;height:24px;border-radius:6px;font-size:11px;color:var(--ink-2);transition:background .12s,color .12s}
+.seg button.on{background:var(--card);color:var(--ink);font-weight:600;box-shadow:var(--shadow-soft)}
+.mod{display:flex;align-items:center;gap:7px;height:27px;padding:0 7px;border-radius:6px;font-size:11.5px;color:var(--ink-2)}
+.mod:hover{background:var(--paper)}
+.mod__grip{
+  width:7px;height:11px;flex:none;opacity:.4;color:var(--ink-2);
+  background-image:radial-gradient(currentColor .85px,transparent .85px);
+  background-size:3.5px 3.5px;background-position:0 .5px;background-repeat:repeat;
+}
+.mod .tick{margin-left:auto;color:var(--cobalt);flex:none}
+.mod.off{color:var(--ink-3);opacity:.6}
+.slider{position:relative;height:3px;background:var(--line);border-radius:999px;margin:13px 4px 5px}
+.slider i{position:absolute;left:0;top:0;bottom:0;background:var(--ink);border-radius:999px}
+.slider b{
+  position:absolute;top:50%;width:13px;height:13px;border-radius:50%;
+  background:var(--card);border:2px solid var(--ink);transform:translate(-50%,-50%);
+}
+.set__row{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--ink-2)}
+.set__row b{font-family:var(--font-mono);font-size:10px;font-weight:500;color:var(--ink)}
+.swatches-row{display:flex;gap:7px;align-items:center}
+.swatch{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--ink);flex:none}
+.swatch.on{box-shadow:0 0 0 2px var(--card),0 0 0 3.5px var(--ink)}
+
+/* 中：Markdown 编辑（编辑态 14px） */
+.md{display:flex;flex-direction:column;min-width:0;background:var(--paper)}
+.md__tb{display:flex;align-items:center;gap:2px;height:42px;padding:0 12px;background:var(--card);border-bottom:1px solid var(--line);flex:none;overflow:hidden}
+.tb{
+  height:27px;min-width:27px;padding:0 7px;border-radius:6px;flex:none;
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  font-size:11.5px;color:var(--ink-2);white-space:nowrap;transition:background .12s,color .12s;
+}
+.tb:hover{background:var(--paper-2);color:var(--ink)}
+.tb.on{background:var(--ink);color:var(--paper)}
+.tb__sep{width:1px;height:15px;background:var(--line);margin:0 5px;flex:none}
+.md__scroll{flex:1;overflow:hidden;padding:28px 34px 0}
+.md__doc{max-width:560px;font-size:14px;line-height:1.75;color:var(--ink)}
+.md__doc h1{font-size:24px;line-height:1.3;font-weight:800;letter-spacing:-.02em;margin-bottom:6px}
+.md__doc h2{font-size:20px;line-height:1.3;font-weight:700;letter-spacing:-.015em;margin:20px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.md__doc h3{font-size:14px;line-height:1.3;font-weight:700;margin:13px 0 4px}
+.md__doc p{margin-bottom:7px;color:var(--ink-2)}
+.md__doc ul{margin:0 0 8px;padding:0;list-style:none}
+.md__doc li{position:relative;padding-left:13px;margin-bottom:4px;color:var(--ink-2)}
+.md__doc li::before{content:"";position:absolute;left:2px;top:.66em;width:4px;height:4px;border-radius:50%;background:var(--ink-3)}
+.md__doc mark{background:linear-gradient(transparent 40%,var(--butter) 40%,var(--butter) 94%,transparent 94%);color:inherit;padding:0 .06em}
+.t-center{text-align:center}
+.md__meta{display:flex;align-items:baseline;gap:10px;margin-bottom:5px}
+.md__meta b{font-size:13.5px;font-weight:700;color:var(--ink)}
+.md__meta .r{margin-left:auto;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3);letter-spacing:.01em;white-space:nowrap}
+.caret{display:inline-block;width:1.5px;height:15px;background:var(--cobalt);vertical-align:-2px;margin-left:1px;animation:blink 1.15s steps(1) infinite}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.slash{
+  display:inline-flex;align-items:center;gap:7px;margin-top:12px;padding:6px 10px;
+  border:1px dashed var(--line-strong);border-radius:8px;background:var(--card);
+  font-size:11px;color:var(--ink-3);
+}
+.slash b{font-family:var(--font-mono);font-size:10px;color:var(--ink);background:var(--paper-2);border-radius:4px;padding:1px 5px;font-weight:500}
+
+/* 右：阅读态（产出态 16px，独立于编辑态） */
+.pvd{background:var(--paper-2);border-left:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
+.pvd__bar{display:flex;align-items:center;gap:7px;height:42px;padding:0 12px;background:var(--card);border-bottom:1px solid var(--line);flex:none}
+.pvd__bar b{font-size:11.5px;font-weight:600}
+.pvd__zoom{margin-left:auto;display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-3);letter-spacing:.02em}
+.pvd__stage{flex:1;padding:16px;display:flex;justify-content:center;overflow:hidden}
+.paper{
+  width:100%;max-width:386px;align-self:flex-start;background:#fff;
+  border:1px solid #E6E0D2;
+  box-shadow:0 1px 1px rgb(23 19 16 / .05),0 10px 22px rgb(23 19 16 / .11);
+  aspect-ratio:210 / 297;
+  padding:25px 24px 22px;color:#141414;overflow:hidden;
+  font-family:"Instrument Sans","PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:9.2px;line-height:1.66;
+}
+.paper .nm{font-size:15px;font-weight:700;text-align:center;line-height:1.2;letter-spacing:-.01em}
+.paper .sub{text-align:center;font-size:7.4px;color:#5B5B5B;margin-top:3px}
+.paper .h{
+  font-size:8.2px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
+  border-bottom:.8px solid #141414;padding-bottom:2px;margin:10px 0 5px;
+}
+.paper .row{display:flex;align-items:baseline;gap:8px}
+.paper .row b{font-size:9px;font-weight:700}
+.paper .row .r{margin-left:auto;font-size:7.4px;color:#5B5B5B;font-variant-numeric:tabular-nums;white-space:nowrap}
+.paper p{margin-bottom:3px;color:#2A2A2A}
+.paper ul{list-style:none;padding:0;margin:0}
+.paper li{position:relative;padding-left:8px;margin-bottom:2.5px;color:#2A2A2A}
+.paper li::before{content:"";position:absolute;left:1px;top:.64em;width:2.2px;height:2.2px;border-radius:50%;background:#141414}
+.paper .dim{color:#5B5B5B}
+.pvd__foot{display:flex;justify-content:space-between;padding:0 14px 11px;font-family:var(--font-mono);font-size:9px;color:var(--ink-3);letter-spacing:.02em}
+
+/* 工作台约束说明 */
+.notes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+.note{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+.note b{display:block;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--cobalt);margin-bottom:5px}
+.note p{font-size:12px;color:var(--ink-2);line-height:1.6}
+
+/* ============================================================
+   04 登录 / 注册（Loud）
+   ============================================================ */
+.auth-frame{border:2px solid var(--ink);border-radius:var(--r-panel);overflow:hidden;box-shadow:var(--shadow-hero);background:var(--card)}
+.auth{display:grid;grid-template-columns:1.06fr .94fr;min-height:596px}
+.auth__l{
+  position:relative;padding:40px 38px 32px;background:var(--paper);
+  border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;
+}
+.auth__l::before{
+  content:"";position:absolute;inset:0;z-index:0;
+  background-image:radial-gradient(var(--ink) 1px,transparent 1px);
+  background-size:20px 20px;opacity:.075;
+  mask-image:radial-gradient(ellipse 68% 58% at 26% 22%,#000,transparent 76%);
+}
+.auth__l>*{position:relative;z-index:1}
+.auth__h{font-size:clamp(32px,3.7vw,47px);font-weight:800;line-height:1.06;margin-top:auto;letter-spacing:-.035em}
+.auth__h em{font-style:normal;color:var(--cobalt)}
+.auth__p{margin-top:15px;font-size:13.5px;line-height:1.7;color:var(--ink-2);max-width:32ch}
+.auth__pts{margin-top:24px;margin-bottom:auto;display:flex;flex-direction:column;gap:8px}
+.auth__pt{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-2)}
+.auth__pt i{
+  width:18px;height:18px;border-radius:50%;background:var(--mint);border:1.5px solid var(--ink);
+  display:grid;place-items:center;flex:none;font-size:9px;font-weight:700;font-style:normal;color:var(--ink);
+}
+.auth__note{
+  margin-top:26px;padding-top:18px;border-top:1px solid var(--line);
+  display:flex;align-items:center;gap:8px;
+  font-family:var(--font-mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);
+}
+.auth__note i{width:6px;height:6px;border-radius:50%;background:var(--cobalt);display:block}
+
+.auth__l .auth__stamp{
+  position:absolute;right:40px;bottom:96px;z-index:2;
+  transform:rotate(-4deg);background:var(--butter);
+  font-size:11.5px;padding:8px 12px;
+}
+
+.auth__r{background:var(--paper-2);padding:26px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.authcard{
+  width:100%;max-width:340px;background:var(--card);
+  border:2px solid var(--ink);border-radius:var(--r-card);box-shadow:var(--shadow-card);
+  padding:20px 20px 17px;
+}
+.authcard__hd{text-align:center;margin-bottom:15px}
+.authcard__hd .logo__mark{width:30px;height:30px;font-size:13px;border-radius:8px;margin:0 auto 9px}
+.authcard__hd b{display:block;font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:-.025em}
+.authcard__hd span{display:block;font-size:11px;color:var(--ink-3);margin-top:3px;line-height:1.5}
+.authcard .seg{background:var(--paper-2);margin-bottom:13px;padding:3px}
+.authcard .seg button{height:25px;font-size:11.5px}
+.authcard .field{gap:5px;min-width:0}
+.authcard .field label{font-size:11.5px}
+.authcard .field__in{height:38px;font-size:12.5px}
+.authcard .btn{width:100%;height:38px;font-size:12.5px;margin-top:5px;box-shadow:var(--shadow-chip)}
+.authcard .btn:hover{box-shadow:4px 4px 0 var(--shadow-color)}
+.authcard .btn:disabled{background:var(--paper-2);color:var(--ink-3);border-color:var(--line-strong);opacity:1;box-shadow:none}
+.authcard__alt{text-align:center;font-size:11.5px;color:var(--ink-3);margin-top:11px}
+.authcard__alt a{color:var(--cobalt);font-weight:600;text-decoration:underline;text-underline-offset:2px}
+.authcard__fine{margin-top:12px;padding-top:11px;border-top:1px solid var(--line);font-size:10.5px;line-height:1.55;color:var(--ink-3);text-align:center}
+
+.alerterr{
+  display:flex;align-items:flex-start;gap:7px;padding:8px 10px;border-radius:8px;
+  background:var(--blush);border:1px solid #E8B4AE;
+  font-size:11.5px;line-height:1.5;color:var(--danger);font-weight:600;margin-bottom:10px;
+}
+.alerterr svg{flex:none;margin-top:1px}
+.filing{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:11.5px;color:var(--ink-3);line-height:1.6}
+.filing a{text-decoration:underline;text-underline-offset:2px;transition:color .12s}
+.filing a:hover{color:var(--ink)}
+
+/* 状态小样 */
+.authstates{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+.statedemo{background:var(--paper-2);border:1px solid var(--line);border-radius:var(--r-card);padding:20px 18px;display:flex;flex-direction:column}
+.statedemo__lab{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+.statedemo__lab b{font-size:12.5px;font-weight:600}
+.statedemo .authcard{box-shadow:var(--shadow-chip);border-width:2px;max-width:308px;margin:0 auto;width:100%;flex:1}
+
+/* ============================================================
+   05 组件
+   ============================================================ */
+.grid-demo{display:grid;grid-template-columns:repeat(2,1fr);gap:22px}
+.demo{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);
+  padding:22px;display:flex;flex-direction:column;gap:16px;
+}
+.demo--wide{grid-column:span 2}
+.demo__label{display:flex;align-items:center;gap:10px}
+.demo__label .eb{margin-left:auto;text-transform:none;letter-spacing:.04em}
+.demo__label b{font-size:13.5px;font-weight:600}
+.demo__row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+
+.field{display:flex;flex-direction:column;gap:6px;min-width:230px;flex:1}
+.field label{font-size:12px;font-weight:600}
+.field__in{
+  height:42px;border:1px solid var(--line-strong);border-radius:var(--r-input);background:var(--paper);
+  display:flex;align-items:center;padding:0 13px;font-size:13.5px;color:var(--ink-2);
+}
+.field__in.focus{border:2px solid var(--cobalt);box-shadow:0 0 0 3px rgb(43 58 255 / .16);padding:0 12px}
+.field__in.err{border:2px solid #D92D20;background:var(--blush);padding:0 12px}
+.field small{font-size:11.5px;color:var(--ink-3)}
+.field small.bad{color:#B42318;font-weight:600}
+
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line)}
+.tabs button{
+  padding:10px 14px;font-size:13px;color:var(--ink-3);border-bottom:2px solid transparent;
+  margin-bottom:-1px;transition:color .12s,border-color .12s;
+}
+.tabs button.on{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+.tabs--loud{display:inline-flex;align-self:flex-start;gap:4px;padding:4px;background:var(--paper-2);border:2px solid var(--ink);border-radius:999px;border-bottom:2px solid var(--ink)}
+.tabs--loud button{border:0;border-radius:999px;padding:7px 16px;font-size:12.5px;font-weight:500;margin:0;color:var(--ink-2)}
+.tabs--loud button.on{background:var(--card);color:var(--ink);box-shadow:2px 2px 0 var(--shadow-color);font-weight:600}
+
+.empty{
+  border:2px dashed var(--ink-3);border-radius:var(--r-card);padding:34px 22px;text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:12px;background:var(--paper);
+}
+.empty__ico{width:46px;height:46px;border-radius:50%;border:2px dashed var(--ink-3);display:grid;place-items:center;color:var(--ink-3)}
+.empty b{font-size:14px}
+.empty p{font-size:12.5px;color:var(--ink-2);max-width:34ch}
+
+.toast{
+  display:flex;align-items:center;gap:12px;background:var(--card);border:2px solid var(--ink);
+  border-radius:var(--r-card);box-shadow:var(--shadow-card);padding:13px 16px 13px 13px;position:relative;overflow:hidden;
+}
+.toast::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--green)}
+.toast b{font-size:13px;display:block}
+.toast span{font-size:11.5px;color:var(--ink-3)}
+
+/* ============================================================
+   04 令牌
+   ============================================================ */
+.tok{display:grid;grid-template-columns:repeat(2,1fr);gap:22px}
+.tokcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:22px}
+.tokcard h3{font-size:14px;font-weight:700;margin-bottom:4px}
+.tokcard>p{font-size:12px;color:var(--ink-3);margin-bottom:18px}
+.swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.sw{border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;background:var(--card)}
+.sw i{display:block;height:44px}
+.sw div{padding:6px 8px;border-top:1.5px solid var(--ink)}
+.sw b{display:block;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.02em;font-weight:500}
+.sw span{display:block;font-size:9.5px;color:var(--ink-3);line-height:1.4}
+
+.specimen{padding:14px 0;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:16px}
+.specimen:last-child{border-bottom:0}
+.specimen .tag{font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);width:78px;flex:none;line-height:1.5}
+.sp-latin{font-family:var(--font-display);font-size:40px;font-weight:800;letter-spacing:-.045em;line-height:1}
+.specimen .txt{font-family:var(--font-display);letter-spacing:-.035em;line-height:1}
+.sp-poster{font-size:52px;font-weight:800}
+.sp-display{font-size:32px;font-weight:700}
+.sp-h3{font-size:22px;font-weight:700}
+.sp-body{font-family:var(--font-body);font-size:15px;letter-spacing:0;line-height:1.5;font-weight:400}
+.sp-eb{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+
+.radii{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+.radii div{text-align:center}
+.radii i{display:block;width:62px;height:44px;background:var(--paper-2);border:2px solid var(--ink);margin-bottom:8px}
+.radii span{font-family:var(--font-mono);font-size:9.5px;color:var(--ink-3)}
+
+.shadows{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding-right:10px}
+.shadows div{text-align:center}
+.shadows i{display:block;height:56px;background:var(--card);border:2px solid var(--ink);border-radius:10px;margin-bottom:9px}
+.shadows span{font-family:var(--font-mono);font-size:9.5px;color:var(--ink-3);display:block}
+.sh1 i{box-shadow:2px 2px 0 var(--shadow-color)}
+.sh2 i{box-shadow:4px 4px 0 var(--shadow-color)}
+.sh3 i{box-shadow:8px 8px 0 var(--shadow-color)}
+
+/* ============================================================
+   05 动效
+   ============================================================ */
+.motion{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.mcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:22px;display:flex;flex-direction:column;gap:14px}
+.mcard h3{font-size:13.5px;font-weight:700}
+.mcard code{font-family:var(--font-mono);font-size:10.5px;line-height:1.7;background:var(--paper-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:block;color:var(--ink-2);white-space:pre-wrap}
+.mstage{height:78px;display:grid;place-items:center;background:var(--paper);border:1px solid var(--line);border-radius:10px}
+.pressme{
+  height:38px;padding:0 18px;border-radius:999px;border:2px solid var(--ink);background:var(--cobalt);color:var(--paper);
+  font-size:12.5px;font-weight:600;box-shadow:4px 4px 0 var(--shadow-color);display:inline-flex;align-items:center;gap:8px;
+  transition:transform .12s var(--ease-pop),box-shadow .12s var(--ease-pop);
+}
+.pressme:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--shadow-color)}
+.pressme:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--shadow-color)}
+.liftcard{
+  width:120px;height:56px;border:2px solid var(--ink);border-radius:10px;background:var(--butter);
+  display:grid;place-items:center;font-size:11.5px;font-weight:600;box-shadow:4px 4px 0 var(--shadow-color);
+  transition:transform .15s var(--ease-pop),box-shadow .15s var(--ease-pop);
+}
+.liftcard:hover{transform:translate(-3px,-3px);box-shadow:7px 7px 0 var(--shadow-color)}
+.stack{display:flex;gap:8px}
+.stack span{
+  width:26px;height:26px;border-radius:7px;border:2px solid var(--ink);display:block;
+  transition:transform .3s var(--ease-pop),box-shadow .3s var(--ease-pop);
+}
+.mcard:hover .stack span{animation:popIn .42s var(--ease-out) both}
+.mcard:hover .stack span:nth-child(2){animation-delay:.06s}
+.mcard:hover .stack span:nth-child(3){animation-delay:.12s}
+@keyframes popIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* ============================================================
+   收尾
+   ============================================================ */
+.reviewlist{margin-top:16px;border-top:2px solid var(--ink)}
+.review__row{display:grid;grid-template-columns:38px 92px 1fr;gap:16px;align-items:start;padding:18px 0;border-bottom:1px solid var(--line)}
+.review__row .box{width:20px;height:20px;border:2px solid var(--ink);border-radius:5px;margin-top:2px}
+.review__row b{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--cobalt)}
+.review__row p{font-size:13.5px;color:var(--ink-2)}
+.review__row p strong{color:var(--ink);font-weight:600}
+
+.pagefoot{margin-top:80px;background:var(--ink);color:var(--paper);padding:36px 0}
+.pagefoot__in{max-width:1180px;margin:0 auto;padding:0 32px;display:flex;gap:20px;align-items:center;font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#9C9182}
+.pagefoot__in b{color:var(--butter)}
+
+@media (max-width:960px){
+  .cover__in,.hero,.feat,.wb__cols,.grid-demo,.tok,.motion,.steps,.kpis,.ctaband__in{grid-template-columns:1fr}
+  .demo--wide{grid-column:span 1}
+  .wb{grid-template-columns:1fr}.wb__side{display:none}
+  .spec__head{flex-wrap:wrap}.spec__head p{text-align:left;margin-left:0}
+  .lpfoot__in{grid-template-columns:1fr 1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+  html.js-reveal .rv{opacity:1;transform:none}
+}
+/* 打印 / 导出 PDF 时不得因为未滚动而丢内容 */
+@media print{
+  html.js-reveal .rv{opacity:1 !important;transform:none !important}
+  .reviewbar{position:static}
+  .shot,.wb-frame,.palette,.ticket{box-shadow:none}
+}
+</style>
+</head>
+<body data-page-node-id="LHGynXScf0aQk7J1vwGOkw">
+
+<!-- ══════════════ 评审条 ══════════════ -->
+<div class="reviewbar" data-page-node-id="P1FqtpZWCA45YZlezELPkv">
+  <div class="reviewbar__in" data-page-node-id="8UlM5jvJJZIJYnD96da8nc">
+    <span class="reviewbar__tag" data-page-node-id="qbQC9iAjhxl3HqTZwWPLT2">Review v0.1</span>
+    <span class="reviewbar__name" data-page-node-id="PaLQLuDhHsxsGIUNnpplYC">Paper &amp; Punch</span>
+    <nav data-page-node-id="SIOwwCphYXobYCeDEHZgnz">
+      <a href="#landing" data-page-node-id="o7UXUXLQD3KxAbNwMITtyP">01 落地页</a>
+      <a href="#app" data-page-node-id="IEpM6odkm7o7BoQQboG6on">02 控制台</a>
+      <a href="#workbench" data-page-node-id="WbkNav03">03 工作台</a>
+      <a href="#auth" data-page-node-id="AuthNav04">04 登录</a>
+      <a href="#components" data-page-node-id="RJDGKSL2OJe1jC14caz625">05 组件</a>
+      <a href="#tokens" data-page-node-id="8YpbdSAyMzCU42IZC3Ui0P">06 令牌</a>
+      <a href="#motion" data-page-node-id="IuejS5iv1OPoACVFpDTRpn">07 动效</a>
+      <a href="#review" data-page-node-id="P6na7hCuA5nxSYMjfSN4ps">评审项</a>
+    </nav>
+  </div>
+</div>
+
+<!-- ══════════════ 00 主张 ══════════════ -->
+<section class="cover" data-page-node-id="0RDNEQAKQVJdmfPrTqUUSD">
+  <div class="wrap cover__in" data-page-node-id="QPjIwUHJDBDSYGVCz3ZmC8">
+    <div data-page-node-id="YGzBM54ndZe9N1WmRrN4cR">
+      <p class="eb" data-page-node-id="2zAyrDFF9Wzheeuxk1z77I">JDMatch · Visual language</p>
+      <h1 data-page-node-id="GvUjQXOTqA6nxRlptF5bQx">Paper<br  data-page-node-id="1EBx8ww5wVdEuKfH4WpMvz"/><em data-page-node-id="USJO97KobzpxRQDZC46Ep2">&amp; Punch</em></h1>
+      <p class="cover__lead" data-page-node-id="9YmzBGW8WASAJ4ADz6artc">
+        奶油纸做底，硬墨做骨架，撞色做标点。界面有厚度、能被按下、会回弹——
+        像一个可以上手玩的纸玩具，而不是一张被冻结的表单。
+      </p>
+      <div class="cover__keys" data-page-node-id="oH1ImRwFpVPIerOX8ar0uy">
+        <span class="chip chip--mint" data-page-node-id="HbIiQUBAhW3rHFyEuDeTiK">轻松</span>
+        <span class="chip chip--butter" data-page-node-id="xeQqWLh7cupqd73ZVrzn72">吸睛</span>
+        <span class="chip" data-page-node-id="SUy4XBQvdmaccVHTtUhbgn">可信</span>
+      </div>
+      <div class="cover__meta" data-page-node-id="ZXy2GU0mgWFfLfVGZAGGSs">
+        <div data-page-node-id="QjbxTpWhwryTci3TI7y5of"><b data-page-node-id="N7g6JgpHEzQX2ETZ8mL72X">90 / 8 / 2</b> &nbsp;纸 · 墨 · 撞色 的面积配比</div>
+        <div data-page-node-id="KeARWz0XW6mLBRsSDArLjp"><b data-page-node-id="vnLNGcVuMGf9K8oUB56Uy2">LOUD / CALM</b> &nbsp;两档密度，一套令牌</div>
+        <div data-page-node-id="yxqTfwq5B4ybUblWg2HukT"><b data-page-node-id="4wwWbMk7rkgR5onz3VAim7">NO BLUR</b> &nbsp;硬阴影表达厚度，不表达暧昧</div>
+      </div>
+    </div>
+
+    <div class="palette" data-page-node-id="AJ9YyHwIzr4eD7MvdQw2Sv">
+      <div class="palette__grid" data-page-node-id="lb5GQlNwHWC4RGZOkhh8nD">
+        <div class="palette__cell" data-page-node-id="zmebIno7Zfy3B3Ec83g3jV"><i style="background:#FBF6EA" data-page-node-id="qxUerkXnhbsBi4yBJV4P8i"></i><div data-page-node-id="AlE8mgKDLDoB5a6q9su8sY"><b data-page-node-id="41p4BmgEcH9wRoX2i3SRi6">paper</b><span data-page-node-id="qk85jHBaktBpHIJMBKvuXO">#FBF6EA</span></div></div>
+        <div class="palette__cell" data-page-node-id="kdKlflR01N3dWPN5J4aZtB"><i style="background:#171310" data-page-node-id="yU2uXvbddUax22HmFjhDLg"></i><div data-page-node-id="gfXXUa5K15M9Frfx19HGtA"><b data-page-node-id="aFWBJR5LiVU7lGGH0Ja7JY">ink</b><span data-page-node-id="7sNEYCkSIVy00hk0z3LSIt">#171310</span></div></div>
+        <div class="palette__cell" data-page-node-id="c2OVsv4RoM5ILNNgMvYIMY"><i style="background:#2B3AFF" data-page-node-id="HRm5XyXa0XxbsRaDoe3QbN"></i><div data-page-node-id="rWqjXAKoIbqsEE199AvAaP"><b data-page-node-id="t6SiX0xF9v88WPV1nkpAG8">cobalt</b><span data-page-node-id="ZSc8cmHCD1MB0cMVjEDNuE">#2B3AFF · 信号</span></div></div>
+        <div class="palette__cell" data-page-node-id="ahWnxpgbanAOrfAf8w6iNB"><i style="background:#FF6A1F" data-page-node-id="X5D3ByytJKpMbDo3suDcyW"></i><div data-page-node-id="hAirscnj4cLFfYpRly2cvd"><b data-page-node-id="leJ9LqPbmXUPqawvYgF9B9">tangerine</b><span data-page-node-id="eyC3RHOXVyfBQaTS7JzS0a">#FF6A1F · 撞色</span></div></div>
+        <div class="palette__cell" data-page-node-id="SrpsR1zlCBEt2V5GdXlreu"><i style="background:#B9F2CE" data-page-node-id="Fa7UW07voLwA1bL1Bx9Svc"></i><div data-page-node-id="vCE0cfOLV9UPN8tE7j9nqy"><b data-page-node-id="V8sKDiPyznYLHrI4zBX5fV">mint</b><span data-page-node-id="S5PsWYHE7PmuHMROvtCH3Y">#B9F2CE · 成功</span></div></div>
+        <div class="palette__cell" data-page-node-id="bLvFhhFSu1fiApX9DZOkUv"><i style="background:#FFE27A" data-page-node-id="cGnA5LRglTvUKEGfOPYxjW"></i><div data-page-node-id="FuNOuJRWKoDqwJe0EBDqJ9"><b data-page-node-id="EBTnGNLMUMMOwvbbmXZmBq">butter</b><span data-page-node-id="mFElYCd3PgvAbspMAQYdgb">#FFE27A · 高亮</span></div></div>
+        <div class="palette__cell" data-page-node-id="F9C5IaEHj8GNqZcD1ANzNS"><i style="background:#FFD7D3" data-page-node-id="wlur1i62bcnFFkEiNqABkp"></i><div data-page-node-id="Ggv8Cztjs1hWdcAyzHIKUe"><b data-page-node-id="CHCjKdIsFoo6kNf8jp7LHD">blush</b><span data-page-node-id="ucAhC6hGRNHabCcqRmf4Fg">#FFD7D3 · 危险</span></div></div>
+        <div class="palette__cell" data-page-node-id="3k7hQA3YS0qD4HKUgWOmnN"><i style="background:#E2D9C6" data-page-node-id="AbzwsspBG7VKK5BgcH3o5J"></i><div data-page-node-id="a19F2tFvFyFOvqqlSEOisK"><b data-page-node-id="h1OJoLuHosLDTeWibufNc7">line</b><span data-page-node-id="5Cte4E1CoXzVbnGAjOspWb">#E2D9C6 · 分隔</span></div></div>
+      </div>
+      <div class="palette__legend" data-page-node-id="2xL4SA0rZChXGaLIjcJgbF">
+        <p data-page-node-id="XkrU3cMT7uV7CbNgYDdfVV"><strong data-page-node-id="q6WR6lUX1WrpCsYbeVqtV7">Cobalt #2B3AFF</strong> 是唯一的信号色——主操作、选中、数据强调。
+          橙色只做填充、不上文字；三个粉彩只标状态。全站撞色面积 ≤ 10%。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 01 落地页 ══════════════ -->
+<section class="spec" id="landing" data-page-node-id="YFw5smIp58YAHE1Q46GNSV">
+  <div class="wrap" data-page-node-id="8znth8m9SG4xO8KbS8Nppz">
+    <div class="spec__head" data-page-node-id="cGAvXjuXfOweQyEQbotXr7">
+      <span class="spec__no" data-page-node-id="qJahpUo8yWmkDeN0cEcwxl">01</span>
+      <h2 data-page-node-id="ta6lJLsbuaW0YTzysKGq9V">落地页 · Loud</h2>
+      <p data-page-node-id="9QcwAGGkPM9EC1XknfOJR4">海报级标题 + 非对称双栏 + 硬阴影截图框。所有文案沿用现有 i18n，不新增内容。</p>
+    </div>
+  </div>
+
+  <div class="lp" data-page-node-id="HWnxRsQeIZC7fSef7uxQBC">
+    <!-- 导航 -->
+    <div class="lp__inner" data-page-node-id="QTOuKVeRvFfNXtshvTMdCA">
+      <nav class="lp-nav" data-page-node-id="Ji6vTHImrxoTiC7a6DBBZp">
+        <a class="logo" href="#landing" data-page-node-id="vED9hRxiCKwryD3KOtaQdK">
+          <span class="logo__mark" data-page-node-id="iuQuLbhzGfuikAolX2bRMN">JD</span>
+          <span class="logo__word" data-page-node-id="CyRTDadCczKPSCcDMwUe3f">JDMatch</span>
+        </a>
+        <span class="chip chip--flat" style="height:22px;font-size:10px" data-page-node-id="jBBTaYGOlEIAy2UQcPIa83">Beta</span>
+        <div class="lp-nav__links" data-page-node-id="nAcH93gcgxhVf2VgZuNXbl">
+          <a href="#landing" data-page-node-id="EkqDZx4NTsO4DRrlTI6Qtq">功能特点</a>
+          <a href="#landing" data-page-node-id="E59yKXLcEkvDL5g8giaMDW">定价</a>
+          <a href="#landing" data-page-node-id="EsA9omh9OiYIDdssr7Gpub">常见问题</a>
+        </div>
+        <div class="lp-nav__right" data-page-node-id="NbVqXLywTqCT4KWuQQ9h8l">
+          <button class="btn btn--ghost" data-page-node-id="wrEi4ZQ6inPtPgxl7MBc7d">登录</button>
+          <button class="btn btn--primary btn--sm" style="height:38px;padding:0 18px" data-page-node-id="Yufr5yxX99MJHnAkU10oFM">开始使用</button>
+        </div>
+      </nav>
+    </div>
+
+    <!-- 滚动条 -->
+    <div class="ticker" data-page-node-id="H3Lr3eYSvW0wXhWOej169I">
+      <div class="ticker__track" data-page-node-id="heNAnZMoTHA3DOFepYZbCx">
+        <span data-page-node-id="PmXrYfwtX0Jr79DUjjivPt">全新的 AI 简历 × JD 匹配功能已上线</span>
+        <span data-page-node-id="SWdp7g6uXCUxyhywjxIAN1">定制简历 PDF 一键导出</span>
+        <span data-page-node-id="KmWthW5jcb9GAAd9neKWa1">匹配 5 积分 · 话术 1 积分</span>
+        <span data-page-node-id="T5RLZwP0bzqECxTwnH1xPc">全新的 AI 简历 × JD 匹配功能已上线</span>
+        <span data-page-node-id="GGvXYp3sb8BTCQQdva8HpZ">定制简历 PDF 一键导出</span>
+        <span data-page-node-id="OmOYLqHqNboATWXoFhWDxJ">匹配 5 积分 · 话术 1 积分</span>
+      </div>
+    </div>
+
+    <!-- Hero -->
+    <div class="lp__inner" data-page-node-id="u2frZrGL1YG9UCyS8VUsFQ">
+      <div class="hero" data-page-node-id="c2xCNSyUUvV8CKemaU97mw">
+        <div class="hero__l rv" data-page-node-id="L1Dz64JGipP0zX1kyQOUHB">
+          <span class="chip chip--butter" data-page-node-id="2ywfuI3PpMZdVFiUD0YCsp">AI 简历 × JD 匹配</span>
+          <h1 data-page-node-id="AGX93AjRB24BrqpwxB7Wb7">用 AI 让简历<br  data-page-node-id="8LevtLGHlX3TApw4E4lE73"/>真正<mark data-page-node-id="jYNiCdTi6CB9w0HQn8sBUo">命中</mark>岗位</h1>
+          <p class="hero__sub" data-page-node-id="YCt7W0xL48g2ZiqKTynDI3">
+            上传简历与目标 JD，JDMatch 分析岗位要求并重写你的表达，
+            输出匹配度评分与可直接投递的定制简历。
+          </p>
+          <div class="hero__cta" data-page-node-id="cSOoJHOvCAbJY7wvK3FnXc">
+            <button class="btn btn--primary btn--lg" data-page-node-id="CmEaQ9H78ScHxWCMHPCW64">
+              立即匹配
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="zQdGT0w7Uu8BDCHKGzCEPn"><path d="M5 12h14M13 6l6 6-6 6" data-page-node-id="m6NMdXDR5voaJ6pT8bGm3F"/></svg>
+            </button>
+            <button class="btn btn--lg" data-page-node-id="u0oVGky3jZAIlZyHewuHEw">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" data-page-node-id="0NgKllQHTSCUXV3JHAJNWq"><path d="M8 5.5v13l11-6.5z" data-page-node-id="pbPFKkWKfIsJxzGshyCCDd"/></svg>
+              浏览模板
+            </button>
+          </div>
+          <div class="hero__proof" data-page-node-id="gDGCf175CmjXJvusNFgGfx">
+            <span data-page-node-id="ROZc89GepT5kFbAxGi82pi">注册即送 <b data-page-node-id="pAAPHHbUrQdb7RRtNlOvjV">50</b> 积分</span>
+            <i class="sep" data-page-node-id="C1semV155DGKES9juj5jpv"></i>
+            <span data-page-node-id="lk5n5hB6pUQaDofvXfxJCb">按次计费，无订阅</span>
+            <i class="sep" data-page-node-id="6Nt9FZtUAciqG4f9S6pBgZ"></i>
+            <span data-page-node-id="u1HSV43reojw4UZgKHYdC0">简历仅自己可见</span>
+          </div>
+        </div>
+
+        <div class="hero__r rv" data-page-node-id="X0tLEvUZtEmOsHsos0jrLW">
+          <div class="shot" data-page-node-id="HsNXalNrXBcOaYuqgSMlKw">
+            <i class="tape tape--tl" data-page-node-id="nNh5ISZETaHyOxAzXAAA6P"></i>
+            <i class="tape tape--br" data-page-node-id="yiWyZxLvoshGnvzLTc7lmi"></i>
+            <div class="shot__bar" data-page-node-id="T0NY6tegrFNB86ooDy0SJM">
+              <i data-page-node-id="yT3z3pshgPFZimjPD3sRUB"></i><i data-page-node-id="tNkf4z16DHVD1KZDrYqaaW"></i><i data-page-node-id="vt6GGH0XTRUvkQv9t7TCPg"></i>
+              <span class="shot__url" data-page-node-id="mrc4AEODQ2X88xDeyRNLRn">jdmatch.site/app/dashboard/match</span>
+            </div>
+            <div class="shot__body" data-page-node-id="ACjCO46qkalQGAqmggof8w">
+              <div class="shot__doc" data-page-node-id="tB6Sv0uQNHmW8Y32FSksrv">
+                <h5 data-page-node-id="iDwrVxlHGb3TTgQhFZCEwB">定制简历 · 字节跳动 / 增长产品</h5>
+                <p class="shot__para" data-page-node-id="BPP13vX0gVlzUrvRY2iSTK">
+                  负责 B 端增长策略落地，通过 <mark data-page-node-id="WljQ2mDgxCsEpZqloQi4JQ">用户分层</mark> 与 <mark data-page-node-id="hq2rrMFj595esIpHTdK7dY">AB 实验</mark>
+                  重构注册漏斗，季度转化率提升 23%。
+                </p>
+                <p class="shot__para" data-page-node-id="HjUezbq5rKlO2zVR2FqVsK">
+                  主导 <mark data-page-node-id="Ua6sHDHdsVEtRSMUuxxaHq">跨部门协作</mark>，与研发、设计共建实验平台，需求交付周期缩短 40%。
+                </p>
+                <div class="shot__line w86" data-page-node-id="E3ZDtZGD2JWMOzfJFUw2Jp"></div>
+                <div class="shot__line w70" data-page-node-id="ZocTwM0IAyXgDLDwEnpvSb"></div>
+                <div class="shot__line w54" data-page-node-id="tXLkOnKWC3HC1WdOEB5kkd"></div>
+              </div>
+              <div class="shot__score" data-page-node-id="QXc3H6KVDYaxPolNz8Cxsj">
+                <div class="shot__big" data-page-node-id="g6G2lS5f2wSehRXthwJMuo"><b data-page-node-id="oFPDtv92UskuScr1a3HCEC">87</b><span data-page-node-id="s5PUh4QCqtG4pCS5EVFXkI">匹配度</span></div>
+                <div class="shot__meter" data-page-node-id="kRn254X36gkZ4AqqISdu8r">
+                  <div class="row" data-page-node-id="oHaGVy1Z3epdEUg8WAGEZE"><span data-page-node-id="c2zAL6bMZY1skPJIZjFbbp">关键技能</span><span data-page-node-id="5m4gq2C9w3DTgE8TOUdbDi">92</span></div>
+                  <div class="bar" data-page-node-id="k2jVg0C5yKQwVm5UgymVse"><i style="width:92%" data-page-node-id="4NFrs4pm39gxBePYGaY3iH"></i></div>
+                  <div class="row" data-page-node-id="ugYrkHODWrDNFPuehEdcdU"><span data-page-node-id="IEEcGEKT7NLJBUjIFOGW30">经验年限</span><span data-page-node-id="Ov9uDNUEbdcrAeHX4cfuHa">78</span></div>
+                  <div class="bar" data-page-node-id="uPL7yCaB3IBF8PvAyD8kGP"><i style="width:78%" data-page-node-id="QBlxYpyvkV0QHWyDEDhvSS"></i></div>
+                  <div class="row" data-page-node-id="VtQdHCTZ2TazDMsSY7nWBZ"><span data-page-node-id="dPTU9SoG7H4BbtyeBcoVws">行业匹配</span><span data-page-node-id="yplCUf1653sVX2a5GvQzjd">85</span></div>
+                  <div class="bar" data-page-node-id="se0xBnEPb8tKVAMdMtGjZ0"><i style="width:85%" data-page-node-id="XVEaGJEPmvJJL2XB9ooKeA"></i></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="hero__float hero__float--a float-in" data-page-node-id="d2h5moMv96ppdaqkW7KPIB">
+            <span class="sticker" style="background:var(--mint)" data-page-node-id="HxlD7863qqSDBf1h3pBJHP">✓ 已对齐 12 个关键词</span>
+          </div>
+          <div class="hero__float hero__float--b" data-page-node-id="peV3Bee167atuUNTWCQZHG">
+            <span class="sticker" style="background:var(--tangerine);transform:rotate(4deg)" data-page-node-id="oRGcb4TbVhHQbh7OIiO611">省 3 小时 / 次</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 三步流 -->
+      <div class="flow rv" data-page-node-id="IPLAqjz5okwDb3WBHmEHRo">
+        <div class="flow__head" data-page-node-id="sW9TjzA8FohhMqVGc4d6jO">
+          <h2 data-page-node-id="iOVFkAeBxyI7CUwNT55acZ">三步，拿到能投的简历</h2>
+          <p data-page-node-id="0CoklQPAjNIcalqe83Y4m6">不需要学提示词，不需要改模板。你只负责上传和粘贴，剩下的交给它。</p>
+        </div>
+        <div class="steps" data-page-node-id="8ZBaWHiljxEvnxcDAbrCpY">
+          <div class="step" data-page-node-id="jbYrJJOPjrg2L9DqOqPLth">
+            <div class="step__no" data-page-node-id="b94ZoPWUg2wD2ypyE7HhxQ">01</div>
+            <svg class="step__icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" data-page-node-id="Eo5zN8df22O9noonGEoT5z"><path d="M12 16V4M7 9l5-5 5 5" data-page-node-id="fLa4IElcjkXoAMobVzBBXb"/><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" data-page-node-id="cPv215rudTzKEFIRPG9t6V"/></svg>
+            <h3 data-page-node-id="bO02foVlrH5MUoV8PMTX21">上传简历</h3>
+            <p data-page-node-id="9yDyiOCcUpznSmGoAx1lDU">PDF 或在线编辑，自动结构化解析。原有排版与内容一个字段都不丢。</p>
+          </div>
+          <div class="step" data-page-node-id="UWYD00yXQuP13vIblALhx3">
+            <div class="step__no" data-page-node-id="JGxD3BTna7wZp75vJI09SQ">02</div>
+            <svg class="step__icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" data-page-node-id="lhAOphoTP6s1guo0Kw1dGR"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" data-page-node-id="Ql2mxi0hfKKhfbKWUq9nP7"/><rect x="9" y="3" width="6" height="4" rx="1" data-page-node-id="EBKt85LJTHyZcNqghonwD9"/><path d="M9 12h6M9 16h4" data-page-node-id="bFrLWG0bWB9Ar3DNeo7Qkj"/></svg>
+            <h3 data-page-node-id="cdY09L5YaRxwjh9W5B6DSh">粘贴目标 JD</h3>
+            <p data-page-node-id="tWAlTy0o1ZQuchC0ehwdLS">整段丢进来就行。系统自动抽取岗位关键词、硬性要求与加分项。</p>
+          </div>
+          <div class="step" data-page-node-id="ZxTCsaDwc4AU4beI5Ir6Od">
+            <div class="step__no" data-page-node-id="jr3a8yHAmpK119ztazxLYP">03</div>
+            <svg class="step__icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" data-page-node-id="0HH9c3VVNCmw5KbGDnCypl"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2" data-page-node-id="K9lEidwV1GvujVaEvMEDJh"/><circle cx="12" cy="12" r="5" data-page-node-id="vGblY1iuA515Wy34M8m454"/><path d="M9 12l2 2 4-4" data-page-node-id="QyXA1cmG84B5FhEYXPITJQ"/></svg>
+            <h3 data-page-node-id="UtjdH7gMVuXJLaYUUhFYaU">拿到定制简历</h3>
+            <p data-page-node-id="MWQDpVO18PE4fBJMEiJ9M4">匹配度评分 + 改写建议 + 求职话术，一键导出 PDF，直接投。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 特性 + 票根 -->
+      <div class="feat rv" data-page-node-id="tFslecatEaofdRNqffmay4">
+        <div data-page-node-id="544buZEHPU47eAE1r0wyb4">
+          <p class="eb" style="margin-bottom:14px" data-page-node-id="BcrBUJFKUfIkivMPGHeFNf">为什么是 JDMatch</p>
+          <h2 data-page-node-id="AEfaJdeFUbBTt71yG9VBlK">把「改简历」这件苦活，变成三分钟的事</h2>
+          <div class="feat__list" data-page-node-id="wPwympdzcTCAxRognWPp82">
+            <div class="feat__item" data-page-node-id="wFgXtiBindD7nlU3gyd1vx">
+              <span class="feat__k" data-page-node-id="zhqeTGtXKQDZJ7oN1PA6h3">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" data-page-node-id="F4hiZwKhNfyQCkOUp5WFHP"><path d="M20 6L9 17l-5-5" data-page-node-id="9lOEnXKBk4s2FLW9z6AT3U"/></svg>
+              </span>
+              <div data-page-node-id="zLy9eoyC1AvKjB4KWDCbtP"><b data-page-node-id="F8RNGVvRURpe6vNAAqG4fO">匹配即重写</b><span data-page-node-id="XECBwQuqaFkpXi1jNuNaEC">不是给建议让你自己改，而是直接产出可投递的版本。</span></div>
+            </div>
+            <div class="feat__item" data-page-node-id="DskmpzAaNILFkrBdycklbY">
+              <span class="feat__k" style="background:var(--butter)" data-page-node-id="Ph0DfcrqDtetaKvDpPdZtx">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" data-page-node-id="lraXOQjtPyr6pdTaEvgCyW"><path d="M4 20L20 4M9 4h11v11" data-page-node-id="OUTdBlixFDBZ9zjwmpqXUf"/></svg>
+              </span>
+              <div data-page-node-id="fF6buZ3BbWaOXISJrCqr2g"><b data-page-node-id="xYep4sd1O5M04HDGaH5ZcH">关键词对齐</b><span data-page-node-id="YElzg0Jd0D5I8fiX9EirCF">自动对齐 JD 术语，减少被 ATS 系统误筛的概率。</span></div>
+            </div>
+            <div class="feat__item" data-page-node-id="NzhfoFgPcMBqSsXpcncF3e">
+              <span class="feat__k" style="background:var(--paper-2)" data-page-node-id="8zVvYmSYM89Vxj8mOSLvDn">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" data-page-node-id="qf6CTyKBLnH4n96w3AAvFQ"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" data-page-node-id="JoRJiqiirm0hgE304Fg5OL"/></svg>
+              </span>
+              <div data-page-node-id="vp5TlQgaET2PM6YHrGQWIu"><b data-page-node-id="c7n37gIZiY5YOOUz1w61n0">账号隔离，云端留痕</b><span data-page-node-id="L7PjmEmUSCTRv8PjqGRsaH">简历与匹配记录只属于你；每一次投递都留有阶段记录。</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ticket" data-page-node-id="gDrF7qkV0PPAgW29gLJNZj">
+          <div class="ticket__dots" data-page-node-id="UR4PVcbvOU0Uy7N5lFXyeZ"></div>
+          <p class="ticket__eb" data-page-node-id="nZIQSF2WpUY7e5Ydd8YbKG">Welcome Pack</p>
+          <p class="ticket__num" data-page-node-id="HQWmpmxy2Y3a5e3nVPJFn8">50</p>
+          <p class="ticket__u" data-page-node-id="pHFgI9PnA9YIPegqeZBKAe">积分，注册即到账</p>
+          <div class="ticket__rule" data-page-node-id="gHr9IvDceo3XV8FRuEhhN3"></div>
+          <div class="ticket__grid" data-page-node-id="ph7HKAdMniHg9ay33LQG95">
+            <div data-page-node-id="MXq2TV57SCbBwDyhLtKonh"><span data-page-node-id="BESv6UTNvqF45ujS3pGtsk">简历匹配</span><b data-page-node-id="2tk1XklvCwlqi8n1XeyWpP">5 积分 / 次</b></div>
+            <div data-page-node-id="FRYCepV75vFGezFFcfDRWS"><span data-page-node-id="WVgBIvyaFUXBmnGeefs0TO">话术生成</span><b data-page-node-id="aa0y3iewl3kQhTMCeiGeT2">1 积分 / 次</b></div>
+            <div data-page-node-id="VfFURUwedxNqjg2d9PNRsV"><span data-page-node-id="fcJD2Uxb1SctttIcSrfEKS">积分有效期</span><b data-page-node-id="IvmAc5Gfj9TysRgVsDLUne">不过期</b></div>
+            <div data-page-node-id="HshwsQa35HbIUDxjzcvTSq"><span data-page-node-id="6d91k0ySDGxgZfNv7MgeVo">PDF 导出</span><b data-page-node-id="DWWgYy2432cVOiYZBZ0slL">免费</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA 带 -->
+    <div class="ctaband" data-page-node-id="raRR94h7GzH6evlp4G3MhE">
+      <div class="ctaband__in" data-page-node-id="SeZiE3U8sCfk0Dq13QDbne">
+        <div class="rv" data-page-node-id="444c0H4MIuM0X1jZWoiZQK">
+          <h2 data-page-node-id="pAWcMuMYUJXQDUKCvaPrCY">让下一份简历<br  data-page-node-id="ttrWJFZWKEoi58BXFj1Il5"/>更懂那个岗位</h2>
+          <p data-page-node-id="XIusJyHCqcWeSPuulkp6WX">登录后即可发起匹配。一次 5 积分，比重新排版两小时便宜。</p>
+        </div>
+        <div class="ctaband__act rv" data-page-node-id="het4L9cv0B2YHHdeu8S40G">
+          <span class="sticker" style="background:var(--mint);transform:rotate(-2deg)" data-page-node-id="GrHoNdnhfzP2LXil3INu7G">注册即送 50 积分</span>
+          <button class="btn btn--lg" data-page-node-id="Bj67HYbOzka1KbCU5DXzdO">
+            登录并开始匹配
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" data-page-node-id="tTwYd3T3OGDBLYMvfFRTmF"><path d="M5 12h14M13 6l6 6-6 6" data-page-node-id="n1lzT0saqX69w848rpB9Ef"/></svg>
+          </button>
+          <span style="font-size:12px;opacity:.72" data-page-node-id="QN9pXxGzgUUroMokDUoqLl">邮箱注册，不用绑卡</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="lpfoot" data-page-node-id="xa32A8QXugqfVZKMA5As6A">
+      <div class="lpfoot__in" data-page-node-id="IgkjGUXT7w9UZzO20C9iWn">
+        <div data-page-node-id="JMzKENq67Hmt9XM9lSQLtd">
+          <a class="logo" href="#landing" style="margin-bottom:14px" data-page-node-id="zPLVRXVlJVw5ZAHUWMbnLE">
+            <span class="logo__mark" data-page-node-id="72wQftzzCIc3P8vILbSJ9F">JD</span>
+            <span class="logo__word" data-page-node-id="tun070xbLlwRKT2bDYTkG1">JDMatch</span>
+          </a>
+          <p style="font-size:12.5px;color:var(--ink-2);max-width:30ch;line-height:1.7" data-page-node-id="UWD4vG0yC4TuuHygNTGtUI">
+            AI 驱动的简历 × JD 匹配。让每一次投递都更有针对性。
+          </p>
+        </div>
+        <div data-page-node-id="Fafj8ZIdG5Au5TQXKFFFq9">
+          <h4 data-page-node-id="615kdjfH245yOjOt0c28F8">产品</h4>
+          <a href="#landing" data-page-node-id="DrdNkWm8Wm0giYDfuoFabj">简历匹配</a>
+          <a href="#landing" data-page-node-id="cGUDkhq8sagnURSpxFVDRA">我的投递</a>
+          <a href="#landing" data-page-node-id="CbjAB19VexdEc8VfOVrDny">模板库</a>
+        </div>
+        <div data-page-node-id="bCFgPRHwQwaVn7oatdhJnF">
+          <h4 data-page-node-id="lRrIU2mpLcQvc30CujLizf">支持</h4>
+          <a href="#landing" data-page-node-id="wmPe3hd42kOi133RpQYBN2">常见问题</a>
+          <a href="#landing" data-page-node-id="ncLCvE4U7stD4N5btNwHIo">意见反馈</a>
+          <a href="#landing" data-page-node-id="T99MVPrZ7W0WU0ShOfNw4s">更新日志</a>
+        </div>
+      </div>
+      <div class="lpfoot__bottom" data-page-node-id="EFGYMjH0fVPtvj6Dvvpglq">
+        <span data-page-node-id="E1HTh0Fv698z4l4F6KDJRl">© 2025 JDMatch. 保留所有权利.</span>
+        <a href="#landing" data-page-node-id="ImF2A8yh8BNQTyGiGIqZgM">皖ICP备2026029804号</a>
+        <a href="#landing" data-page-node-id="czHx7dWPMPIXFuXnKWpg67">公安备案</a>
+        <span style="margin-left:auto" data-page-node-id="mXhiKPKdlJAbhKsTxh24zM">Made for people who hate rewriting resumes.</span>
+      </div>
+    </footer>
+  </div>
+</section>
+
+<!-- ══════════════ 02 工作台 ══════════════ -->
+<section class="spec" id="app" data-page-node-id="Kl9vgdd8k3TE8yP2uCzN92">
+  <div class="wrap" data-page-node-id="n2w8y4txZacLmtfYLk07re">
+    <div class="spec__head" data-page-node-id="RY7NQsSEkqIA3CkVRGRMhz">
+      <span class="spec__no" data-page-node-id="0ll9XvY7kobKlUmi2vIY7Z">02</span>
+      <h2 data-page-node-id="AyKz9hFkUIsjwNfFO9BXGh">控制台 · Calm</h2>
+      <p data-page-node-id="OgoB4wjUrfHHs3u59TeujZ">同一套令牌降密度：1px 细线替代硬描边，撞色只留选中态与主操作。全屏唯一一处 Loud 是「本周转化」那张黄油色卡片。</p>
+    </div>
+
+    <div class="wb-frame rv" data-page-node-id="F4gEDKbZ1lMhZbT3bGF8j3">
+      <div class="wb" data-density="calm" data-page-node-id="0wtabtPhWpkvE2FymtHPUO">
+        <!-- 侧栏 -->
+        <aside class="wb__side" data-page-node-id="FTkMKzoUHO3NQoSAgAfPRF">
+          <div class="wb__brand" data-page-node-id="r8vwq8TMEVCaOIIvjeHuWT">
+            <span class="logo__mark" data-page-node-id="cXoBrOkwhZD2Oz4TKxmCEK">JD</span>
+            <b data-page-node-id="BB3tXnxoBdXoZGDsuzuX54">JDMatch</b>
+          </div>
+          <div class="wb__nav" data-page-node-id="Iz6cc7PgFhfAcgyGU0VEzC">
+            <p class="wb__group" data-page-node-id="dq5yOoeJ8ieZAHMcAd0uqR">Workspace</p>
+            <a class="wb__item" href="#app" data-page-node-id="C5chVZj4T5DKgtfGuFp4Zm">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="yQreWkRJh5Fz0g8K1WllDy"><circle cx="12" cy="12" r="9" data-page-node-id="Iaxv9DpHsi248FcIBZGP6C"/><circle cx="12" cy="12" r="3" data-page-node-id="6JP2TiArfMaxaftltKgqEg"/></svg>
+              JD 匹配
+            </a>
+            <a class="wb__item on" href="#app" data-page-node-id="EhzCqB1uV63mSpOXHoOdL4">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="tqsOWtSvgKRTMA3jOWGZd3"><rect x="3" y="7" width="18" height="13" rx="2" data-page-node-id="NHrUT7EIwwXZOASBzRs9tE"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" data-page-node-id="B9IwKB135wkGhSXmbirEbR"/></svg>
+              我的投递
+            </a>
+            <a class="wb__item" href="#app" data-page-node-id="SKMCcEGhLPdUEJMvddONmS">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="RNzZdolROcMfYMYigUR1XR"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" data-page-node-id="72VisJtOGtxM9qr7oGZTxE"/></svg>
+              投递分析
+            </a>
+            <a class="wb__item" href="#app" data-page-node-id="JM9DymXV0nRuYuNZlj1co6">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="lA9y55DX9hDmlze5TR93sF"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z" data-page-node-id="tpU8rpWC5izfEl0bbEz8ag"/><path d="M14 3v5h5" data-page-node-id="I2OAM8OKCIoCDsrNPTvwaq"/></svg>
+              我的简历
+            </a>
+            <a class="wb__item" href="#app" data-page-node-id="9CbpQ6QpVh9Bc8dqezMG7I">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="F6Z9LfvAykfmHAlKqVX2vn"><rect x="3" y="3" width="7" height="7" rx="1" data-page-node-id="DrmH4OE290Rv8uqMovnJBJ"/><rect x="14" y="3" width="7" height="7" rx="1" data-page-node-id="1XlOKRx6dNScdCnWENpJrF"/><rect x="3" y="14" width="7" height="7" rx="1" data-page-node-id="AFGbvVUjF7fJC8TrJ2wXA1"/><rect x="14" y="14" width="7" height="7" rx="1" data-page-node-id="jWuCdc3LFZlcLgECYPlfg6"/></svg>
+              模板库
+            </a>
+          </div>
+          <div class="wb__user" data-page-node-id="qV17FfxeeQ8W0a0LeTxclg">
+            <span class="wb__avatar" data-page-node-id="El63hntAWZR7WQqE0MzWd3">Q</span>
+            <div data-page-node-id="w9KOEXribxI9UnDYO4bydZ"><b data-page-node-id="MHR2MPre9enBg80kDDvh8p">qiugu</b><span data-page-node-id="wU6CS03kGpQUfyhfs4O0ca">剩余积分 · 38</span></div>
+          </div>
+        </aside>
+
+        <!-- 主区 -->
+        <main class="wb__main" data-page-node-id="ggd2ImT9uC85eHjlyjnGry">
+          <div class="wb__top" data-page-node-id="Bms8BfcH8TSmNO5VisFkr7">
+            <h1 data-page-node-id="1iDiHdDYDfp6Ql0YZROq33">我的投递</h1>
+            <span class="chip chip--flat" style="height:22px;font-size:10px" data-page-node-id="GUoMluOU367417vzT97YO4">活跃 6</span>
+            <div class="wb__top__right" data-page-node-id="EMqY9NB8idYGSLHMCPJNO7">
+              <span class="search" data-page-node-id="lhvoujZZBGogSk2eOYUN9i">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="mfDoh6frvfIHXDn2211SwH"><circle cx="11" cy="11" r="7" data-page-node-id="XFhl5AeZboYQKHETppmFYV"/><path d="M20 20l-4-4" data-page-node-id="GTPkBkRtW7Md2zPbqDicqg"/></svg>
+                搜索公司或岗位
+              </span>
+              <button class="btn btn--primary btn--sm" data-page-node-id="za14lkaA4bE2uSV1LWjF3u">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" data-page-node-id="KIPGU9jPLZwqxhu6LLw1Zr"><path d="M12 5v14M5 12h14" data-page-node-id="AC9pqT6teCTg9phgwLb7yY"/></svg>
+                新建岗位卡
+              </button>
+            </div>
+          </div>
+
+          <div class="wb__body" data-page-node-id="iKcKOg8Zm5eYCZ6ypbJ8vo">
+            <div class="kpis" data-page-node-id="FkAPOD3MzJLavhitS50bwn">
+              <div class="kpi" data-page-node-id="tZmN11pW4LTP2ndEILMZfQ">
+                <p class="kpi__k" data-page-node-id="M40nXpoONvRrOWCEbg6QgN">累计投递</p>
+                <div class="kpi__v" data-page-node-id="DnYztwpI6iKnxtmN5lH3KN"><b data-page-node-id="iSDMW2HGYOV6QRdQjxfFEZ">42</b><span class="kpi__d up" data-page-node-id="Im5SrJhq2pylep7TVJOmlQ">+12 本周</span></div>
+              </div>
+              <div class="kpi" data-page-node-id="f1L68I3A9CwETp9oNPeeN7">
+                <p class="kpi__k" data-page-node-id="Ndg5oGrn5fXNwWhNMNCQxG">待回复</p>
+                <div class="kpi__v" data-page-node-id="pBadQsU1lzA81VjI3Bl5B5"><b data-page-node-id="MFxAlGDh1PwggjRXRDQJaI">8</b><span class="kpi__d flat" data-page-node-id="7FGpQMQuaaXmw7NOfhLGAQ">—</span></div>
+              </div>
+              <div class="kpi" data-page-node-id="bABQ13p7GA7HWrED211cGQ">
+                <p class="kpi__k" data-page-node-id="o2peJDCqZWbLGOhsOMqxsW">面试中</p>
+                <div class="kpi__v" data-page-node-id="IuP7c4BWaNKn9lcOcqWcVj"><b data-page-node-id="xUsGO5cnt3Po02A3sXKPk8">5</b><span class="kpi__d up" data-page-node-id="ILYlJmo8aatkENCWcPPpKd">+2</span></div>
+              </div>
+              <div class="kpi kpi--hl" data-page-node-id="32pWJWOtCJf43dPBK3GSye">
+                <p class="kpi__k" data-page-node-id="5rVUFbFKtRFWiZ1LqRq6Ii">本周转化</p>
+                <div class="kpi__v" data-page-node-id="OK4tfAECRIHpZrHMft0Fd1"><b data-page-node-id="wdL4pKOOHXdedyVxtuAJJ4">24%</b><span class="kpi__d up" data-page-node-id="IAalnEGKV443YDFTgkvImH">+6pt</span></div>
+              </div>
+            </div>
+
+            <div class="wb__cols" data-page-node-id="hxo5IdiPmG7JIfbgdefsiR">
+              <div class="panel" data-page-node-id="qNUcJuFZbjfwqFnexZpSBQ">
+                <div class="panel__h" data-page-node-id="sBwTglXpwQhCeRdLilKEdE">
+                  <b data-page-node-id="R8zDhQMom7WaCy3NGvxROD">进行中</b>
+                  <span class="eb-zh" data-page-node-id="4AXi6wZtkuSPOjLtCUqtyV">按最近活动排序</span>
+                </div>
+                <div class="job" data-page-node-id="s5M6BrMNRtD2BxkxoPeTxd">
+                  <div data-page-node-id="KcH2bRZ1BF5kSMyf1tO9HI"><b data-page-node-id="YAHat0fzbM5lk3lbKLf8id">字节跳动 · 增长产品经理</b><span data-page-node-id="8Nh1RmEJDOjg9L9gktxY4B">已生成定制简历</span></div>
+                  <span class="chip chip--mint" style="justify-self:start" data-page-node-id="BUeqg8YIPGERGRGJGWDJqL"><i class="dot" style="background:var(--green)" data-page-node-id="js8HEHx8YtMSQCRDWfR1uU"></i>待投递</span>
+                  <span class="job__time" data-page-node-id="iHLRsdDRfC6T7T7B1rQctO">2 小时前</span>
+                </div>
+                <div class="job" data-page-node-id="OXKngbNf8AWTKme9PS6xDG">
+                  <div data-page-node-id="KvSVZtUOwr7iujTeGsgNqx"><b data-page-node-id="eEq5BqoDBwZJYMZpSB3ngL">小红书 · 用户增长</b><span data-page-node-id="x98QRVDi1g3SezGBK5sooy">已生成求职话术</span></div>
+                  <span class="chip chip--butter" style="justify-self:start" data-page-node-id="xsYe6kTb7oNUf0PUYhcGXx"><i class="dot" style="background:#B26B00" data-page-node-id="VoNwgKgeZcp1Wpu30JRxmj"></i>待回复</span>
+                  <span class="job__time" data-page-node-id="62aBaoiGMXfSiOMa2EeFkA">昨天</span>
+                </div>
+                <div class="job" data-page-node-id="c637AH4BKif2FWhG2z3SpF">
+                  <div data-page-node-id="CMI24Mhx9cqG3BIx1Xrxek"><b data-page-node-id="HCug5IHhKt9xP6yBFAJ58B">Stripe · Product Analyst</b><span data-page-node-id="qQe7McMpVdOdYfFLZYjmss">已投递 · 等待 HR 反馈</span></div>
+                  <span class="chip chip--flat" style="justify-self:start" data-page-node-id="F0LiRz3CbR5qAoigZQA4H3"><i class="dot" style="background:var(--cobalt)" data-page-node-id="vooi04Wel8SW17kVMH6BrQ"></i>已投递</span>
+                  <span class="job__time" data-page-node-id="Dt0F5hfJ1Td9nM9znlG0MW">3 天前</span>
+                </div>
+                <div class="job" data-page-node-id="KqhylbbYAinYXgy44FMdkd">
+                  <div data-page-node-id="vnGH7HguidBhL6c5r5RnHr"><b data-page-node-id="0LPXklQCXmX04dt2fSpuVT">美团 · 商业化产品</b><span data-page-node-id="K7M4QGLUjnJYUULOao13Gt">岗位已关闭，归档保留</span></div>
+                  <span class="chip chip--flat" style="justify-self:start" data-page-node-id="QCz1SqZiJLwLmg8B1LwqHT"><i class="dot" style="background:var(--ink-3)" data-page-node-id="DMm7hx75FJB5mcPmxxpKaH"></i>已归档</span>
+                  <span class="job__time" data-page-node-id="PSNEsQnfvE40LROPjl55pp">6 天前</span>
+                </div>
+              </div>
+
+              <div class="panel" data-page-node-id="ilXi8juxRYAZwY6xsmq0Xt">
+                <div class="panel__h" data-page-node-id="17gTUdr63yrenLIy0dt9tK"><b data-page-node-id="u2j6oC3xepItfTfoXQg4Lm">本周节奏</b><span class="eb-zh" data-page-node-id="ATsK6FtRECGkpfiNLu2rQo">投递 / 回复</span></div>
+                <div class="bars" data-page-node-id="W2b4v78FC0yXzr1uaC14px">
+                  <div data-page-node-id="uFqQKgiGdz3KgODiQrPv3G"><i style="height:38%" data-page-node-id="JSBoAMF6SOyiVImtfToJbX"></i><em data-page-node-id="rOGzVQGfNxAiBS0oaNFmV6">一</em></div>
+                  <div data-page-node-id="E8GDc0FAJYfUnokJdqXbYr"><i style="height:64%" data-page-node-id="UwkGHH1fEeV8dUng7fuBml"></i><em data-page-node-id="zMQq5hNcdcsCUmwgOoQlgf">二</em></div>
+                  <div data-page-node-id="EdxMJVaVelckQVOteizUjT"><i style="height:44%" class="dim" data-page-node-id="pCl5bskpq3HrfwKLs1KCLd"></i><em data-page-node-id="SF7CFWbRfEXjRkDWcKfNKI">三</em></div>
+                  <div data-page-node-id="C2Gvs39HSBLNAv73yICZnQ"><i style="height:82%" data-page-node-id="tJbnMOlFYir7Cf5ATf8cPV"></i><em data-page-node-id="mOFOkljFZdHf3e3fbYv1iC">四</em></div>
+                  <div data-page-node-id="Q9cBjCmxL8knswh7akD4hx"><i style="height:96%" data-page-node-id="Q9ODhfsopbUjXqUQsAQ1o7"></i><em data-page-node-id="FIdZV8JCuKnFmLv0jWDiS8">五</em></div>
+                  <div data-page-node-id="RrgbKG3N5rP9A1Ag43u0YW"><i style="height:30%" class="dim" data-page-node-id="3dfbWEDFY3PNEaCGIKnbuE"></i><em data-page-node-id="KIjpwgjSURjpC1Zy1wjUFr">六</em></div>
+                  <div data-page-node-id="7EEtvyHOaTZrekKu8TQF6M"><i style="height:18%" class="dim" data-page-node-id="7NO5mfPBCjEDV5e8JX2K8Q"></i><em data-page-node-id="6X1UpihBA7UBDqDISbuLBZ">日</em></div>
+                </div>
+                <div class="bars__foot" data-page-node-id="86c5UfrcnDry4fvhTgy5JE">
+                  <span data-page-node-id="GDLpHfBGJQHiEXaDwP53dO">峰值 周五 · 12 次</span>
+                  <span style="color:var(--green-text);font-weight:600" data-page-node-id="dREmszFQM0vv33IZbC86Xv">↑ 33%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 03 简历工作台 ══════════════ -->
+<section class="spec" id="workbench" data-page-node-id="WbkResume03">
+  <div class="wrap" data-page-node-id="WbkResume03Wrap">
+    <div class="spec__head" data-page-node-id="WbkResume03Head">
+      <span class="spec__no" data-page-node-id="WbkResume03No">03</span>
+      <h2 data-page-node-id="WbkResume03Title">简历工作台 · Calm</h2>
+      <p data-page-node-id="WbkResume03Desc">设置 → 编辑 → 预览，三栏固定宽度。工具条全部降为 1px 无阴影；纸张是界面上唯一「亮」的面，注意力落在内容而不是控件上。</p>
+    </div>
+
+    <div class="ed-frame rv" data-page-node-id="WbkResume03Frame">
+      <div class="ed" data-density="calm" data-page-node-id="WbkResume03Body">
+
+        <!-- 顶部操作条 -->
+        <div class="ed__bar" data-page-node-id="WbkBar">
+          <button class="ed__icon" aria-label="返回" data-page-node-id="WbkBarBack">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <div class="ed__name" data-page-node-id="WbkBarName">
+            <b data-page-node-id="WbkBarNameT">张明 · AI 产品经理</b>
+            <span data-page-node-id="WbkBarNameS"><i data-page-node-id="WbkBarDot"></i>已保存 · 14:32</span>
+          </div>
+          <div class="ed__acts" data-page-node-id="WbkBarActs">
+            <button class="ed__icon" disabled aria-label="撤销" data-page-node-id="WbkUndo">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h9a6 6 0 1 1 0 12H8"/></svg>
+            </button>
+            <button class="ed__icon" aria-label="重做" data-page-node-id="WbkRedo">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9h-9a6 6 0 1 0 0 12h5"/></svg>
+            </button>
+            <span class="ed__div" data-page-node-id="WbkDiv"></span>
+            <button class="btn btn--calm" data-page-node-id="WbkGrammar">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l6-16 6 16"/><path d="M7 14h6"/><path d="M18 8l2 2 3-4"/></svg>
+              校对
+            </button>
+            <button class="btn btn--calm btn--primary" data-page-node-id="WbkExport">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>
+              导出 PDF
+            </button>
+          </div>
+        </div>
+
+        <div class="ed__main" data-page-node-id="WbkMain">
+
+          <!-- 左：设置 -->
+          <aside class="set" data-page-node-id="WbkSet">
+            <div class="set__top" data-page-node-id="WbkSetTop">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+              <b data-page-node-id="WbkSetTopT">排版设置</b>
+              <span class="eb" data-page-node-id="WbkSetTopE">auto-save</span>
+            </div>
+
+            <div class="set__sec" data-page-node-id="WbkSetSec1">
+              <p class="set__lab" data-page-node-id="WbkSetLab1">版式</p>
+              <div class="seg" data-page-node-id="WbkSegLayout">
+                <button class="on" data-page-node-id="WbkSegL1">单栏</button>
+                <button data-page-node-id="WbkSegL2">双栏</button>
+              </div>
+            </div>
+
+            <div class="set__sec" data-page-node-id="WbkSetSec6">
+              <p class="set__lab" data-page-node-id="WbkSetLab6">字体</p>
+              <div class="seg" data-page-node-id="WbkSegFont">
+                <button class="on" data-page-node-id="WbkSegF1">思源黑</button>
+                <button data-page-node-id="WbkSegF2">宋体</button>
+              </div>
+            </div>
+
+            <div class="set__sec" data-page-node-id="WbkSetSec2">
+              <p class="set__lab" data-page-node-id="WbkSetLab2">模块 · 拖拽排序</p>
+              <div class="mod" data-page-node-id="WbkMod1"><span class="mod__grip" aria-hidden="true"></span>基本信息<span class="tick">✓</span></div>
+              <div class="mod" data-page-node-id="WbkMod2"><span class="mod__grip" aria-hidden="true"></span>工作经历<span class="tick">✓</span></div>
+              <div class="mod" data-page-node-id="WbkMod3"><span class="mod__grip" aria-hidden="true"></span>项目经历<span class="tick">✓</span></div>
+              <div class="mod" data-page-node-id="WbkMod4"><span class="mod__grip" aria-hidden="true"></span>教育背景<span class="tick">✓</span></div>
+              <div class="mod off" data-page-node-id="WbkMod5"><span class="mod__grip" aria-hidden="true"></span>技能标签</div>
+            </div>
+
+            <div class="set__sec" data-page-node-id="WbkSetSec3">
+              <p class="set__lab" data-page-node-id="WbkSetLab3">字号 · 行距</p>
+              <div class="set__row" data-page-node-id="WbkRow1"><span>正文</span><b>14 px</b></div>
+              <div class="slider" data-page-node-id="WbkSlider1"><i style="width:46%"></i><b style="left:46%"></b></div>
+              <div class="set__row" data-page-node-id="WbkRow2"><span>行距</span><b>1.75</b></div>
+              <div class="slider" data-page-node-id="WbkSlider2"><i style="width:62%"></i><b style="left:62%"></b></div>
+            </div>
+
+            <div class="set__sec" data-page-node-id="WbkSetSec5">
+              <p class="set__lab" data-page-node-id="WbkSetLab5">页边距</p>
+              <div class="set__row" data-page-node-id="WbkRow3"><span>上下 / 左右</span><b>24 / 20 mm</b></div>
+              <div class="slider" data-page-node-id="WbkSlider3"><i style="width:40%"></i><b style="left:40%"></b></div>
+            </div>
+
+            <div class="set__sec" data-page-node-id="WbkSetSec4">
+              <p class="set__lab" data-page-node-id="WbkSetLab4">强调色</p>
+              <div class="swatches-row" data-page-node-id="WbkSwRow">
+                <span class="swatch on" style="background:var(--ink)" data-page-node-id="WbkSw1"></span>
+                <span class="swatch" style="background:var(--cobalt)" data-page-node-id="WbkSw2"></span>
+                <span class="swatch" style="background:var(--tangerine)" data-page-node-id="WbkSw3"></span>
+                <span class="eb" style="margin-left:auto;font-size:9px" data-page-node-id="WbkSwE">ink</span>
+              </div>
+            </div>
+          </aside>
+
+          <!-- 中：编辑（编辑态 14px） -->
+          <div class="md" data-page-node-id="WbkMd">
+            <div class="md__tb" data-page-node-id="WbkMdTb">
+              <button class="tb" aria-label="粗体" data-page-node-id="WbkTbB"><b style="font-size:12.5px">B</b></button>
+              <button class="tb" aria-label="斜体" data-page-node-id="WbkTbI"><i style="font-family:Georgia,serif;font-size:13px">I</i></button>
+              <button class="tb" aria-label="删除线" data-page-node-id="WbkTbS"><s style="font-size:12px">S</s></button>
+              <span class="tb__sep" data-page-node-id="WbkTbSep1"></span>
+              <button class="tb" data-page-node-id="WbkTbH1">H1</button>
+              <button class="tb" data-page-node-id="WbkTbH2">H2</button>
+              <span class="tb__sep" data-page-node-id="WbkTbSep2"></span>
+              <button class="tb on" aria-label="无序列表" data-page-node-id="WbkTbUl">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor" stroke="none"/></svg>
+              </button>
+              <button class="tb" aria-label="有序列表" data-page-node-id="WbkTbOl">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 5h1v4M3.6 15.2c.3-.5 1.4-.7 1.4.2 0 .7-1.4 1.6-1.4 3.1h2"/></svg>
+              </button>
+              <span class="tb__sep" data-page-node-id="WbkTbSep3"></span>
+              <button class="tb" aria-label="左对齐" data-page-node-id="WbkTbAl">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h13"/></svg>
+              </button>
+              <button class="tb" aria-label="居中" data-page-node-id="WbkTbAc">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M6 18h12"/></svg>
+              </button>
+              <button class="tb" aria-label="两端对齐" data-page-node-id="WbkTbAj">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+              </button>
+              <span class="tb__sep" data-page-node-id="WbkTbSep4"></span>
+              <button class="tb" data-page-node-id="WbkTbLink">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 007 0l2-2a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-2 2a5 5 0 007 7l1-1"/></svg>
+              </button>
+              <button class="tb" style="margin-left:auto" aria-label="更多" data-page-node-id="WbkTbMore">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+              </button>
+            </div>
+
+            <div class="md__scroll" data-page-node-id="WbkMdScroll">
+              <div class="md__doc" data-page-node-id="WbkMdDoc">
+                <h1 class="t-center" data-page-node-id="WbkMdName">张明</h1>
+                <p class="t-center" style="font-size:11.5px;letter-spacing:.02em" data-page-node-id="WbkMdContact">AI 产品经理 · 5 年 B 端经验 · 北京 · zhangming@mail.com</p>
+
+                <h2 data-page-node-id="WbkMdH2a">工作经历</h2>
+                <div class="md__meta" data-page-node-id="WbkMdMeta1">
+                  <b data-page-node-id="WbkMdMeta1L">字节跳动 · 增长产品经理</b>
+                  <span class="r" data-page-node-id="WbkMdMeta1R">2022.06 — 至今</span>
+                </div>
+                <ul data-page-node-id="WbkMdUl1">
+                  <li data-page-node-id="WbkMdLi1">负责「智能投放」从 0 到 1，服务 3.2 万商家，单季营收 <mark data-page-node-id="WbkMdMark">+2400 万</mark></li>
+                  <li data-page-node-id="WbkMdLi2">重构素材生产链路，单套物料交付从 3 天压缩到 4 小时</li>
+                  <li data-page-node-id="WbkMdLi3">牵头 12 人虚拟团队，把投放 ROI 的诊断入口前置到开户流程</li>
+                </ul>
+
+                <h2 data-page-node-id="WbkMdH2b">项目经历</h2>
+                <div class="md__meta" data-page-node-id="WbkMdMeta2">
+                  <b data-page-node-id="WbkMdMeta2L">JDMatch · 独立设计与开发</b>
+                  <span class="r" data-page-node-id="WbkMdMeta2R">2025.01 — 至今</span>
+                </div>
+                <p data-page-node-id="WbkMdP1">面向求职者的岗位匹配工具，把 JD 与简历做结构化对齐，输出匹配度、缺口与定制话术<span class="caret" data-page-node-id="WbkCaret"></span></p>
+
+                <div class="slash" data-page-node-id="WbkSlash">
+                  <b data-page-node-id="WbkSlashKey">/</b>
+                  插入模块：教育背景、技能标签、作品集…
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右：产出态（16px，不参与改版） -->
+          <div class="pvd" data-page-node-id="WbkPvd">
+            <div class="pvd__bar" data-page-node-id="WbkPvdBar">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.6"/></svg>
+              <b data-page-node-id="WbkPvdBarT">实时预览</b>
+              <span class="chip chip--flat" style="height:19px;font-size:9px;padding:0 7px" data-page-node-id="WbkPvdTag">A4</span>
+              <span class="pvd__zoom" data-page-node-id="WbkPvdZoom">
+                86%
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M8 21H5a2 2 0 01-2-2v-3M16 21h3a2 2 0 002-2v-3"/></svg>
+              </span>
+            </div>
+
+            <div class="pvd__stage" data-page-node-id="WbkPvdStage">
+              <div class="paper" data-page-node-id="WbkPaper">
+                <div class="nm" data-page-node-id="WbkPaperName">张明</div>
+                <div class="sub" data-page-node-id="WbkPaperSub">AI 产品经理 · 5 年 B 端经验 · 北京 · zhangming@mail.com</div>
+
+                <div class="h" data-page-node-id="WbkPaperH1">工作经历</div>
+                <div class="row" data-page-node-id="WbkPaperRow1">
+                  <b data-page-node-id="WbkPaperRow1L">字节跳动 · 增长产品经理</b>
+                  <span class="r" data-page-node-id="WbkPaperRow1R">2022.06 — 至今</span>
+                </div>
+                <ul data-page-node-id="WbkPaperUl1">
+                  <li data-page-node-id="WbkPaperLi1">负责「智能投放」从 0 到 1，服务 3.2 万商家，单季营收 +2400 万</li>
+                  <li data-page-node-id="WbkPaperLi2">重构素材生产链路，单套物料交付从 3 天压缩到 4 小时</li>
+                  <li data-page-node-id="WbkPaperLi3">牵头 12 人虚拟团队，把投放 ROI 诊断前置到开户流程</li>
+                </ul>
+
+                <div class="h" data-page-node-id="WbkPaperH2">项目经历</div>
+                <div class="row" data-page-node-id="WbkPaperRow2">
+                  <b data-page-node-id="WbkPaperRow2L">JDMatch · 独立设计与开发</b>
+                  <span class="r" data-page-node-id="WbkPaperRow2R">2025.01 — 至今</span>
+                </div>
+                <p data-page-node-id="WbkPaperP1">面向求职者的岗位匹配工具，把 JD 与简历做结构化对齐，输出匹配度、缺口与定制话术。</p>
+
+                <div class="h" data-page-node-id="WbkPaperH3">教育背景</div>
+                <div class="row" data-page-node-id="WbkPaperRow3">
+                  <b data-page-node-id="WbkPaperRow3L">北京邮电大学 · 信息管理与信息系统</b>
+                  <span class="r" data-page-node-id="WbkPaperRow3R">2016 — 2020</span>
+                </div>
+                <p class="dim" data-page-node-id="WbkPaperP2">本科 · GPA 3.7/4.0 · 校级一等奖学金</p>
+
+                <div class="h" data-page-node-id="WbkPaperH4">技能标签</div>
+                <p data-page-node-id="WbkPaperP3">增长实验 · SQL / Python · 用户访谈 · A/B 测试 · 商业化定价</p>
+              </div>
+            </div>
+
+            <div class="pvd__foot" data-page-node-id="WbkPvdFoot">
+              <span data-page-node-id="WbkPvdFootL">第 1 / 2 页</span>
+              <span data-page-node-id="WbkPvdFootR">PDF · 字体已嵌入</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="notes" data-page-node-id="WbkNotes">
+      <div class="note" data-page-node-id="WbkNote1">
+        <b data-page-node-id="WbkNote1T">两套排版，互不越界</b>
+        <p data-page-node-id="WbkNote1P">编辑态 14px、产出态 16px。改工具栏不影响纸张，改纸张不影响编辑器。</p>
+      </div>
+      <div class="note" data-page-node-id="WbkNote2">
+        <b data-page-node-id="WbkNote2T">纸张保持素净</b>
+        <p data-page-node-id="WbkNote2P">预览与 PDF 不参与本次改版，仍是纯白纸 + 单色墨，打印契约不变。</p>
+      </div>
+      <div class="note" data-page-node-id="WbkNote3">
+        <b data-page-node-id="WbkNote3T">已知取舍</b>
+        <p data-page-node-id="WbkNote3P">左右配对容器在编辑器内显示为上下两段（文档模型限制，已在 DESIGN.md 记录）。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 04 登录 / 注册 ══════════════ -->
+<section class="spec" id="auth" data-page-node-id="AuthPage04">
+  <div class="wrap" data-page-node-id="AuthPage04Wrap">
+    <div class="spec__head" data-page-node-id="AuthPage04Head">
+      <span class="spec__no" data-page-node-id="AuthPage04No">04</span>
+      <h2 data-page-node-id="AuthPage04Title">登录 / 注册 · Loud</h2>
+      <p data-page-node-id="AuthPage04Desc">把「注册即送 50 积分」放在左侧可视区，右侧只留两支输入框。备案号悬挂在卡片正下方——合规，但不打断。</p>
+    </div>
+
+    <div class="auth-frame rv" data-page-node-id="AuthPage04Frame">
+      <div class="auth" data-density="loud" data-page-node-id="AuthPage04Body">
+
+        <div class="auth__l" data-page-node-id="AuthLeft">
+          <div class="logo" data-page-node-id="AuthLogo">
+            <span class="logo__mark" data-page-node-id="AuthLogoMark">JD</span>
+            <span class="logo__word" data-page-node-id="AuthLogoWord">JDMatch</span>
+          </div>
+
+          <h2 class="auth__h" data-page-node-id="AuthH">
+            把简历改成<br data-page-node-id="AuthHBr1"/><em data-page-node-id="AuthHEm">这个岗位</em><br data-page-node-id="AuthHBr2"/>想看的形状。
+          </h2>
+          <p class="auth__p" data-page-node-id="AuthP">粘贴一份 JD，拿到匹配度、能力缺口和一段能直接发出去的打招呼话术。不是套模板，是针对性重写。</p>
+
+          <div class="auth__pts" data-page-node-id="AuthPts">
+            <span class="auth__pt" data-page-node-id="AuthPt1"><i data-page-node-id="AuthPt1i">1</i>邮箱 + 密码即可开始，不需要信用卡</span>
+            <span class="auth__pt" data-page-node-id="AuthPt2"><i data-page-node-id="AuthPt2i">2</i>50 积分 ≈ 8 次「匹配 + 话术」</span>
+            <span class="auth__pt" data-page-node-id="AuthPt3"><i data-page-node-id="AuthPt3i">3</i>简历仅本人可读，导出随时可取走</span>
+          </div>
+
+          <div class="auth__note" data-page-node-id="AuthNote"><i data-page-node-id="AuthNoteDot"></i>Workspace · jdmatch.site</div>
+          <span class="sticker auth__stamp" data-page-node-id="AuthStamp">免信用卡 · 30 秒注册</span>
+        </div>
+
+        <div class="auth__r" data-page-node-id="AuthRight">
+          <div class="authcard" data-page-node-id="AuthCard">
+            <div class="authcard__hd" data-page-node-id="AuthCardHd">
+              <span class="logo__mark" data-page-node-id="AuthCardMark">JD</span>
+              <b data-page-node-id="AuthCardT">欢迎回来</b>
+              <span data-page-node-id="AuthCardS">登录后继续你的投递</span>
+            </div>
+
+            <div class="seg" data-page-node-id="AuthSeg">
+              <button class="on" data-page-node-id="AuthSegLogin">登录</button>
+              <button data-page-node-id="AuthSegReg">注册</button>
+            </div>
+
+            <div class="field" data-page-node-id="AuthField1">
+              <label data-page-node-id="AuthLabel1">用户名</label>
+              <div class="field__in focus" data-page-node-id="AuthInput1">qiugu</div>
+            </div>
+            <div class="field" style="margin-top:10px" data-page-node-id="AuthField2">
+              <label data-page-node-id="AuthLabel2">密码</label>
+              <div class="field__in" data-page-node-id="AuthInput2">••••••••••</div>
+            </div>
+
+            <button class="btn btn--primary" data-page-node-id="AuthSubmit">登录</button>
+            <div class="authcard__alt" data-page-node-id="AuthAlt">还没有账号？<a href="#auth" data-page-node-id="AuthAltA">立即注册</a></div>
+            <div class="authcard__fine" data-page-node-id="AuthFine">本站仅面向个人求职者，请勿用于商业转售。</div>
+          </div>
+
+          <div class="filing" data-page-node-id="AuthFiling">
+            <a href="#auth" data-page-node-id="AuthIcp">皖ICP备2026029804号</a>
+            <span data-page-node-id="AuthCopyright">© 2026 JDMatch · 个人开发者</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 状态小样 -->
+    <div class="authstates" data-page-node-id="AuthStates">
+      <div class="statedemo" data-page-node-id="AuthState2">
+        <div class="statedemo__lab" data-page-node-id="AuthState2Lab">
+          <span class="eb" data-page-node-id="AuthState2Eb">State 02</span>
+          <b data-page-node-id="AuthState2T">注册 · 成功路径</b>
+        </div>
+        <div class="authcard" data-page-node-id="AuthState2Card">
+          <div class="authcard__hd" data-page-node-id="AuthState2Hd">
+            <span class="logo__mark" data-page-node-id="AuthState2Mark">JD</span>
+            <b data-page-node-id="AuthState2Title">创建账号</b>
+            <span data-page-node-id="AuthState2Sub">注册成功即获 50 积分</span>
+          </div>
+          <div class="seg" data-page-node-id="AuthState2Seg">
+            <button data-page-node-id="AuthState2L">登录</button>
+            <button class="on" data-page-node-id="AuthState2R">注册</button>
+          </div>
+          <div class="field" data-page-node-id="AuthState2F1">
+            <label data-page-node-id="AuthState2La1">用户名</label>
+            <div class="field__in" data-page-node-id="AuthState2I1">至少 3 个字符</div>
+          </div>
+          <div class="field" style="margin-top:10px" data-page-node-id="AuthState2F2">
+            <label data-page-node-id="AuthState2La2">密码</label>
+            <div class="field__in focus" data-page-node-id="AuthState2I2">••••••••••••</div>
+            <small data-page-node-id="AuthState2Hint">建议 12 位以上，含数字与符号</small>
+          </div>
+          <div class="field" style="margin-top:10px" data-page-node-id="AuthState2F3">
+            <label data-page-node-id="AuthState2La3">注册码</label>
+            <div class="field__in" data-page-node-id="AuthState2I3">12 位，3 组</div>
+            <small data-page-node-id="AuthState2Hint2">没有注册码？<a href="#auth" style="color:var(--cobalt);font-weight:600">点此领取</a></small>
+          </div>
+          <button class="btn btn--primary" data-page-node-id="AuthState2Btn">创建账号 · 领 50 积分</button>
+        </div>
+      </div>
+
+      <div class="statedemo" data-page-node-id="AuthState3">
+        <div class="statedemo__lab" data-page-node-id="AuthState3Lab">
+          <span class="eb" data-page-node-id="AuthState3Eb">State 03</span>
+          <b data-page-node-id="AuthState3T">失败 · 限流冷却</b>
+        </div>
+        <div class="authcard" data-page-node-id="AuthState3Card">
+          <div class="authcard__hd" data-page-node-id="AuthState3Hd">
+            <span class="logo__mark" data-page-node-id="AuthState3Mark">JD</span>
+            <b data-page-node-id="AuthState3Title">欢迎回来</b>
+            <span data-page-node-id="AuthState3Sub">登录后继续你的投递</span>
+          </div>
+          <div class="seg" data-page-node-id="AuthState3Seg">
+            <button class="on" data-page-node-id="AuthState3SegL">登录</button>
+            <button data-page-node-id="AuthState3SegR">注册</button>
+          </div>
+          <div class="alerterr" data-page-node-id="AuthState3Err">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+            用户名或密码不正确，还可尝试 4 次
+          </div>
+          <div class="field" data-page-node-id="AuthState3F1">
+            <label data-page-node-id="AuthState3La1">用户名</label>
+            <div class="field__in" data-page-node-id="AuthState3I1">qiugu</div>
+          </div>
+          <div class="field" style="margin-top:10px" data-page-node-id="AuthState3F2">
+            <label data-page-node-id="AuthState3La2">密码</label>
+            <div class="field__in err" data-page-node-id="AuthState3I2">•••••</div>
+          </div>
+          <button class="btn btn--primary" disabled data-page-node-id="AuthState3Btn">42 秒后可重试</button>
+          <div class="authcard__alt" data-page-node-id="AuthState3Alt">还没有账号？<a href="#auth" data-page-node-id="AuthState3AltA">立即注册</a></div>
+          <div class="authcard__fine" data-page-node-id="AuthState3Fine">本站仅面向个人求职者，请勿用于商业转售。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 05 组件 ══════════════ -->
+<section class="spec" id="components" data-page-node-id="w5pHqLqe8wsh8Dz9HensIk">
+  <div class="wrap" data-page-node-id="QhF74vwzKZbg3d1IuRMptV">
+    <div class="spec__head" data-page-node-id="BQrRKyq0UWH2dxSCBsVNWL">
+      <span class="spec__no" data-page-node-id="dqha6Dh3JXYR0AuqghyMTS">05</span>
+      <h2 data-page-node-id="PLvXg4mCfThDOgAOsMjwVR">组件</h2>
+      <p data-page-node-id="OURaqZW6tLc4tsxdVE4gOs">可以上手点。按钮、输入、卡片的悬停与按压都有真实的位移与阴影变化。</p>
+    </div>
+
+    <div class="grid-demo" data-page-node-id="fdaEXyttJZZQVhfvbmwTBs">
+      <div class="demo demo--wide rv" data-page-node-id="4Tnd7HBRbd1rBBGH5bPyKM">
+        <div class="demo__label" data-page-node-id="5cHaWAW9YaGYu0qiSCGhy5"><b data-page-node-id="glrVNExuuva09AgwEDMh8r">Button</b><span class="eb" data-page-node-id="bImUB5nLrEWi7PKy1A6dtV">5 变体 × 3 尺寸 · 悬停抬升 / 按下陷入</span></div>
+        <div class="demo__row" data-page-node-id="t9qFV9pxHbWEVDcOvGFJEu">
+          <button class="btn btn--primary" data-page-node-id="3L14DQ6crHAEvSgqjWnC6j">立即匹配</button>
+          <button class="btn" data-page-node-id="wCgEFQtTuzu8dFeOqoPhVD">浏览模板</button>
+          <button class="btn btn--danger" data-page-node-id="DGaGygbxYBkbdp6pAMdjQ8">放弃投递</button>
+          <button class="btn btn--ghost" data-page-node-id="dT7EpXzvyWqDpAZGl3wqJd">取消</button>
+          <button class="btn btn--link" data-page-node-id="NmUNBxACLiUsU7UcWm1QE0">查看历史</button>
+          <button class="btn btn--primary" disabled data-page-node-id="6q16j3SRcQEyvKISb8LOJ1">积分不足</button>
+        </div>
+        <div class="demo__row" data-page-node-id="FRZwBXEZKwY5hs4HhB9rHI">
+          <button class="btn btn--sm btn--primary" data-page-node-id="AXvsmpUGClHBChybSi8WHs">小号 32</button>
+          <button class="btn btn--sm" data-page-node-id="RlHnrs4MYEsQIMPkdMikDC">小号次级</button>
+          <button class="btn btn--lg btn--primary" style="margin-left:auto" data-page-node-id="DfswW57IGwngHFn6xuKjv6">大号 52</button>
+        </div>
+      </div>
+
+      <div class="demo rv" data-page-node-id="CPxVjK8iuNAI8ondSXrr9N">
+        <div class="demo__label" data-page-node-id="Xrx9Hmw8kXPQju4kLxMN5s"><b data-page-node-id="0tVOa9QKJV8YYdNmOwtSSi">Chip / 状态徽章</b><span class="eb" data-page-node-id="Xj81SOf10SqxX0hUoLUZNU">圆点 + 标签双重编码</span></div>
+        <div class="demo__row" data-page-node-id="0NFFMntrIRLMmLA5qVt4VT">
+          <span class="chip chip--mint" data-page-node-id="6m1iwhq5EpElysUG34SAFi"><i class="dot" style="background:var(--green)" data-page-node-id="YEtyBWjSvwElPMrzeDjbD3"></i>已匹配</span>
+          <span class="chip chip--butter" data-page-node-id="ZNC0xsWSpeemX5QcuI15D2"><i class="dot" style="background:#B26B00" data-page-node-id="aj8CfFUVohbFeHazcI2jQ7"></i>待回复</span>
+          <span class="chip chip--blush" data-page-node-id="H3dh2XsN9TNX33j1gbSZCQ"><i class="dot" style="background:#B42318" data-page-node-id="vi8GMlhXtuVeH1QsrUfYHN"></i>缺失</span>
+          <span class="chip chip--flat" data-page-node-id="q5mg2MqwETSbBj2paAtGFY"><i class="dot" style="background:var(--ink-3)" data-page-node-id="Wu23MHLafAdGuZlhq76ngL"></i>已归档</span>
+        </div>
+        <div class="demo__row" data-page-node-id="uKpLToN0dbnBwSa2D8LCAs">
+          <span class="chip" data-page-node-id="LuxBljsA3SDATvCNIVLSoX">AI 驱动</span>
+          <span class="chip chip--flat" data-page-node-id="ZMavxv7HGEUa1MIYQr1dtH">管理</span>
+          <span class="chip chip--butter" data-page-node-id="ENVMJteF59OR8OdIOVV6qH">Beta</span>
+        </div>
+      </div>
+
+      <div class="demo rv" data-page-node-id="4T8jrDsE15fa7VlvHmt7Hi">
+        <div class="demo__label" data-page-node-id="NEMEukJNX979LPJOGGIaxx"><b data-page-node-id="tTlvLWPchMTfJ0S0dILFpC">Tabs</b><span class="eb" data-page-node-id="Twsuz68PnFFf6DiBl9N2lo">Calm 底线 / Loud 胶囊</span></div>
+        <div class="tabs" data-page-node-id="ynGvAwc8mPe8JKt2WtS90e">
+          <button class="on" data-page-node-id="Xhx1KZEojHZAfGJ6bWO7Dc">全部</button>
+          <button data-page-node-id="0AHygEmMlFxxGQAyIkmcPk">待回复</button>
+          <button data-page-node-id="hjXDeSsqtntr51iWVRQud6">面试中</button>
+          <button data-page-node-id="7HtszeSd56lGvAOgEXQYcH">已归档</button>
+        </div>
+        <div class="tabs--loud" style="margin-top:6px" data-page-node-id="GUT9yH45bhGbh4V32HBEaw">
+          <button class="on" data-page-node-id="Tdh2yFKncdaGQQHjYW5gwc">周</button><button data-page-node-id="KTLkfgE5H5Bab4L9bPkJ4t">月</button><button data-page-node-id="PvUIdYXdz6WsfjirNaxq5n">季</button>
+        </div>
+      </div>
+
+      <div class="demo rv" data-page-node-id="7rA0fwDj8Rf3EkZoaFslCt">
+        <div class="demo__label" data-page-node-id="W1arhKPhimeUYXCnCSyJn6"><b data-page-node-id="apzHgdXIGuVNZKy8rI0bc8">Input</b><span class="eb" data-page-node-id="h5RWIAAw9XtP3E4B2iMWbD">默认 / 聚焦 / 错误</span></div>
+        <div class="demo__row" style="align-items:flex-start" data-page-node-id="zC8eV3KCTURuNHNwxO6PSU">
+          <div class="field" data-page-node-id="tEgx4I6bwaeSr9MhcKtr2v">
+            <label data-page-node-id="WCjjw26FNazabl0DF4tAWz">目标岗位 JD</label>
+            <div class="field__in" data-page-node-id="DTkA9qESGJFcjmDfFpFJGS">粘贴整段 JD 即可…</div>
+            <small data-page-node-id="Of77kx21buUItg18MSWZy0">系统会自动抽取关键词与硬性要求</small>
+          </div>
+        </div>
+        <div class="demo__row" style="align-items:flex-start" data-page-node-id="EI1DdxXSN2GSKhdYIvrTOP">
+          <div class="field" data-page-node-id="9HajmJ5Kr03XJOF59iKmap">
+            <label data-page-node-id="Su6iVEZNZz2YsMVbmw5Saa">邮箱</label>
+            <div class="field__in focus" data-page-node-id="Vvj7GC3ZCF1fZgJ2rstZGn">qiugu@example.com</div>
+            <small data-page-node-id="hAfjTL7VHqDkby8WPlAApj">聚焦：2px 钴蓝 + 3px 光晕</small>
+          </div>
+          <div class="field" data-page-node-id="j8EIkoli1Y1d0dMrG5ugGk">
+            <label data-page-node-id="2VB2pSFHOxKmftsG4c3VAF">密码</label>
+            <div class="field__in err" data-page-node-id="FBMW3Psx81lN5bxBW1qlxc">qiugu2026</div>
+            <small class="bad" data-page-node-id="M84YVMsqPS0NftGJJz9SbR">✕ 密码至少 12 位，当前 9 位</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo rv" data-page-node-id="1z3iTJrpgrNrPxApeJsKbL">
+        <div class="demo__label" data-page-node-id="6kli7nbBAyJrkpxexrFyhJ"><b data-page-node-id="HqCKHm1WM9NB7tVo51XAKa">Empty State</b><span class="eb" data-page-node-id="wFUpbFAz76aKg36C9ZoR2A">说「现在能做什么」</span></div>
+        <div class="empty" data-page-node-id="ORu6eEV2VF0GbAZfwfLdde">
+          <span class="empty__ico" data-page-node-id="7ip67HlVjWqaAoESzZ1ye4">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" data-page-node-id="doDKgKv4bl19t1K1LL1OtC"><path d="M12 16V4M7 9l5-5 5 5" data-page-node-id="Pkmnt5FmBLbKzxOfQtBQYg"/><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" data-page-node-id="YtvBQFOxpXgx8KBHbLKzbC"/></svg>
+          </span>
+          <b data-page-node-id="tHT6squglpaariGelGyDEq">还没有岗位卡</b>
+          <p data-page-node-id="Z0l95BsRvqSAsxG2xcwy6m">把正在投的 JD 存下来，后续的话术与定制简历都会挂在它下面。</p>
+          <button class="btn btn--sm btn--primary" data-page-node-id="7aRLKEX9tkzusyD9KXyXlZ">粘贴第一个 JD</button>
+        </div>
+      </div>
+
+      <div class="demo rv" data-page-node-id="pnO5GyoitSRE1GcSlryi87">
+        <div class="demo__label" data-page-node-id="EulBW9Y3P6UWD9FkNLCf74"><b data-page-node-id="ZF386ZqiIZFX89eVwiQvwC">Toast</b><span class="eb" data-page-node-id="nwvb81MxZlTSNRCcQJpyGg">左侧 4px 状态色 + 硬阴影</span></div>
+        <div class="toast" data-page-node-id="6rB3TCa6ay6nCBN5pgO9BY">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.4" stroke-linecap="round" data-page-node-id="7RV8t5GDZeLCSPDP8EWpoV"><circle cx="12" cy="12" r="9" data-page-node-id="I5JMcwnOy9Nytth5XhAdO6"/><path d="M8 12l3 3 5-6" data-page-node-id="DuD3N36tT2CDYrYaDlt6NU"/></svg>
+          <div data-page-node-id="SkT0u6Nv24CJ820BMl2aQH"><b data-page-node-id="gdfywWapC4RtP6TAuFuzp2">匹配完成</b><span data-page-node-id="ztpICeKnIDJcM4Yx7b9yXZ">已生成定制简历，剩余积分 33</span></div>
+        </div>
+        <div class="toast" style="border-color:var(--ink)" data-page-node-id="HFV1uPYpw1UaEVDeo3bBkC">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" data-page-node-id="C0orgFSeiahxoJS5x6IyPI"><circle cx="12" cy="12" r="9" data-page-node-id="yWgxwXDfgBgNW3wuRDw7BC"/><path d="M12 8v5M12 16.5v.5" data-page-node-id="yuexPOjsx0TMyssNhfPZKN"/></svg>
+          <div data-page-node-id="khvLtQa8SXfR07eLIehdJJ"><b data-page-node-id="S3WQT03Czw1ce9ZB9ZkdFi">积分不足</b><span data-page-node-id="KFYNq7GBEQcqZYIJJ1chtU">本次匹配需要 5 积分，当前 2 积分</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 04 令牌 ══════════════ -->
+<section class="spec" id="tokens" data-page-node-id="lvgImZD8TiaBk4K9AHIzh3">
+  <div class="wrap" data-page-node-id="Zzmq6Iwb1dNm9wTDpA7yVT">
+    <div class="spec__head" data-page-node-id="CqK6eUExLIEKF4Tks34FJs">
+      <span class="spec__no" data-page-node-id="mjJ7I8AOrrZPsTtZhJUiVe">06</span>
+      <h2 data-page-node-id="Y7f5WDs9smscSrBYyGxObm">令牌</h2>
+      <p data-page-node-id="7b8OSpXUa7fQcfUKTE4dXo">DESIGN.md 中的变量在本页 1:1 复现，可直接拷进 globals.css。</p>
+    </div>
+
+    <div class="tok" data-page-node-id="1wSn0XRVnA3IKOM8aMkKQh">
+      <div class="tokcard rv" style="grid-column:span 2" data-page-node-id="l7TUjwuewIU3953bcZ8M4L">
+        <h3 data-page-node-id="BQWwPfC8QLdfY62dKzqfhZ">色彩</h3>
+        <p data-page-node-id="iOCGE2YdXJUxYETCk9X06Z">中性色 8 档 · 信号色 1 个 · 状态填充 3 个 + 2 个文字态。括号内为实测对比度（纸底）</p>
+        <div class="swatches" style="grid-template-columns:repeat(5,1fr)" data-page-node-id="rJRklSWhU3JKarAQo9xlM6">
+          <div class="sw" data-page-node-id="2iN3uYTS15s3hqtkDKmqQf"><i style="background:#FBF6EA" data-page-node-id="Ft6kN94Pk8YHNA8eLaDRn5"></i><div data-page-node-id="orIWgfgY5bjetLwvtqo5dt"><b data-page-node-id="pj57zNcwGUYS6uYPmIGhBF">#FBF6EA</b><span data-page-node-id="zuSMyhLH3xhBtzROsr0PGK">paper · 画布</span></div></div>
+          <div class="sw" data-page-node-id="8fkawveFu7vD4qCwlCaqzi"><i style="background:#F3ECDC" data-page-node-id="7tSUoQPF1A9A7schqAm57M"></i><div data-page-node-id="edCdeHC96VDVlkufoRfmWj"><b data-page-node-id="d5aFqTjwTE7mRY5gvjZ4Aq">#F3ECDC</b><span data-page-node-id="kjWCIXyp3wXdHrxGG4gddY">paper-2 · 凹陷</span></div></div>
+          <div class="sw" data-page-node-id="SIGyfuE7DHuBpgkS0wjVpn"><i style="background:#FFFDF8" data-page-node-id="ZSTpFVZB7SfcjArYTZ4aCA"></i><div data-page-node-id="3SBUMu0uFdtdsINpztXKr8"><b data-page-node-id="ETJSR45VVUoY960EyBIX8U">#FFFDF8</b><span data-page-node-id="yeEbyoiF0zeC4SvZ5NLe2d">card · 卡片</span></div></div>
+          <div class="sw" data-page-node-id="TvalJq45kbsUEmmMpuWWM9"><i style="background:#E2D9C6" data-page-node-id="MnbQtXBstTy35HDhomXqeC"></i><div data-page-node-id="JnCZBbaFkNxYQkT8eR4G9k"><b data-page-node-id="6VXl25Z2fwaaxNxqEroD3C">#E2D9C6</b><span data-page-node-id="18VAtR1NpsvCCiQALBbRpl">line · 装饰线</span></div></div>
+          <div class="sw" data-page-node-id="uJ3wfc9Kf7WXjyvZa9JgM2"><i style="background:#9C8B71" data-page-node-id="AY8jjiyUQL64HJ8bUGneTE"></i><div data-page-node-id="tNwkHNWeJDY4mGKDsvxJKC"><b data-page-node-id="CKeI9xWM4Ko571WYaPefFE">#9C8B71</b><span data-page-node-id="PPNlCr4a6fm3xKpOOjePR9">line-strong · 3.1</span></div></div>
+          <div class="sw" data-page-node-id="MW26DxzK23loeOX4MmjT3p"><i style="background:#171310" data-page-node-id="1EqWqbzjz9tdDBDPBIVH9h"></i><div data-page-node-id="qKeQRtfRJ76EJJ2jWE0RMM"><b data-page-node-id="oRYL8BDGwgRCYtWj6bbliP">#171310</b><span data-page-node-id="T2aRC22reAX6MEyuq8EISE">ink · 17.1</span></div></div>
+          <div class="sw" data-page-node-id="pNGlrB8b0USFuu6TblcWZQ"><i style="background:#4B423A" data-page-node-id="3I4rF6gjeHbDnFXdg9ToXa"></i><div data-page-node-id="0OpFcsKwsuIkpywb3uB7op"><b data-page-node-id="3ltyfTLp8YNZMrfvO4oySy">#4B423A</b><span data-page-node-id="ybBs7OdHkOAijCI0LkdH0r">ink-2 · 9.1</span></div></div>
+          <div class="sw" data-page-node-id="4X3yEG53M6UKkaj4ZTXA1K"><i style="background:#75695C" data-page-node-id="Csq6fD5BKaqQtFGoFQEv6m"></i><div data-page-node-id="5FPrxRGMX9aBMKxWf5SuPn"><b data-page-node-id="AqvtfDKb0BP4pSBMlzPEdh">#75695C</b><span data-page-node-id="ZqIrImHJEhf9gHWRXILkUj">ink-3 · 5.0</span></div></div>
+          <div class="sw" data-page-node-id="CvqiBUVTZBotwUrAfL4PS4"><i style="background:#2B3AFF" data-page-node-id="99sebwzx4HQCzV5DK7FusL"></i><div data-page-node-id="t0rG81jgMYAXUkjqB7l15k"><b data-page-node-id="DUSZCmtXewPvJcyuIDG7pF">#2B3AFF</b><span data-page-node-id="DKkgmhdvk8vBIoODLzcPMv">cobalt · 6.2</span></div></div>
+          <div class="sw" data-page-node-id="ivawED0EczilA0I1AHB4nS"><i style="background:#FF6A1F" data-page-node-id="vQAgBC0fEwDHDTSzFpKBrw"></i><div data-page-node-id="nLugLXIEM4DJEixGT0jjpm"><b data-page-node-id="dGuGdkIkDzJ96hbEfG3EY4">#FF6A1F</b><span data-page-node-id="efAfSmr1H5fvPkemMy1pre">tangerine · 2.7 填充</span></div></div>
+          <div class="sw" data-page-node-id="DCgVD2Jf5zgep8ttGoqjGM"><i style="background:#B9F2CE" data-page-node-id="5budppJXskRsI1BLUzei4q"></i><div data-page-node-id="EGAqLg8Ec7tMjd5wsHEZod"><b data-page-node-id="SIJJlHizobOAUW0WptUMzn">#B9F2CE</b><span data-page-node-id="veGDmvJJOCtoSCQrwMaqx2">mint · 14.7 墨字</span></div></div>
+          <div class="sw" data-page-node-id="VWuDHc2Ic6dtQcRw6Q9p4J"><i style="background:#FFE27A" data-page-node-id="dKx7yjgJScx25cto2Xtzzf"></i><div data-page-node-id="kllvBP8kN5gvx4RxeRcIqM"><b data-page-node-id="eiHN88Ij6apclz8GZBRP2i">#FFE27A</b><span data-page-node-id="6xYWXdgdomgeUoorzcblTF">butter · 14.4 墨字</span></div></div>
+          <div class="sw" data-page-node-id="oruAcrNWmjyCdiGb15FiiS"><i style="background:#FFD7D3" data-page-node-id="3cuMg1RNvFP6AA8mjFGyYt"></i><div data-page-node-id="kGgzyeI3WBTBzT90HuE8n5"><b data-page-node-id="qB0OUHPcXmOCxJ5xS4iUOD">#FFD7D3</b><span data-page-node-id="e6jB5xWl9kAqRl2RrDGGeO">blush · 14.0 墨字</span></div></div>
+          <div class="sw" data-page-node-id="aon04SRR6iuEdZZNpADOqs"><i style="background:#146B41" data-page-node-id="LOrBNKvXc1XfAXHHbB0Loq"></i><div data-page-node-id="BxRFlelJ6plEulpByzvP6N"><b data-page-node-id="klfcXdmLjfwaA68KzZCrcA">#146B41</b><span data-page-node-id="VdGtsA1zKRawj5hEsGqHBg">green-text · 6.4</span></div></div>
+          <div class="sw" data-page-node-id="2DpZyZUXxVuTEijaLaF4fN"><i style="background:#B42318" data-page-node-id="PHr7agbDCfWRIasVKOQbli"></i><div data-page-node-id="0ylcL8bZbBqNtSgYylgVEv"><b data-page-node-id="9q5SGfPXqz58JgeYDizruX">#B42318</b><span data-page-node-id="zNpMwQ12N3dMVRLlKaxzPo">danger · 6.5</span></div></div>
+        </div>
+      </div>
+
+      <div class="tokcard rv" data-page-node-id="KaS4E1cXWCtaG5DpGFxUJm">
+        <h3 data-page-node-id="qKbTPRfpMgj41KI662k2oM">字阶</h3>
+        <p data-page-node-id="lKdAt8hfM49a3mejzRERJX">Bricolage Grotesque · Instrument Sans · DM Mono</p>
+        <div class="specimen" data-page-node-id="bLOBdeyCFS6mFZKcxqNolr"><span class="tag" data-page-node-id="skWIdGxOykmHzbwS2fm6WS">latin 800</span><span class="txt sp-latin" data-page-node-id="F8NdK13t0w1vGnTJdyweVM">Paper &amp; Punch 87%</span></div>
+        <div class="specimen" data-page-node-id="VB9iMLoKlCyzrsfi19zDDJ"><span class="tag" data-page-node-id="2AmxZSZei5DG1ufv7bS0dy">poster 800</span><span class="txt sp-poster" data-page-node-id="atW528l7b2MnYQzgIxxMO2">精准命中</span></div>
+        <div class="specimen" data-page-node-id="roXEhfyfpIWiehBQunDaXK"><span class="tag" data-page-node-id="ErRugvl20FPXIFy1eFDZdC">display 700</span><span class="txt sp-display" data-page-node-id="QxxKC9LB0vdusxdI7evNC7">三步拿到简历</span></div>
+        <div class="specimen" data-page-node-id="mGmUkTyMpFyMPKGxHD2WS6"><span class="tag" data-page-node-id="WSx8YICPtJbDdsd8NoAPK7">h3 700</span><span class="txt sp-h3" data-page-node-id="nn0Vs8ulzZPMvwywPFP4cZ">上传简历</span></div>
+        <div class="specimen" data-page-node-id="8PXOm7Ny7lFkzrfu4PvEgL"><span class="tag" data-page-node-id="Xo8kDOFtxvZbqOQNfk0dpo">body 400</span><span class="txt sp-body" data-page-node-id="5LnuxXoYEoeHbtaMHcPmS6">上传简历与目标 JD，系统自动分析岗位要求。</span></div>
+        <div class="specimen" data-page-node-id="3BkXNkbeU4dzqoN6ey3LNi"><span class="tag" data-page-node-id="1RwshLcpSp2jE4GtgzJDmJ">eyebrow</span><span class="txt sp-eb" data-page-node-id="6PGZBRru2XnpGVAnWkZEOb">Workspace · 11px</span></div>
+        <div class="specimen" data-page-node-id="kBLql8Qr2p2ncF5CO48QGB"><span class="tag" data-page-node-id="Hk8IYyhJ5xsB7B92f5g75l">mono 500</span><span class="txt" style="font-family:var(--font-mono);font-size:14px;letter-spacing:.02em;color:var(--cobalt)" data-page-node-id="0x9X7HXvvhcS6QhHfAEiiq">match: 87 · credits: 38</span></div>
+      </div>
+
+      <div class="tokcard rv" data-page-node-id="sre8acROgdCKgSHCwcT4z6">
+        <h3 data-page-node-id="QSFPZfvQXxFbP0EG4QZOc3">圆角与重力</h3>
+        <p data-page-node-id="vFNCIe1PWbHD7QKmBWXGXr">硬阴影表达厚度，禁止 blur &gt; 2px</p>
+        <div class="radii" style="margin-bottom:22px" data-page-node-id="VUkmO3ULVrZcaig9QASDCu">
+          <div data-page-node-id="nuuX55neDDYPkW43IDsHVy"><i style="border-radius:999px" data-page-node-id="OT3ULJq9F9Pp6aFpa1NZlf"></i><span data-page-node-id="Evs00hP54YZ4tfvkZUbWPA">chip 999</span></div>
+          <div data-page-node-id="tVZSO9KeyZB3GAD1H2zOPT"><i style="border-radius:12px" data-page-node-id="HhB8bvTuPEsHHXTzXgbHqS"></i><span data-page-node-id="qWsHGzy2CbH1il1cvNy3eg">input 12</span></div>
+          <div data-page-node-id="PvvjsqFYlzQAlgFG0Kjk0N"><i style="border-radius:16px" data-page-node-id="CzchuLFSdPGgGtOUxbffbZ"></i><span data-page-node-id="VI5aDqpdeoTyZTnOaUyn8G">card 16</span></div>
+          <div data-page-node-id="w6yVmCQIawL1o0GhsL5fMG"><i style="border-radius:20px" data-page-node-id="HFbCxvx4rUK5qG2Q9TZEfu"></i><span data-page-node-id="DfJNQY8fytdtSWI5HU8z6L">panel 20</span></div>
+          <div data-page-node-id="DeWQiFsqfHHwjhlfho0Bvw"><i style="border-radius:4px" data-page-node-id="EOjaE1vQJcVn7Mb1bbTxVK"></i><span data-page-node-id="fGYz5B6yP2nXDvEuO2wY71">sticker 4</span></div>
+        </div>
+        <div class="shadows" data-page-node-id="tCZbEEcQA59QQt5xb6056k">
+          <div class="sh1" data-page-node-id="QkoliDf60BAZ24DqCbciWr"><i data-page-node-id="YkmI53rkJBO8bnAy7r0o7b"></i><span data-page-node-id="qkQJO2D1qerczyKuLGDPBa">chip 2px</span></div>
+          <div class="sh2" data-page-node-id="RdNxoKkd53cWiCzhbdFqhA"><i data-page-node-id="DC6XKBkGSbMj5jt7Ytg1MA"></i><span data-page-node-id="Ux1E9A5xofL0jGVneLejCX">card 4px</span></div>
+          <div class="sh3" data-page-node-id="IerXDBHFZYwuvTE5HTCRzf"><i data-page-node-id="Vokz9wNcPx2CzULn0RtXcD"></i><span data-page-node-id="Y2UtnxQ49Q0RmHD3QYzAil">hero 8px</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 05 动效 ══════════════ -->
+<section class="spec" id="motion" data-page-node-id="uKbrAqhaC4uf8mX9tuOYqv">
+  <div class="wrap" data-page-node-id="nfRD3lmFSR2vAAyiGIiGmv">
+    <div class="spec__head" data-page-node-id="49FuEtehd27fAQiwFuqDZS">
+      <span class="spec__no" data-page-node-id="NANWNxJwKoWJKJZlT7eTBv">07</span>
+      <h2 data-page-node-id="OHtbCGbyURMftgdJDdJO1d">动效</h2>
+      <p data-page-node-id="yOEztU2wIscy3n3lXaKH0w">只有三种动作：抬升、陷入、淡入。全部 120–420ms，可被 prefers-reduced-motion 关闭。</p>
+    </div>
+
+    <div class="motion" data-page-node-id="9E2bpB0eQsjaMNyC1JSxri">
+      <div class="mcard rv" data-page-node-id="2Iz9JCl7O76bFIOOZ4QHaR">
+        <h3 data-page-node-id="bc2dAT1Hy0MWx8dFPavwbD">① 按压物理</h3>
+        <div class="mstage" data-page-node-id="Zon0bTPD0M31jQamAD7sh8"><button class="pressme" data-page-node-id="hXnCBSzAN1ovAmwiUO6F02">按住我</button></div>
+        <code data-page-node-id="q9YlLBzcOTD7ZLGaBADZ4D">hover: translate(-2,-2) + 6px 影
+active: translate(2,2)  + 0 影</code>
+      </div>
+      <div class="mcard rv" data-page-node-id="nRQHpmCfZgUrTOGc7epfdR">
+        <h3 data-page-node-id="ZGbflnGGfDTBo5xHcg3B95">② 卡片抬升</h3>
+        <div class="mstage" data-page-node-id="1CaRFJMyYjC5kO8txuL4Mt"><div class="liftcard" data-page-node-id="PFQD0kDyyi1HAXLrDlGQTX">悬停看看</div></div>
+        <code data-page-node-id="u0ymO5J09dQ5pZk6RlJZ9l">transition: .15s cubic-bezier(.2,.9,.25,1.15)</code>
+      </div>
+      <div class="mcard rv" data-page-node-id="DzuaYusS5zdF3VTh8EqWnu">
+        <h3 data-page-node-id="9VXBNs1mi9hRnwgtFNddz4">③ 区块入场</h3>
+        <div class="mstage" data-page-node-id="mg0NFZilBTYFKoo07hPgBG">
+          <div class="stack" data-page-node-id="CLcvg2sZu312sOZtfGizjg">
+            <span style="background:var(--mint)" data-page-node-id="ZryEfxjDrELsuWQM2qg0Oq"></span>
+            <span style="background:var(--butter)" data-page-node-id="O24KBykurBcP19ucXvpzeH"></span>
+            <span style="background:var(--blush)" data-page-node-id="jEpLy1q6hzA2d2k2SlAnVH"></span>
+          </div>
+        </div>
+        <code data-page-node-id="TvfU7jUUM4hz43Q7hayO1Z">opacity 0→1 / translateY(14→0)
+delay 步进 60ms，最多 6 项</code>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 评审项 ══════════════ -->
+<section class="spec" id="review" data-page-node-id="TKq6yBoiPu1ooO2Vjgd0zV">
+  <div class="wrap" data-page-node-id="4xtjGvhevofW6nX2EoCp5P">
+    <div class="spec__head" data-page-node-id="961duS30B3sACYGvubiYJw">
+      <span class="spec__no" data-page-node-id="xIix6G515zCaqOV1Rgcvgk">08</span>
+      <h2 data-page-node-id="FhBZlqmVp8K686rS3cMNZX">请确认这 8 项</h2>
+      <p data-page-node-id="2zQBBJrArAbjFvrkJ0gSkZ">确认后进入 Phase 0（令牌层，零视觉变化），再逐阶段落地。</p>
+    </div>
+
+    <div class="reviewlist" data-page-node-id="KrNIBsRr53xT3QmGeP5fPo">
+      <div class="review__row" data-page-node-id="iCTEmG2nCgjyVdp0QzrRM2"><span class="box" data-page-node-id="tuiy74xqDqj5CL3Q6h6fYk"></span><b data-page-node-id="sHK53dh9EWdACG8tg2HZuV">A 方向</b><p data-page-node-id="f8hgnSiiqA2Q60EYoloSKL">接受<strong data-page-node-id="QCKGCIiK25VKo2fhajBJ17">奶油纸 + 硬墨 + 撞色</strong>的「轻松」，而不是柔和渐变 / 玻璃拟态的「轻」。</p></div>
+      <div class="review__row" data-page-node-id="VAQI2LLJMcw4lG5pvvvKoI"><span class="box" data-page-node-id="zy6d9aJHRaawkpsHKsnTfI"></span><b data-page-node-id="uBleDTbr1kxkY0BPFY61Ls">B 密度</b><p data-page-node-id="uivQiQjiWIkukpaUESN3Za">接受<strong data-page-node-id="32k66fbQxJUE695582DecY">落地页 Loud / 工作台 Calm</strong> 的分档，而不是全站同一种强度。</p></div>
+      <div class="review__row" data-page-node-id="tJdhvTCLkwZSglGp1os6Dc"><span class="box" data-page-node-id="XDBHMTdxxzNAlE8JKrnAEw"></span><b data-page-node-id="IsVHj6uPYTpjK4BWT8awZs">C 主色</b><p data-page-node-id="UURDg1X6BX1MF3YXqKFPcj">信号色用电光<strong data-page-node-id="1HXhxJACqdmChBIsoCBz4B">钴蓝 #2B3AFF</strong>，橙色只做填充装饰。</p></div>
+      <div class="review__row" data-page-node-id="OMG9ndgvjsG18FZU5NBWDF"><span class="box" data-page-node-id="p8nqP6w4GQjUCvZyszmlPj"></span><b data-page-node-id="fRVZJI9Tf3kiSIYTF4OTAE">D 字体</b><p data-page-node-id="05W7sXOt0Ja1xAOttJ50lH">Display 用 <strong data-page-node-id="bZkyaYdGj5E8uXPASf5otk">Bricolage Grotesque</strong>，正文用 <strong data-page-node-id="CARrFT04smh374cRdOgeLR">Instrument Sans</strong>，替换现有 Newsreader + Inter。</p></div>
+      <div class="review__row" data-page-node-id="x7GvZ8pVdKqlqnPtJDFaKi"><span class="box" data-page-node-id="fBVUUppH6yrF76r47bCqym"></span><b data-page-node-id="XRacWbDnABzaxaldsDk3Nz">E 豁免</b><p data-page-node-id="fh97ewRDMbQjFJh46frZGy">同意<strong data-page-node-id="iAYqHpF05qesXKZaHqCAnz">简历预览 / PDF 导出不参与</strong>本次改版，保持打印契约。</p></div>
+      <div class="review__row" data-page-node-id="8xdS94qANQgk0JEFA6F6Ba"><span class="box" data-page-node-id="X6etwWKzQlVUm0u4IsD3yf"></span><b data-page-node-id="yjHl2HWW3ClB24i6CMQ67O">F 顺序</b><p data-page-node-id="Q7K5L9grDE9kWKV3NsXpjL">同意 Phase 0→5 排期：先令牌与原语，再落地页，最后控制台与深色。</p></div>
+      <div class="review__row" data-page-node-id="RevG"><span class="box" data-page-node-id="RevGbox"></span><b data-page-node-id="RevGb">G 工作台</b><p data-page-node-id="RevGp">接受<strong data-page-node-id="RevGpS">设置 224 / 编辑自适应 / 预览 396 固定三栏</strong>；预览独立滚动、不加悬浮层，工具条全部 1px 无阴影。</p></div>
+      <div class="review__row" data-page-node-id="RevH"><span class="box" data-page-node-id="RevHbox"></span><b data-page-node-id="RevHb">H 登录形态</b><p data-page-node-id="RevHp">接受登录页从<strong data-page-node-id="RevHpS">居中单卡改为「左品牌 + 右表单」分栏</strong>，备案号悬挂在卡片正下方。</p></div>
+    </div>
+  </div>
+</section>
+
+<footer class="pagefoot" data-page-node-id="jXisu0THLwSmGrgj96iayZ">
+  <div class="pagefoot__in" data-page-node-id="uWPOKV4BWwn1lJrKFUvfzV">
+    <b data-page-node-id="jc5Bg4DMb1L9DXnOOBd96e">Paper &amp; Punch</b>
+    <span data-page-node-id="IXow4GaLtK1W2ACOirOqL4">·</span>
+    <span data-page-node-id="9q4WkCODsOXPijBRsASTFD">JDMatch Design Review v0.1</span>
+    <span style="margin-left:auto" data-page-node-id="gv5FeEXJ8Uzadi3VQ5l7NA">docs/DESIGN.md</span>
+  </div>
+</footer>
+
+<script>
+// 入场：IntersectionObserver，once
+(function () {
+  var els = document.querySelectorAll(".rv");
+  if (!("IntersectionObserver" in window) || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return; // 保持默认可见
+  }
+  document.documentElement.classList.add("js-reveal");
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e, i) {
+      if (e.isIntersecting) {
+        var n = 0;
+        var group = e.target.parentElement ? e.target.parentElement.children : [];
+        for (var k = 0; k < group.length; k++) { if (group[k].classList && group[k].classList.contains("rv")) { if (group[k] === e.target) break; n++; } }
+        e.target.style.transitionDelay = Math.min(n, 5) * 60 + "ms";
+        e.target.classList.add("in");
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.15, rootMargin: "0px 0px -40px 0px" });
+  els.forEach(function (el) { io.observe(el); });
+})();
+
+// Tabs 交互
+document.querySelectorAll(".tabs, .tabs--loud").forEach(function (bar) {
+  bar.addEventListener("click", function (ev) {
+    var btn = ev.target.closest("button");
+    if (!btn) return;
+    bar.querySelectorAll("button").forEach(function (b) { b.classList.remove("on"); });
+    btn.classList.add("on");
+  });
+});
+</script>
+</body>
+</html>
