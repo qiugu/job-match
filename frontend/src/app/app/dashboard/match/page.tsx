@@ -1379,7 +1379,7 @@ export default function JobMatchPage() {
                         </div>
                       </div>
                       {resumeView === "preview" ? (
-                        <div className="mx-auto min-h-0 max-w-[820px] rounded-lg border border-border bg-white shadow-sm">
+                        <div className="mx-auto min-h-0 max-w-[820px] rounded-lg border border-border bg-ppcard shadow-punch">
                           <MarkdownPreview
                             markdown={stripMarkdownPreamble(result.markdownContent)}
                             embedded
@@ -1419,21 +1419,21 @@ export default function JobMatchPage() {
                           strength === "matched"
                             ? {
                                 label: t("matchReqMet"),
-                                cls: "bg-emerald-500/15 text-emerald-400",
+                                cls: "bg-mint text-green-ink",
                               }
                             : strength === "weak"
                               ? {
                                   label: t("matchReqPartial"),
-                                  cls: "bg-amber-500/15 text-amber-400",
+                                  cls: "bg-butter text-amber-ink",
                                 }
                               : strength === "missing"
                                 ? {
                                     label: t("matchReqMissing"),
-                                    cls: "bg-rose-500/15 text-rose-400",
+                                    cls: "bg-blush text-danger",
                                   }
                                 : {
                                     label: t("matchReqUnsupported"),
-                                    cls: "bg-slate-500/20 text-slate-300",
+                                    cls: "bg-paper-2 text-ink-3",
                                   };
                         return (
                           <div className="flex flex-col gap-4 xl:flex-row xl:items-start">

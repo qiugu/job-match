@@ -57,6 +57,8 @@ const config = {
         butter: "var(--butter)",
         blush: "var(--blush)",
         "green-ink": "var(--green-text)",
+        "amber-ink": "var(--amber-text)",
+        danger: "var(--danger)",
         "punch-shadow": "var(--shadow-color)",
         /* xAI 深色语义色板 —— 与 globals.css 的 --xai-* 变量同源 */
         xai: {

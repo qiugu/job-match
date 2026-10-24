@@ -213,7 +213,7 @@ export const ResumeCardItem = ({
                             {t("common.cancel")}
                         </AlertDialogCancel>
                         <AlertDialogAction
-                            className="border-none bg-[#c0392b] text-white hover:bg-[#a33025] focus:ring-[#c0392b]"
+                            className="border-none bg-danger text-white hover:bg-danger/90 focus:ring-danger"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 deleteResume(resume);

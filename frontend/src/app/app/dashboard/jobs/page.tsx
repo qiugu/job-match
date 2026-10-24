@@ -75,10 +75,10 @@ function relTime(iso: string | null, loc: string): string {
 }
 
 const STRENGTH_TEXT: Record<string, string> = {
-  matched: "text-emerald-600",
-  weak: "text-amber-600",
-  missing: "text-rose-500",
-  unspported: "text-slate-500",
+  matched: "text-green-ink",
+  weak: "text-amber-ink",
+  missing: "text-danger",
+  unspported: "text-ink-3",
 };
 const STRENGTH_PREFIX: Record<string, string> = {
   matched: "✓",
