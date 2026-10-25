@@ -29,7 +29,7 @@ export default function CTASection() {
 
             <GoDashboard>
               <button
-                type="button"
+                type="submit"
                 className="pp-btn h-16 px-12 text-xl bg-butter text-ink border-2 border-paper hover:bg-paper group"
               >
                 {t("cta.button")}

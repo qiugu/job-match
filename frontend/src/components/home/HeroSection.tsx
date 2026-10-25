@@ -34,7 +34,7 @@ export default function HeroSection() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
             <GoDashboard>
               <button
-                type="button"
+                type="submit"
                 className="pp-btn group h-14 px-10 text-lg"
               >
                 {t("hero.cta")}
@@ -44,7 +44,7 @@ export default function HeroSection() {
 
             <GoDashboard type="templates">
               <button
-                type="button"
+                type="submit"
                 className="pp-btn pp-btn--ghost h-14 px-10 text-lg"
               >
                 <Play className="w-4 h-4 mr-1 fill-current" />

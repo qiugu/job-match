@@ -43,7 +43,7 @@ export default function LandingHeader() {
 
               <GoDashboard>
                 <button
-                  type="button"
+                  type="submit"
                   className="pp-btn h-10 px-6"
                 >
                   {t("header.startButton")}
