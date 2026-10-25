@@ -51,9 +51,9 @@ export function GitHubStars() {
         <Star
           className={cn(
             "h-4 w-4",
-            "text-yellow-500/70 dark:text-yellow-400/70",
+            "text-ink-3",
             "transition-colors duration-300",
-            isHovered && "text-yellow-500 dark:text-yellow-400"
+            isHovered && "text-amber-ink"
           )}
           fill={isHovered ? "currentColor" : "none"}
         />

@@ -508,6 +508,7 @@ Hover（仅可点击卡片）：translate(-2px,-2px) + --shadow-card
   - `match/page.tsx`：`BRAND_VIOLET`（旧暮光紫，19 处 inline hsl）→ `BRAND_COBALT`（钴蓝 hsl 分量）。
   - `workbench`：根节点 `data-density="calm"`；`LayoutControls`/`DragHandle`/`PreviewDock`/`MarkdownEditor` 工具栏/`GrammarCheckDrawer`/`MobileWorkbench` 清除 `backdrop-blur`/软阴影；`FAQDialog` 玻璃魔法球重写为钴蓝贴纸按钮；`dock.tsx`（magicui）三处改纸墨实体底；编辑器面板（Basic/Project/Experience/Education/Custom/Certificates/IconSelector）的 gray/neutral/red/green 旧 palette 全部换语义令牌。
   - 保留不动：`components/templates/**` 简历模板、`MarkdownPreview` 页码、`GithubContribution`（GitHub 官方热力图配色）、`Logo` 品牌紫——均属纸面/外部品牌契约。
+  - **补漏记录（2026-10-25 晚，commit `p4b`）**：Phase 4 漏网的 6 个在世组件旧 palette 清零——`ThemeModal` 删除确认 `red-600`→`bg-danger`；`PhotoConfigDrawer` 拖拽态 `blue-500`→`border-cobalt`、抽屉蓝色辉光→`shadow-chip`；`preview/index.tsx` 分页警示线 `red-400/500`→`border/text-danger`；`settings` `green-600`→`text-green-ink`；`AIPolishDialog` 主按钮紫粉渐变（违禁渐变）→`bg-cobalt shadow-chip`；`GitHubStars` 星标黄色→`text-ink-3`/hover `text-amber-ink`。`FAQDialog` 贴纸**移除 `animate-[bounce_5s_ease-in-out_infinite]`**——永久 bounce 在硬偏移阴影下视觉抖动且持续抢注意力，仅保留 hover 抬升。另删 3 个零引用死文件（`themeConfig.ts`、`ScrollBackground.tsx`、`ScrollToTop.tsx`）。
 
 ### Phase 5 — 深色（1 天，可延后）
 - §4.3 令牌 + 硬阴影 `--shadow-color` 切换 + 对比度复测。

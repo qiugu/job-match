@@ -356,7 +356,7 @@ export default function AIPolishDialog({
           <Button
             onClick={handlePolish}
             disabled={isPolishing}
-            className="flex-1 bg-gradient-to-r from-[#9333EA] to-[#EC4899] hover:opacity-90 text-white border-none h-11 shadow-lg shadow-purple-500/20"
+            className="flex-1 bg-cobalt hover:opacity-90 text-white border-none h-11 shadow-chip"
           >
             {isPolishing ? (
               <div className="flex items-center gap-2">

@@ -326,7 +326,7 @@ const PhotoConfigDrawer: React.FC<Props> = ({
         ref={drawerContentRef}
         className={cn(
           "dark:bg-background dark:text-white bg-white",
-          "md:fixed md:border-none md:flex md:bottom-0 md:left-0 md:right-0 md:h-[93%] md:max-w-[360px] md:mx-[-1px] md:z-10 md:outline-none shadow shadow-blue-500/40"
+          "md:fixed md:border-none md:flex md:bottom-0 md:left-0 md:right-0 md:h-[93%] md:max-w-[360px] md:mx-[-1px] md:z-10 md:outline-none shadow-chip"
         )}
       >
         <div className="mx-auto w-full max-w-md overflow-y-auto">
@@ -337,7 +337,7 @@ const PhotoConfigDrawer: React.FC<Props> = ({
           <div
             className={cn(
               "relative overflow-hidden border-2 transition-all mx-auto",
-              isDragging ? "border-blue-500 border-solid" : "border-dashed",
+              isDragging ? "border-cobalt border-solid" : "border-dashed",
               "dark:border-border dark:hover:border-border border-border hover:border-border"
             )}
             style={{

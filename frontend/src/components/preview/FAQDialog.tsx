@@ -24,7 +24,8 @@ import { useTranslations } from "@/i18n/compat/client";
  *
  * 原实现是玻璃拟态「魔法球」：blur 光晕 + 径向渐变 SVG + 毛玻璃底，
  * 与纸墨体系（禁 blur、禁渐变、硬偏移阴影）全面冲突，已整体替换为
- * 钴蓝填充 + 墨边 + 硬阴影的圆形贴纸；保留 5s 缓慢浮动维持轻松感。
+ * 钴蓝填充 + 墨边 + 硬阴影的圆形贴纸。不带循环动画——永久 bounce 在
+ * 硬偏移阴影下视觉上「抖动」，且持续抢动线注意力；仅保留 hover 抬升。
  */
 const DynamicHelpIcon = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement>>(
   (props, ref) => (
@@ -36,8 +37,6 @@ const DynamicHelpIcon = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttr
         "border-2 border-ink bg-cobalt text-white shadow-chip",
         "transition-transform duration-200 hover:-translate-y-0.5",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-        // Floating bounce animation to attract attention
-        "animate-[bounce_5s_ease-in-out_infinite]",
         props.className
       )}
     >

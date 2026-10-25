@@ -38,8 +38,8 @@ const PageBreakLine = React.memo(
         style={{ top: `${top}px` }}
       >
         <div className="relative w-full">
-          <div className="absolute w-full border-t-2 border-dashed border-red-400" />
-          <div className="absolute right-0 -top-6 text-xs text-red-500">
+          <div className="absolute w-full border-t-2 border-dashed border-danger" />
+          <div className="absolute right-0 -top-6 text-xs text-danger">
             第{pageNumber}页结束
           </div>
         </div>

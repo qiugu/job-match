@@ -48,7 +48,7 @@ const ThemeModal = ({
               e.stopPropagation();
               onConfirm();
             }}
-            className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600 border-none"
+            className="bg-danger hover:opacity-90 text-white focus:ring-danger border-none"
           >
             {t("confirmText")}
           </AlertDialogAction>
