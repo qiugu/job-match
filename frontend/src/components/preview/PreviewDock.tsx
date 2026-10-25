@@ -77,7 +77,7 @@ const PreviewDock = ({
   return (
     <div className="fixed right-3 top-1/2 z-[50] hidden -translate-y-1/2 flex-col items-center md:flex">
       <TooltipProvider delayDuration={0}>
-        <Dock className="mb-0 border border-border/40 bg-background/80 shadow-xl">
+        <Dock className="mb-0 border border-border bg-background shadow-none">
           <div className="flex flex-col gap-2">
             <DockIcon>
               <Tooltip>
@@ -154,7 +154,7 @@ const PreviewDock = ({
                       dockButtonClass,
                       // 选中态：预览面板展开（未收起）时按钮高亮，与收起态形成可辨识对比
                       !previewPanelCollapsed &&
-                        "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                        "bg-primary text-primary-foreground hover:bg-primary/90"
                     )}
                   >
                     <Eye className="h-4 w-4" />

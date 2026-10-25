@@ -488,7 +488,6 @@ const IconSelector: React.FC<IconSelectorProps> = ({ value, onChange }) => {
         className={cn(
           "w-[420px] p-4",
           "bg-popover border-border",
-          "shadow-lg backdrop-blur-sm",
           "animate-in zoom-in-95 duration-200"
         )}
       >
@@ -504,8 +503,8 @@ const IconSelector: React.FC<IconSelectorProps> = ({ value, onChange }) => {
             <Search
               className={cn(
                 "w-4 h-4 transition-colors duration-300",
-                "dark:text-neutral-400",
-                "text-neutral-500"
+                "text-muted-foreground",
+                "text-muted-foreground"
               )}
             />
             <input
@@ -516,9 +515,9 @@ const IconSelector: React.FC<IconSelectorProps> = ({ value, onChange }) => {
               className={cn(
                 "w-full bg-transparent border-none outline-none text-sm",
                 "transition-colors duration-300",
-                "dark:text-neutral-200",
-                "text-neutral-700",
-                "placeholder:text-neutral-500",
+                "text-foreground",
+                "text-foreground",
+                "placeholder:text-muted-foreground",
                 "focus:ring-0"
               )}
             />
@@ -567,7 +566,7 @@ const IconSelector: React.FC<IconSelectorProps> = ({ value, onChange }) => {
                     "group-hover:opacity-100 group-hover:translate-y-0",
                     "pointer-events-none",
                     "bg-popover text-popover-foreground border border-border",
-                    "shadow-sm whitespace-nowrap z-10"
+                    "whitespace-nowrap z-10"
                   )}
                 >
                   {label}
@@ -589,8 +588,8 @@ const IconSelector: React.FC<IconSelectorProps> = ({ value, onChange }) => {
               className={cn(
                 "flex flex-col items-center justify-center py-8 px-4",
                 "text-sm",
-                "dark:text-neutral-400",
-                "text-neutral-500"
+                "text-muted-foreground",
+                "text-muted-foreground"
               )}
             >
               <SearchIcon className="w-12 h-12 mb-2 opacity-20" />

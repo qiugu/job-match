@@ -55,7 +55,7 @@ export function MobileWorkbench() {
               className="h-full flex flex-col"
             >
               {/* 顶部模块选择器 */}
-              <div className="border-b bg-background/95 backdrop-blur z-10">
+              <div className="border-b bg-background z-10">
                 <ScrollArea className="w-full whitespace-nowrap">
                   <div className="flex p-2 space-x-2">
                     {/* 基础信息 */}
@@ -122,7 +122,7 @@ export function MobileWorkbench() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.05 }}
               transition={{ duration: 0.2 }}
-              className="h-full overflow-y-auto bg-gray-100"
+              className="h-full overflow-y-auto bg-muted"
               data-preview-scroll-container="true"
             >
               <PreviewPanel
@@ -139,7 +139,7 @@ export function MobileWorkbench() {
       </div>
 
       {/* 底部导航栏 */}
-      <div className="h-16 border-t bg-background flex items-center justify-around relative shadow-[0_-1px_3px_rgba(0,0,0,0.05)] z-50">
+      <div className="h-16 border-t bg-background flex items-center justify-around relative z-50">
         {renderNavItem("content", <FileText className="w-5 h-5" />, "内容")}
         {renderNavItem("style", <Palette className="w-5 h-5" />, "样式")}
         {renderNavItem("preview", <Eye className="w-5 h-5" />, "预览")}

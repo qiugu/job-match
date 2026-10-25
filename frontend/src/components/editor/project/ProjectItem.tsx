@@ -192,7 +192,7 @@ const ProjectItem = ({ project }: { project: Project }) => {
             <h3
               className={cn(
                 "font-medium truncate",
-                "text-gray-700 dark:text-neutral-200"
+                "text-foreground"
               )}
             >
               {project.name || "未命名项目"}
@@ -206,8 +206,8 @@ const ProjectItem = ({ project }: { project: Project }) => {
               className={cn(
                 "text-sm",
                 project.visible
-                  ? "hover:bg-gray-100 text-gray-500 dark:hover:bg-neutral-800 dark:text-neutral-400"
-                  : "hover:bg-gray-100 text-gray-400 dark:hover:bg-neutral-800 dark:text-neutral-600"
+                  ? "hover:bg-muted text-muted-foreground"
+                  : "hover:bg-muted text-muted-foreground"
               )}
               onClick={handleVisibilityToggle}
             >
@@ -222,7 +222,7 @@ const ProjectItem = ({ project }: { project: Project }) => {
               size="sm"
               className={cn(
                 "text-sm",
-                "dark:hover:bg-red-900/50 dark:text-red-400 hover:bg-red-50 text-red-600"
+                "hover:bg-blush text-danger"
               )}
               onClick={(e) => {
                 e.stopPropagation();
@@ -251,8 +251,8 @@ const ProjectItem = ({ project }: { project: Project }) => {
               <ChevronDown
                 className={cn(
                   "w-5 h-5",
-                  "dark:text-neutral-400",
-                  "text-gray-500"
+                  "text-muted-foreground",
+                  "text-muted-foreground"
                 )}
               />
             </motion.div>
@@ -270,14 +270,14 @@ const ProjectItem = ({ project }: { project: Project }) => {
               <div
                 className={cn(
                   "px-4 pb-4 space-y-4",
-                  "dark:border-neutral-800 border-gray-100"
+                  "border-border"
                 )}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div
                   className={cn(
                     "h-px w-full",
-                    "dark:bg-neutral-800 bg-gray-100"
+                    "bg-muted"
                   )}
                 />
                 <ProjectEditor

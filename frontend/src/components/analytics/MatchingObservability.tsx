@@ -53,12 +53,12 @@ function stepLabel(key: string, t: (key: string) => string): string {
 
 function RunStatus({ run, t }: { run: MatchRunSummary; t: (key: string) => string }) {
   if (run.status === "success") {
-    return <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600"><CheckCircle2 className="size-3.5" />{t("matchingStatusSuccess")}</span>;
+    return <span className="inline-flex items-center gap-1 text-[11px] text-green-ink"><CheckCircle2 className="size-3.5" />{t("matchingStatusSuccess")}</span>;
   }
   if (run.status === "error") {
     return <span className="inline-flex items-center gap-1 text-[11px] text-destructive"><XCircle className="size-3.5" />{t("matchingStatusError")}</span>;
   }
-  return <span className="inline-flex items-center gap-1 text-[11px] text-amber-600"><Loader2 className="size-3.5 animate-spin" />{t("matchingStatusRunning")}</span>;
+  return <span className="inline-flex items-center gap-1 text-[11px] text-amber-ink"><Loader2 className="size-3.5 animate-spin" />{t("matchingStatusRunning")}</span>;
 }
 
 function Detail({ detail, t }: { detail: MatchRunDetail; t: (key: string) => string }) {

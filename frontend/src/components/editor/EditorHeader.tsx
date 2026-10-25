@@ -225,8 +225,8 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
                 className="flex items-center space-x-1 cursor-pointer animate-pulse"
                 onClick={() => document.dispatchEvent(new CustomEvent('open-grammar-drawer'))}
              >
-                  <AlertCircle className="w-4 h-4 text-red-500" />
-                  <span className="text-sm text-red-500">
+                  <AlertCircle className="w-4 h-4 text-danger" />
+                  <span className="text-sm text-danger">
                     {t("grammarCheck.found_issues", { count: errors.length })}
                   </span>
              </div>

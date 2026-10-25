@@ -2,9 +2,8 @@
  * 投递统计各图表的 ECharts option 构造。
  *
  * 设计约定：
- * - 所有颜色来自 `ChartTokens`（运行时解析自 `.theme-xai`），**不硬编码**，
- *   唯二的例外是品牌强调色（见 tokens.ts 的说明）；
- * - 阶段是有序量 ⇒ 用靛蓝**单色阶**而非多分类色；
+ * - 所有颜色来自 `ChartTokens`（运行时解析自 `.theme-xai` + 纸墨令牌），**不硬编码**；
+ * - 阶段是有序量 ⇒ 用钴蓝**单色阶**而非多分类色；
  * - 计数类数值轴一律 `minInterval: 1`，避免出现「0.5 个投递」这类不可能刻度；
  * - 只在类型层面依赖 echarts（`import type`），因此本模块可在 node 环境直接单测。
  */
@@ -13,7 +12,6 @@ import type { BarSeriesOption, EChartsOption } from "echarts";
 import type { JobFunnelStage, JobStatus } from "@/lib/jobmatch";
 
 import {
-  BRAND_ACCENT,
   axisColors,
   mixHex,
   stageColor,
@@ -186,7 +184,7 @@ export function buildDailyTrendOption(params: {
         type: "bar",
         data: series.applied,
         barMaxWidth: 10,
-        itemStyle: { color: BRAND_ACCENT, borderRadius: [2, 2, 0, 0] },
+        itemStyle: { color: tokens.cobalt, borderRadius: [2, 2, 0, 0] },
       } satisfies BarSeriesOption,
     ],
     animationDuration: 520,
@@ -352,7 +350,7 @@ export function buildWeekdayOption(params: {
   peakIndex: number;
 }): EChartsOption {
   const { weekday, tokens, labels, peakIndex } = params;
-  const accentSoft = mixHex(BRAND_ACCENT, tokens.surface, 0.45);
+  const accentSoft = mixHex(tokens.cobalt, tokens.surface, 0.45);
 
   return {
     grid: { left: 4, right: 8, top: 20, bottom: 0, containLabel: true },
@@ -385,7 +383,7 @@ export function buildWeekdayOption(params: {
         data: weekday.map((v, i) => ({
           value: v,
           itemStyle: {
-            color: i === peakIndex && v > 0 ? BRAND_ACCENT : accentSoft,
+            color: i === peakIndex && v > 0 ? tokens.cobalt : accentSoft,
             borderRadius: [3, 3, 0, 0],
           },
         })),

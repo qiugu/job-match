@@ -258,7 +258,7 @@ export default function CoverLetterPanel({
                 className="rounded-[10px] border border-border bg-card p-5"
               >
                 <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/12 px-2.5 py-0.5 text-[11px] font-medium text-violet-500">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-mint px-2.5 py-0.5 text-[11px] font-medium text-green-ink">
                     {t(SCENE_KEY[l.scene])}
                   </span>
                   <span className="text-[10px] text-muted-foreground">
@@ -344,7 +344,7 @@ export default function CoverLetterPanel({
                     </button>
                     <button
                       type="button"
-                      className="inline-flex h-7 items-center gap-1 rounded-full border border-border px-3 text-xs text-rose-400 transition-colors hover:border-rose-400/40"
+                      className="inline-flex h-7 items-center gap-1 rounded-full border border-border px-3 text-xs text-danger transition-colors hover:border-danger"
                       onClick={() => handleDelete(l.id)}
                       disabled={isBusy}
                     >

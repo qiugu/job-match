@@ -43,12 +43,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { getApplicationStageMeta } from "@/app/app/dashboard/pagePresentation";
 
-// 阶段徽章：中性底 + 中色调圆点（两种主题下均可读，避免 400 系浅色在浅底失效）
+// 阶段徽章：钴蓝单色阶圆点（greeting 浅 → applied 满色），closed 为终态分支用中性色。
+// 色值定义在 globals.css 的 --stage-* 令牌（明暗双份），圆点/左侧描边共用，主题切换自适应。
 const STAGE_DOT: Record<JobStatus, string> = {
-  greeting_sent: "#38bdf8",
-  resume_ready: "#34d399",
-  applied: "#fbbf24",
-  closed: "#94a3b8",
+  greeting_sent: "var(--stage-greeting)",
+  resume_ready: "var(--stage-resume)",
+  applied: "var(--stage-applied)",
+  closed: "var(--stage-closed)",
 };
 const STAGE_LABEL: Record<JobStatus, string> = {
   greeting_sent: "jobStatusGreetingSent",
@@ -404,7 +405,7 @@ export default function JobsPage() {
                   </AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => void runDelete()}
-                    className={purge ? "bg-rose-600 text-white hover:bg-rose-600/90" : undefined}
+                    className={purge ? "bg-danger text-white hover:opacity-90" : undefined}
                   >
                     {purge ? t("jobPurgeConfirmBtn") : t("jobDeleteDefault")}
                   </AlertDialogAction>
@@ -654,7 +655,7 @@ function JobDetailView({
       <div className="flex shrink-0 items-center gap-2 border-t border-xai-hairline-soft px-5 py-3 sm:px-7">
         <button
           type="button"
-          className="inline-flex h-7 items-center gap-1 rounded-full border border-border px-3 text-xs text-muted-foreground transition-colors hover:border-rose-400/40 hover:text-rose-400"
+          className="inline-flex h-7 items-center gap-1 rounded-full border border-border px-3 text-xs text-muted-foreground transition-colors hover:border-danger hover:text-danger"
           onClick={onDeleteDefault}
         >
           <Trash2 className="size-3" />
@@ -662,7 +663,7 @@ function JobDetailView({
         </button>
         <button
           type="button"
-          className="inline-flex h-7 items-center gap-1 rounded-full border border-rose-400/30 px-3 text-xs text-rose-400 transition-colors hover:bg-rose-500/10"
+          className="inline-flex h-7 items-center gap-1 rounded-full border border-danger px-3 text-xs text-danger transition-colors hover:bg-blush"
           onClick={onPurge}
         >
           <Trash2 className="size-3" />
@@ -726,7 +727,7 @@ function DerivedCard({
           {dr.title}
         </span>
         {dr.accepted && (
-          <span className="shrink-0 rounded-full border border-emerald-500/40 px-1.5 py-px text-[10px] text-emerald-600">
+          <span className="shrink-0 rounded-full border border-green px-1.5 py-px text-[10px] text-green-ink">
             {t("jobAcceptedTag")}
           </span>
         )}
@@ -756,7 +757,7 @@ function DerivedCard({
                   <span
                     className={cn(
                       "mt-px font-mono",
-                      STRENGTH_TEXT[r.strength] || "text-slate-500"
+                      STRENGTH_TEXT[r.strength] || "text-ink-3"
                     )}
                   >
                     {STRENGTH_PREFIX[r.strength] || "·"}

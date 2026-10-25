@@ -114,8 +114,8 @@ const MenuButton = ({
         className={cn(
           "h-9 w-9 rounded-md transition-all duration-200 hover:scale-105 p-0",
           isActive
-            ? "bg-primary/10 text-primary hover:bg-primary/20 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
-            : "hover:bg-primary/5 dark:hover:bg-neutral-800",
+            ? "bg-primary/10 text-primary hover:bg-primary/20 dark:bg-muted dark:text-foreground dark:hover:bg-muted"
+            : "hover:bg-primary/5 dark:hover:bg-muted",
           disabled ? "opacity-50" : "",
           className
         )}
@@ -132,7 +132,7 @@ const MenuButton = ({
             "absolute -bottom-8 left-1/2 transform -translate-x-1/2",
             "px-2 py-1 text-xs rounded-md whitespace-nowrap z-50",
             "transition-opacity duration-200",
-            "bg-secondary text-secondary-foreground dark:bg-neutral-800 dark:text-neutral-200"
+            "bg-secondary text-secondary-foreground dark:bg-muted dark:text-foreground"
           )}
         >
           {tooltip}
@@ -381,8 +381,8 @@ const LinkButton = ({ editor }: { editor: Editor }) => {
           className={cn(
             "h-9 w-9 p-0 rounded-md transition-all duration-200 hover:scale-105",
             editor.isActive("link")
-              ? "bg-primary/10 text-primary hover:bg-primary/20 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
-              : "hover:bg-primary/5 dark:hover:bg-neutral-800"
+              ? "bg-primary/10 text-primary hover:bg-primary/20 dark:bg-muted dark:text-foreground dark:hover:bg-muted"
+              : "hover:bg-primary/5 dark:hover:bg-muted"
           )}
           onMouseDown={(e) => e.preventDefault()}
         >
@@ -497,7 +497,7 @@ const RichTextEditor = ({
       attributes: {
         class: cn(
           "tiptap max-w-none focus:outline-none min-h-[150px] px-4 py-3",
-          "text-neutral-900 dark:text-neutral-200"
+          "text-foreground dark:text-foreground"
         ),
       },
     }),
@@ -551,14 +551,14 @@ const RichTextEditor = ({
     <div
       className={cn(
         "rounded-lg overflow-hidden border shadow-sm",
-        "bg-card border-gray-100 dark:bg-neutral-900/30 dark:border-neutral-800"
+        "bg-card border-border dark:bg-background/30 dark:border-border"
       )}
       onClick={(e) => e.stopPropagation()}
     >
       <div
         className={cn(
           "border-b px-2 py-1.5 flex flex-wrap items-center gap-3",
-          "bg-background dark:bg-neutral-900/50 dark:border-neutral-800"
+          "bg-background dark:bg-background/50 dark:border-border"
         )}
       >
         <div className="flex items-center gap-0.5">
@@ -588,7 +588,7 @@ const RichTextEditor = ({
           <BackgroundColorButton editor={editor} />
         </div>
 
-        <div className={cn("h-5 w-px", "bg-border/60 dark:bg-neutral-800")} />
+        <div className={cn("h-5 w-px", "bg-border/60 dark:bg-muted")} />
 
         <div className="flex items-center gap-0.5">
           <MenuButton
@@ -621,7 +621,7 @@ const RichTextEditor = ({
           </MenuButton>
         </div>
 
-        <div className={cn("h-5 w-px", "bg-border/60 dark:bg-neutral-800")} />
+        <div className={cn("h-5 w-px", "bg-border/60 dark:bg-muted")} />
 
         <div className="flex items-center gap-0.5">
           <MenuButton
@@ -640,7 +640,7 @@ const RichTextEditor = ({
           </MenuButton>
         </div>
 
-        <div className={cn("h-5 w-px", "bg-border/60 dark:bg-neutral-800")} />
+        <div className={cn("h-5 w-px", "bg-border/60 dark:bg-muted")} />
 
         <div className="flex items-center space-x-1">
           <MenuButton
@@ -692,8 +692,8 @@ const RichTextEditor = ({
           className={cn(
             "flex items-center gap-0.5 p-1 rounded-md backdrop-blur border shadow-lg",
             theme === "dark"
-              ? "bg-neutral-900/80 border-neutral-800"
-              : "bg-background/80 border-gray-100"
+              ? "bg-ink/80 border-ink"
+              : "bg-background/80 border-border"
           )}
           tippyOptions={{ duration: 100 }}
           editor={editor}

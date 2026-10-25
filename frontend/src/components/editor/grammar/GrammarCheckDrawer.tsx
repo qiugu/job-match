@@ -116,8 +116,8 @@ export function GrammarCheckDrawer() {
 
   return (
     <Sheet open={isOpen} onOpenChange={handleOpenChange} modal={false}>
-      <SheetContent side="left" className="w-[400px] sm:w-[450px] p-0 flex flex-col gap-0 border-r shadow-lg bg-muted/30 backdrop-blur-xl">
-        <div className="p-6 pb-4 bg-background/80 backdrop-blur-sm sticky top-0 z-10 border-b">
+      <SheetContent side="left" className="w-[400px] sm:w-[450px] p-0 flex flex-col gap-0 border-r bg-muted/30">
+        <div className="p-6 pb-4 bg-background sticky top-0 z-10 border-b">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-primary/10 rounded-lg">
@@ -155,9 +155,9 @@ export function GrammarCheckDrawer() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
                     className={cn(
-                      "group relative bg-card rounded-xl border border-border/50 shadow-sm transition-all duration-300 overflow-hidden",
-                      "hover:shadow-md hover:border-primary/20",
-                      selectedErrorIndex === index && "border-primary bg-primary/5 shadow-sm"
+                      "group relative bg-card rounded-xl border border-border/50 transition-all duration-300 overflow-hidden",
+                      "hover:border-primary/20",
+                      selectedErrorIndex === index && "border-primary bg-primary/5"
                     )}
                     onClick={() => selectError(index)}
                   >
@@ -168,8 +168,8 @@ export function GrammarCheckDrawer() {
                             className={cn(
                                 "text-[10px] px-2 py-0.5 h-5 font-normal tracking-wide",
                                 error.type === "spelling" 
-                                    ? "bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-900/50" 
-                                    : "bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/50"
+                                    ? "bg-butter text-amber-ink" 
+                                    : "bg-mint text-green-ink"
                             )}
                         >
                             {error.type === "spelling" ? t("spelling") : t("punctuation")}
@@ -190,13 +190,13 @@ export function GrammarCheckDrawer() {
                                 <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider pl-1">
                                     {t("original")}
                                 </div>
-                                <div className="p-3 rounded-lg bg-red-50/50 dark:bg-red-950/20 text-sm text-foreground/80 leading-relaxed border border-red-100/50 dark:border-red-900/30 transition-colors group-hover/original:bg-red-50 dark:group-hover/original:bg-red-950/30">
-                                     <span className="line-through decoration-red-400/30 text-muted-foreground/80">
+                                <div className="p-3 rounded-lg bg-blush text-sm text-foreground/80 leading-relaxed transition-colors">
+                                     <span className="line-through decoration-danger text-muted-foreground/80">
                                         {error.context}
                                      </span>
                                      {error.text && error.text !== error.context && (
-                                        <div className="mt-2 text-xs flex items-center gap-1.5 text-red-500/80 font-medium">
-                                            <span className="w-1 h-1 rounded-full bg-red-400 inline-block" />
+                                        <div className="mt-2 text-xs flex items-center gap-1.5 text-danger font-medium">
+                                            <span className="w-1 h-1 rounded-full bg-danger inline-block" />
                                             {error.text}
                                         </div>
                                      )}
@@ -210,10 +210,10 @@ export function GrammarCheckDrawer() {
 
                             {/* 建议 */}
                             <div className="space-y-1.5 group/suggestion">
-                                <div className="text-[10px] font-medium text-emerald-600/80 dark:text-emerald-400/80 uppercase tracking-wider pl-1">
+                                <div className="text-[10px] font-medium text-green-ink uppercase tracking-wider pl-1">
                                     {t("suggestion")}
                                 </div>
-                                <div className="p-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 text-sm text-foreground leading-relaxed border border-emerald-100/50 dark:border-emerald-900/30 font-medium transition-colors group-hover/suggestion:bg-emerald-50 dark:group-hover/suggestion:bg-emerald-950/30">
+                                <div className="p-3 rounded-lg bg-mint text-sm text-foreground leading-relaxed font-medium transition-colors">
                                     {error.suggestion}
                                 </div>
                             </div>
@@ -222,7 +222,7 @@ export function GrammarCheckDrawer() {
                         {/* 按钮区 */}
                         <div className="flex gap-3 pt-1">
                             <Button 
-                                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm hover:shadow transition-all" 
+                                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground transition-all"
                                 size="sm"
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -252,8 +252,8 @@ export function GrammarCheckDrawer() {
                 
                 {errors.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-                        <div className="w-20 h-20 bg-green-50 dark:bg-green-900/20 rounded-full flex items-center justify-center mb-6 animate-in zoom-in duration-500">
-                             <Check className="w-10 h-10 text-green-500 dark:text-green-400" />
+                        <div className="w-20 h-20 bg-mint rounded-full flex items-center justify-center mb-6 animate-in zoom-in duration-500">
+                             <Check className="w-10 h-10 text-green-ink" />
                         </div>
                         <h3 className="text-xl font-semibold mb-2">{t("no_errors_title")}</h3>
                         <p className="text-muted-foreground max-w-[250px]">

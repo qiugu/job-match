@@ -68,7 +68,7 @@ const ToolbarButton = ({ onClick, active, disabled, title, children }: ToolbarBu
       "disabled:opacity-40 disabled:pointer-events-none",
       // 唯一用 bold 的地方：被选中 = 实色填充，让当前块类型「亮起来」
       active &&
-      "bg-primary text-primary-foreground shadow-sm shadow-primary/25 hover:bg-primary hover:text-primary-foreground"
+      "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
     )}
   >
     {children}
@@ -90,7 +90,7 @@ const EditorToolbar = ({ editor }: { editor: Editor }) => {
       className={cn(
         // 顶部条：与编辑区共享一条底边，工具条本身低调，把焦点留给内容
         "flex items-center gap-2 px-3 py-2 border-b shrink-0 select-none",
-        "bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70 border-border",
+        "bg-background border-border",
         "overflow-x-auto"
       )}
     >
@@ -247,7 +247,7 @@ const MarkdownEditor = ({ value, onChange, placeholder }: MarkdownEditorProps) =
       attributes: {
         class: cn(
           "tiptap max-w-none focus:outline-none min-h-[60vh] px-5 py-4",
-          "text-neutral-900 dark:text-neutral-100 leading-relaxed",
+          "text-foreground leading-relaxed",
           "font-mono text-sm"
         ),
         spellCheck: "false",

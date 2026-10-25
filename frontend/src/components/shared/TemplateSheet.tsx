@@ -60,12 +60,12 @@ const TemplatePreview = ({
         "relative group rounded-lg overflow-hidden border-2 transition-all duration-200 hover:scale-[1.02] text-left",
         isActive
           ? "border-primary dark:border-primary shadow-lg dark:shadow-primary/30"
-          : "border-gray-100 hover:border-gray-200 dark:border-neutral-800 dark:hover:border-neutral-700"
+          : "border-border hover:border-border dark:border-border dark:hover:border-border"
       )}
     >
       <div
         ref={containerRef}
-        className="relative aspect-[210/297] w-full overflow-hidden bg-gray-50 dark:bg-gray-900"
+        className="relative aspect-[210/297] w-full overflow-hidden bg-muted dark:bg-background"
       >
         <div
           className="absolute top-0 left-0 origin-top-left"
@@ -140,7 +140,7 @@ const TemplateSheet = ({ trigger }: TemplateSheetProps) => {
                     isActive={template.id === currentTemplate.id}
                     onSelect={setTemplate}
                   />
-                  <span className="text-xs text-center text-gray-600 dark:text-gray-400 truncate">
+                  <span className="text-xs text-center text-muted-foreground dark:text-muted-foreground truncate">
                     {tNames(`${template.nameKey}.name`)}
                   </span>
                 </div>

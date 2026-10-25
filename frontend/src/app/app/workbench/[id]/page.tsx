@@ -53,7 +53,7 @@ const DragHandle = ({ show = true }) => {
       <div
         className={cn(
           "absolute top-1/2 left-1/2 z-20 h-7 w-2 -translate-x-1/2 -translate-y-1/2",
-          "rounded-full border border-border/80 bg-xai-surface-2 shadow-sm", // 强制实体背景
+          "rounded-full border border-border bg-xai-surface-2", // 强制实体背景
           "transition-all duration-200",
           "group-hover:border-primary/50 group-hover:scale-110",
           "group-active:border-primary group-active:scale-105"
@@ -84,8 +84,7 @@ const LayoutControls = memo(
         "absolute bottom-6 left-1/2 -translate-x-1/2",
         "flex items-center gap-2 z-10 p-2 rounded-full",
         "flex items-center gap-2 z-10 p-2 rounded-full",
-        "bg-background/80 border border-border",
-        "backdrop-blur-sm shadow-lg"
+        "bg-background border border-border shadow-none"
       )}
     >
       <TooltipProvider>
@@ -378,6 +377,7 @@ export default function Home() {
         "theme-xai w-full h-screen overflow-hidden",
         "bg-background text-foreground"
       )}
+      data-density="calm"
     >
       <EditorHeader />
       {/* 桌面端布局 */}

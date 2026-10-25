@@ -24,7 +24,6 @@ import type { ChartTokens } from "@/components/analytics/tokens";
 import type { EChartsOption } from "echarts";
 
 const RANGES: AdminRange[] = [7, 30, 90];
-const BRAND_ACCENT = "#E85D4A";
 type MetricIcon = typeof Activity;
 
 function MetricCard({
@@ -44,11 +43,11 @@ function MetricCard({
     <div className="group rounded-2xl border border-xai-hairline-soft bg-xai-surface p-4 transition-colors duration-200 hover:border-xai-hairline-strong sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <p className="xai-eyebrow text-[10px]">{label}</p>
-        <span className={cn("flex size-7 items-center justify-center rounded-lg border", accent ? "border-[#E85D4A]/25 bg-[#E85D4A]/10 text-[#E85D4A]" : "border-xai-hairline-soft bg-xai-surface-2 text-xai-mute")}>
+        <span className={cn("flex size-7 items-center justify-center rounded-lg border", accent ? "border-cobalt bg-cobalt text-white" : "border-xai-hairline-soft bg-xai-surface-2 text-xai-mute")}>
           <Icon className="size-3.5" />
         </span>
       </div>
-      <p className={cn("mt-5 font-mono text-[28px] font-semibold leading-none tracking-[-0.06em] sm:text-[32px]", accent ? "text-[#E85D4A]" : "text-xai-text")}>
+      <p className={cn("mt-5 font-mono text-[28px] font-semibold leading-none tracking-[-0.06em] sm:text-[32px]", accent ? "text-cobalt" : "text-xai-text")}>
         {value.toLocaleString()}
       </p>
       <p className="mt-3 text-[11px] text-xai-mute">{note}</p>
@@ -59,7 +58,7 @@ function MetricCard({
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="mb-3 flex items-center gap-2 px-1">
-      <span className="size-1.5 rounded-full bg-[#E85D4A]" aria-hidden="true" />
+      <span className="size-1.5 rounded-full bg-cobalt" aria-hidden="true" />
       <p className="xai-eyebrow text-[10px]">{children}</p>
       <span className="h-px flex-1 bg-xai-hairline-soft" aria-hidden="true" />
     </div>
@@ -145,7 +144,7 @@ export default function AdminPage() {
     return (
       <div className="flex h-full items-center justify-center bg-xai-canvas p-6">
         <div className="max-w-sm text-center">
-          <ShieldAlert className="mx-auto size-8 text-[#E85D4A]" />
+          <ShieldAlert className="mx-auto size-8 text-danger" />
           <p className="mt-4 text-[14px] text-xai-text-mid">{t("adminForbidden")}</p>
         </div>
       </div>
@@ -160,7 +159,7 @@ export default function AdminPage() {
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-xai-canvas text-xai-text">
       <header className="flex shrink-0 flex-col gap-4 border-b border-xai-hairline-soft px-4 py-4 sm:px-6 sm:py-5 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#17233C] text-[#FFFDF8] shadow-[4px_4px_0_#E85D4A]"><Activity className="size-4" /></span>
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-cobalt text-white"><Activity className="size-4" /></span>
           <div className="min-w-0">
             <p className="xai-eyebrow mb-1 text-[10px]">CONTROL ROOM / 01</p>
             <h1 className="truncate text-[18px] font-semibold tracking-[-0.04em]">{t("adminTitle")}</h1>
@@ -181,21 +180,21 @@ export default function AdminPage() {
         {loading && !data ? (
           <div className="flex h-full items-center justify-center gap-2 text-[13px] text-xai-mute"><Loader2 className="size-4 animate-spin" />{t("adminLoading")}</div>
         ) : failed && !data ? (
-          <div className="flex h-full items-center justify-center text-[13px] text-[#E85D4A]">{t("adminLoadError")}</div>
+          <div className="flex h-full items-center justify-center text-[13px] text-danger">{t("adminLoadError")}</div>
         ) : data ? (
           <div className="mx-auto max-w-[1440px] space-y-7">
-            <section className="relative overflow-hidden rounded-[24px] bg-[#17233C] px-5 py-5 text-[#FFFDF8] shadow-[6px_6px_0_#E85D4A] sm:px-7 sm:py-6">
+            <section className="relative overflow-hidden rounded-[24px] bg-ink px-5 py-5 text-paper sm:px-7 sm:py-6">
               <div className="pointer-events-none absolute -right-10 -top-16 size-48 rounded-full border border-white/10" />
               <div className="pointer-events-none absolute -bottom-24 right-24 size-44 rounded-full border border-white/10" />
               <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <div className="mb-4 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.16em] text-[#BFC8D8]"><span className="size-1.5 animate-pulse rounded-full bg-[#E85D4A]" />LIVE / ANONYMOUS TRAFFIC</div>
+                  <div className="mb-4 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.16em] text-white/70"><span className="size-1.5 animate-pulse rounded-full bg-tangerine" />LIVE / ANONYMOUS TRAFFIC</div>
                   <p className="font-mono text-[44px] font-semibold leading-none tracking-[-0.08em] sm:text-[56px]">{traffic.pv.toLocaleString()}</p>
-                  <p className="mt-2 text-[12px] text-[#BFC8D8]">{t("adminPV")}</p>
+                  <p className="mt-2 text-[12px] text-white/70">{t("adminPV")}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-6 border-t border-white/15 pt-4 sm:min-w-[280px] sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
-                  <div><p className="xai-eyebrow text-[10px] text-[#BFC8D8]">{t("adminUV")}</p><p className="mt-2 font-mono text-[24px] font-semibold tracking-[-0.05em]">{traffic.uv.toLocaleString()}</p></div>
-                  <div><p className="xai-eyebrow text-[10px] text-[#BFC8D8]">{t("adminNewUsers")}</p><p className="mt-2 font-mono text-[24px] font-semibold tracking-[-0.05em]">{data.overview.newUsers.toLocaleString()}</p></div>
+                  <div><p className="xai-eyebrow text-[10px] text-white/70">{t("adminUV")}</p><p className="mt-2 font-mono text-[24px] font-semibold tracking-[-0.05em]">{traffic.uv.toLocaleString()}</p></div>
+                  <div><p className="xai-eyebrow text-[10px] text-white/70">{t("adminNewUsers")}</p><p className="mt-2 font-mono text-[24px] font-semibold tracking-[-0.05em]">{data.overview.newUsers.toLocaleString()}</p></div>
                 </div>
               </div>
             </section>
@@ -256,7 +255,7 @@ export default function AdminPage() {
                         <div key={key} className="grid gap-2 sm:grid-cols-[150px_1fr_88px] sm:items-center">
                           <p className="text-[12px] text-xai-text-mid">{t(`adminGrowth.${key}`)}</p>
                           <div className="h-2 overflow-hidden rounded-full bg-xai-surface-2" aria-hidden>
-                            <div className="h-full rounded-full bg-[#E85D4A] transition-[width]" style={{ width: `${rate}%` }} />
+                            <div className="h-full rounded-full bg-cobalt transition-[width]" style={{ width: `${rate}%` }} />
                           </div>
                           <p className="font-mono text-[12px] tabular-nums sm:text-right">{value} <span className="text-xai-mute">/ {rate}%</span></p>
                         </div>
@@ -272,12 +271,12 @@ export default function AdminPage() {
               <SectionLabel>READOUT / DAILY SIGNAL</SectionLabel>
               <div className="grid gap-4 xl:grid-cols-2">
                 <section className="analytics-panel rounded-2xl border border-xai-hairline-soft bg-xai-surface p-4 sm:p-5">
-                  <div className="flex items-center justify-between gap-3"><div><p className="xai-eyebrow text-[10px]">{t("adminTrafficTrend")}</p><p className="mt-1 text-[12px] text-xai-mute">{t("adminPV")} / {t("adminUV")}</p></div><Activity className="size-4 text-[#E85D4A]" /></div>
-                  <div className="mt-4"><EChart revision={`${range}-${traffic.pv}-${traffic.uv}`} height={260} ariaLabel={t("adminTrafficTrend")} build={(tokens) => chartOption(data.daily, "pv", "uv", [t("adminPV"), t("adminUV")], [BRAND_ACCENT, tokens.text], tokens)} /></div>
+                  <div className="flex items-center justify-between gap-3"><div><p className="xai-eyebrow text-[10px]">{t("adminTrafficTrend")}</p><p className="mt-1 text-[12px] text-xai-mute">{t("adminPV")} / {t("adminUV")}</p></div><Activity className="size-4 text-cobalt" /></div>
+                  <div className="mt-4"><EChart revision={`${range}-${traffic.pv}-${traffic.uv}`} height={260} ariaLabel={t("adminTrafficTrend")} build={(tokens) => chartOption(data.daily, "pv", "uv", [t("adminPV"), t("adminUV")], [tokens.cobalt, tokens.tangerine], tokens)} /></div>
                 </section>
                 <section className="analytics-panel rounded-2xl border border-xai-hairline-soft bg-xai-surface p-4 sm:p-5">
-                  <div className="flex items-center justify-between gap-3"><div><p className="xai-eyebrow text-[10px]">{t("adminBusinessTrend")}</p><p className="mt-1 text-[12px] text-xai-mute">{t("adminNewUsers")} / {t("adminMatches")}</p></div><GitBranch className="size-4 text-[#6D8A78]" /></div>
-                  <div className="mt-4"><EChart revision={`${range}-${data.overview.newUsers}-${data.overview.derivedResumes}`} height={260} ariaLabel={t("adminBusinessTrend")} build={(tokens) => chartOption(data.daily, "newUsers", "matches", [t("adminNewUsers"), t("adminMatches")], [tokens.text, "#6D8A78"], tokens)} /></div>
+                  <div className="flex items-center justify-between gap-3"><div><p className="xai-eyebrow text-[10px]">{t("adminBusinessTrend")}</p><p className="mt-1 text-[12px] text-xai-mute">{t("adminNewUsers")} / {t("adminMatches")}</p></div><GitBranch className="size-4 text-green-ink" /></div>
+                  <div className="mt-4"><EChart revision={`${range}-${data.overview.newUsers}-${data.overview.derivedResumes}`} height={260} ariaLabel={t("adminBusinessTrend")} build={(tokens) => chartOption(data.daily, "newUsers", "matches", [t("adminNewUsers"), t("adminMatches")], [tokens.tangerine, tokens.cobalt], tokens)} /></div>
                 </section>
               </div>
             </section>

@@ -142,11 +142,11 @@ const CustomField: React.FC<CustomFieldProps> = ({
             onClick={() => onDelete(field.id)}
             className={cn(
               "shrink-0 h-8 px-2",
-              "text-neutral-500 dark:text-neutral-400",
-              "hover:text-red-600 dark:hover:text-red-400"
+              "text-muted-foreground",
+              "hover:text-danger"
             )}
           >
-            <Trash2 className="w-4 h-4 text-red-400" />
+            <Trash2 className="w-4 h-4 text-danger" />
           </Button>
         </div>
       </motion.div>
@@ -346,8 +346,8 @@ const BasicPanel: React.FC = () => {
               size="sm"
               className={cn(
                 "shrink-0 h-8 px-2",
-                "text-neutral-500 dark:text-neutral-400",
-                "hover:text-neutral-700 dark:hover:text-neutral-200"
+                "text-muted-foreground",
+                "hover:text-foreground"
               )}
               onClick={() => toggleFieldVisibility(field.id, !field.visible)}
             >
@@ -364,12 +364,12 @@ const BasicPanel: React.FC = () => {
                 size="sm"
                 className={cn(
                   "shrink-0 h-8 px-2",
-                  "text-neutral-500 dark:text-neutral-400",
-                  "hover:text-red-600 dark:hover:text-red-400"
+                  "text-muted-foreground",
+                  "hover:text-danger"
                 )}
                 onClick={() => deleteBasicField(field.id)}
               >
-                <Trash2 className="w-4 h-4 text-red-400" />
+                <Trash2 className="w-4 h-4 text-danger" />
               </Button>
             )}
           </div>
@@ -413,7 +413,7 @@ const BasicPanel: React.FC = () => {
 
               <motion.div className="space-y-6">
                 <motion.div className="space-y-3">
-                  <motion.h3 className="font-medium text-neutral-900 dark:text-neutral-200 px-1">
+                  <motion.h3 className="font-medium text-foreground px-1">
                     {t("basicField")}
                   </motion.h3>
                   <AnimatePresence mode="popLayout">
@@ -430,7 +430,7 @@ const BasicPanel: React.FC = () => {
                 </motion.div>
 
                 <motion.div className="space-y-3">
-                  <motion.h3 className="font-medium text-neutral-900 dark:text-neutral-200 px-1">
+                  <motion.h3 className="font-medium text-foreground px-1">
                     {t("customField")}
                   </motion.h3>
                   <AnimatePresence mode="popLayout">
@@ -471,7 +471,7 @@ const BasicPanel: React.FC = () => {
                     transition={{ delay: 0.2 }}
                   >
                     <div className="flex items-center justify-between">
-                      <motion.h3 className="font-medium text-neutral-900 dark:text-neutral-200 px-1">
+                      <motion.h3 className="font-medium text-foreground px-1">
                         {t("githubContributions")}
                       </motion.h3>
 

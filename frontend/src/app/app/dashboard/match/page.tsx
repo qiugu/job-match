@@ -187,7 +187,7 @@ function stripMarkdownPreamble(md: string): string {
 }
 
 /** 品牌强调紫（与侧边栏 primary 一致的 accent，用于环形靶签名元素） */
-const BRAND_VIOLET = "271 72% 47%"; /* xAI accent-dusk #7C3AED */
+const BRAND_COBALT = "236 100% 58%"; /* Paper & Punch 信号色钴蓝 #2B3AFF（hsl 分量，供 inline style 拼透明度） */
 
 export default function JobMatchPage() {
   const t = useTranslations("jobmatch");
@@ -711,19 +711,19 @@ export default function JobMatchPage() {
             >
               <span
                 className="absolute inset-0 rounded-full border"
-                style={{ borderColor: `hsl(${BRAND_VIOLET} / 0.35)` }}
+                style={{ borderColor: `hsl(${BRAND_COBALT} / 0.35)` }}
               />
               <span
                 className="absolute inset-[7px] rounded-full border"
-                style={{ borderColor: `hsl(${BRAND_VIOLET} / 0.55)` }}
+                style={{ borderColor: `hsl(${BRAND_COBALT} / 0.55)` }}
               />
               <span
                 className="flex h-8 w-8 items-center justify-center rounded-full"
-                style={{ backgroundColor: `hsl(${BRAND_VIOLET} / 0.12)` }}
+                style={{ backgroundColor: `hsl(${BRAND_COBALT} / 0.12)` }}
               >
                 <Crosshair
                   className="h-4.5 w-4.5"
-                  style={{ color: `hsl(${BRAND_VIOLET})` }}
+                  style={{ color: `hsl(${BRAND_COBALT})` }}
                 />
               </span>
             </div>
@@ -1005,12 +1005,12 @@ export default function JobMatchPage() {
                 </button>
                 <div
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-                  style={{ backgroundColor: `hsl(${BRAND_VIOLET} / 0.12)` }}
+                  style={{ backgroundColor: `hsl(${BRAND_COBALT} / 0.12)` }}
                 >
                   {pitchOnlyView ? (
-                    <Mail className="h-4.5 w-4.5" style={{ color: `hsl(${BRAND_VIOLET})` }} />
+                    <Mail className="h-4.5 w-4.5" style={{ color: `hsl(${BRAND_COBALT})` }} />
                   ) : (
-                    <Target className="h-4.5 w-4.5" style={{ color: `hsl(${BRAND_VIOLET})` }} />
+                    <Target className="h-4.5 w-4.5" style={{ color: `hsl(${BRAND_COBALT})` }} />
                   )}
                 </div>
                 <div className="min-w-0">
@@ -1035,9 +1035,9 @@ export default function JobMatchPage() {
                 <div
                   className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"
                   style={{
-                    borderColor: `hsl(${BRAND_VIOLET} / 0.25)`,
-                    backgroundColor: `hsl(${BRAND_VIOLET} / 0.06)`,
-                    color: `hsl(${BRAND_VIOLET})`,
+                    borderColor: `hsl(${BRAND_COBALT} / 0.25)`,
+                    backgroundColor: `hsl(${BRAND_COBALT} / 0.06)`,
+                    color: `hsl(${BRAND_COBALT})`,
                   }}
                 >
                   <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
@@ -1077,11 +1077,11 @@ export default function JobMatchPage() {
                   <div className="flex items-start gap-3">
                     <span
                       className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                      style={{ backgroundColor: `hsl(${BRAND_VIOLET} / 0.12)` }}
+                      style={{ backgroundColor: `hsl(${BRAND_COBALT} / 0.12)` }}
                     >
                       <Crosshair
                         className="h-4 w-4"
-                        style={{ color: `hsl(${BRAND_VIOLET})` }}
+                        style={{ color: `hsl(${BRAND_COBALT})` }}
                       />
                     </span>
                     <div className="min-w-0">
@@ -1114,25 +1114,25 @@ export default function JobMatchPage() {
                 <div className="relative flex flex-1 items-center justify-center overflow-hidden px-6 py-10">
                   <div
                     className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full border"
-                    style={{ borderColor: `hsl(${BRAND_VIOLET} / 0.1)` }}
+                    style={{ borderColor: `hsl(${BRAND_COBALT} / 0.1)` }}
                     aria-hidden
                   />
                   <div
                     className="pointer-events-none absolute left-1/2 top-1/2 h-[240px] w-[240px] -translate-x-1/2 -translate-y-1/2 rounded-full border"
-                    style={{ borderColor: `hsl(${BRAND_VIOLET} / 0.14)` }}
+                    style={{ borderColor: `hsl(${BRAND_COBALT} / 0.14)` }}
                     aria-hidden
                   />
                   <div
                     className="pointer-events-none absolute left-1/2 top-1/2 h-[120px] w-[120px] -translate-x-1/2 -translate-y-1/2 rounded-full border"
-                    style={{ borderColor: `hsl(${BRAND_VIOLET} / 0.2)` }}
+                    style={{ borderColor: `hsl(${BRAND_COBALT} / 0.2)` }}
                     aria-hidden
                   />
                   <div className="relative flex flex-col items-center text-center">
                     <div
                       className="flex h-14 w-14 items-center justify-center rounded-full"
-                      style={{ backgroundColor: `hsl(${BRAND_VIOLET} / 0.1)` }}
+                      style={{ backgroundColor: `hsl(${BRAND_COBALT} / 0.1)` }}
                     >
-                      <Crosshair className="h-7 w-7" style={{ color: `hsl(${BRAND_VIOLET})` }} />
+                      <Crosshair className="h-7 w-7" style={{ color: `hsl(${BRAND_COBALT})` }} />
                     </div>
                     <h3 className="mt-5 text-base font-semibold">{t("resultEmpty")}</h3>
                     <p className="mt-2 max-w-xs text-sm text-muted-foreground">
@@ -1269,7 +1269,7 @@ export default function JobMatchPage() {
                           </div>
                           <div className="ml-auto flex flex-wrap items-center gap-2.5">
                             {accepted ? (
-                              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-500">
+                              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-ink">
                                 <Check className="h-4 w-4" />
                                 {t("acceptedHint")}
                               </span>
@@ -1316,7 +1316,7 @@ export default function JobMatchPage() {
                       >
                         <FileText
                           className="h-3.5 w-3.5 shrink-0"
-                          style={{ color: `hsl(${BRAND_VIOLET})` }}
+                          style={{ color: `hsl(${BRAND_COBALT})` }}
                         />
                         <span className="truncate">
                           {t("masterResume")}：{result.title}
@@ -1334,8 +1334,8 @@ export default function JobMatchPage() {
                               key={k}
                               className="rounded-full px-2.5 py-1 text-xs font-medium"
                               style={{
-                                backgroundColor: `hsl(${BRAND_VIOLET} / 0.1)`,
-                                color: `hsl(${BRAND_VIOLET})`,
+                                backgroundColor: `hsl(${BRAND_COBALT} / 0.1)`,
+                                color: `hsl(${BRAND_COBALT})`,
                               }}
                             >
                               {k}
@@ -1538,7 +1538,7 @@ export default function JobMatchPage() {
                                             className={cn(
                                               "rounded-full px-2.5 py-1 text-[11px] font-medium",
                                               hit
-                                                ? "bg-emerald-500/15 text-emerald-400"
+                                                ? "bg-mint text-green-ink"
                                                 : "bg-muted text-muted-foreground line-through"
                                             )}
                                           >

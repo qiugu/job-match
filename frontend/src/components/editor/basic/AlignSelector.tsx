@@ -81,7 +81,7 @@ const AlignSelector: React.FC<AlignSelectorProps> = ({ value, onChange }) => {
             "group relative flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-200",
             "hover:scale-[1.02] active:scale-[0.98]",
             value === layout.value
-              ? "border-primary bg-primary/5 text-primary shadow-sm"
+              ? "border-primary bg-primary/5 text-primary"
               : "border-transparent bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
           )}
         >

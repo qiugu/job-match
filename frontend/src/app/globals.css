@@ -80,6 +80,13 @@
     --danger: #b42318;
     --shadow-color: #171310;
 
+    /* ── 岗位卡阶段圆点（DESIGN.md §岗位卡：钴蓝单色阶编码阶段深浅，
+       closed 为终态分支用中性色，不参与色阶）── */
+    --stage-greeting: #b8baf1; /* mix(cobalt, paper, 0.68) 待回复 */
+    --stage-resume: #7a81f7; /* mix(cobalt, paper, 0.38) 待投递 */
+    --stage-applied: #2b3aff; /* 满色 已投递 */
+    --stage-closed: #968c80; /* mix(ink-3, paper, 0.25) 已结束 */
+
     --font-display: "Bricolage Grotesque", "Noto Sans SC", "PingFang SC",
       "Microsoft YaHei", system-ui, sans-serif;
     --font-body: "Instrument Sans", "Noto Sans SC", "PingFang SC",
@@ -146,6 +153,12 @@
     --amber-text: #e8b44f;
     --danger: #f0a091;
     --shadow-color: #000000;
+
+    /* 岗位卡阶段圆点（dark：钴蓝朝墨版纸混合出深色阶） */
+    --stage-greeting: #35365b; /* mix(cobalt, paper, 0.68) */
+    --stage-resume: #545aa3; /* mix(cobalt, paper, 0.38) */
+    --stage-applied: #7c86ff; /* 满色 */
+    --stage-closed: #6e655b; /* mix(ink-3, paper, 0.25) */
 
     --sidebar-background: 26 12% 12%;
     --sidebar-foreground: 42 30% 88%;

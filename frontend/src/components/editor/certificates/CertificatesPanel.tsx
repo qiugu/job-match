@@ -74,10 +74,10 @@ const CertificatesPanel = () => {
 
     return (
         <div className={cn("space-y-4 px-4 py-4 rounded-lg bg-card border-border")}>
-            <p className="text-sm text-gray-500">{t("tips")}</p>
+            <p className="text-sm text-muted-foreground">{t("tips")}</p>
 
             {certificates.length === 0 && (
-                <div className="py-8 text-center text-sm text-gray-400 border border-dashed rounded-lg">
+                <div className="py-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg border-border">
                     {t("empty")}
                 </div>
             )}

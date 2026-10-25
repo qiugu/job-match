@@ -113,7 +113,7 @@ const Field = ({
   const inputStyles = cn(
     "block w-full rounded-md border-0 py-1.5 px-3",
     "text-foreground bg-background",
-    "shadow-sm ring-1 ring-inset ring-input",
+    "shadow-none ring-1 ring-inset ring-input",
     "placeholder:text-muted-foreground",
     "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary",
     "sm:text-sm sm:leading-6",

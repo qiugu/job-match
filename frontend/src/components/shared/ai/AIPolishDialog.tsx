@@ -205,8 +205,8 @@ export default function AIPolishDialog({
       <DialogContent
         className={cn(
           "sm:max-w-[1000px]",
-          "bg-white dark:bg-neutral-900",
-          "border-neutral-200 dark:border-neutral-800",
+          "bg-white dark:bg-background",
+          "border-border dark:border-border",
           "rounded-2xl shadow-2xl dark:shadow-none"
         )}
         onPointerDownOutside={(e) => {
@@ -223,7 +223,7 @@ export default function AIPolishDialog({
           <DialogTitle
             className={cn(
               "flex items-center gap-2 text-2xl",
-              "text-neutral-800 dark:text-neutral-100"
+              "text-foreground dark:text-foreground"
             )}
           >
             <Sparkles
@@ -237,7 +237,7 @@ export default function AIPolishDialog({
           <DialogDescription
             className={cn(
               "text-base",
-              "text-neutral-600 dark:text-neutral-400"
+              "text-muted-foreground dark:text-muted-foreground"
             )}
           >
             {isPolishing
@@ -253,7 +253,7 @@ export default function AIPolishDialog({
             htmlFor="custom-instructions"
             className={cn(
               "text-sm font-medium",
-              "text-neutral-600 dark:text-neutral-400"
+              "text-muted-foreground dark:text-muted-foreground"
             )}
           >
             {t("customInstructions")}
@@ -267,10 +267,10 @@ export default function AIPolishDialog({
             rows={2}
             className={cn(
               "resize-none rounded-xl border",
-              "bg-neutral-50 dark:bg-neutral-800/50",
-              "border-neutral-200 dark:border-neutral-800",
-              "text-neutral-700 dark:text-neutral-300",
-              "placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
+              "bg-muted dark:bg-muted/50",
+              "border-border dark:border-border",
+              "text-foreground dark:text-foreground",
+              "placeholder:text-muted-foreground dark:placeholder:text-muted-foreground"
             )}
           />
         </div>
@@ -281,13 +281,13 @@ export default function AIPolishDialog({
               <div
                 className={cn(
                   "w-1.5 h-1.5 rounded-full",
-                  "bg-neutral-500 dark:bg-neutral-600"
+                  "bg-muted0 dark:bg-muted-foreground"
                 )}
               ></div>
               <span
                 className={cn(
                   "text-sm font-medium",
-                  "text-neutral-600 dark:text-neutral-400"
+                  "text-muted-foreground dark:text-muted-foreground"
                 )}
               >
                 {t("content.original")}
@@ -296,15 +296,15 @@ export default function AIPolishDialog({
             <div
               className={cn(
                 "relative rounded-xl border",
-                "bg-neutral-50 dark:bg-neutral-800/50",
-                "border-neutral-200 dark:border-neutral-800",
+                "bg-muted dark:bg-muted/50",
+                "border-border dark:border-border",
                 "p-6 h-[400px] overflow-auto shadow-sm"
               )}
             >
               <Streamdown
                 className={cn(
                   "prose dark:prose-invert max-w-none",
-                  "text-neutral-700 dark:text-neutral-300"
+                  "text-foreground dark:text-foreground"
                 )}
               >
                 {turndownService.turndown(content)}
@@ -343,7 +343,7 @@ export default function AIPolishDialog({
                 isAnimating={isPolishing}
                 className={cn(
                   "prose dark:prose-invert max-w-none",
-                  "text-neutral-800 dark:text-neutral-200"
+                  "text-foreground dark:text-foreground"
                 )}
               >
                 {polishedContent}

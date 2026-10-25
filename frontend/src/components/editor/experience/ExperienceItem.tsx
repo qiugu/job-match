@@ -164,8 +164,8 @@ const ExperienceItem = ({ experience }: { experience: Experience }) => {
               className={cn(
                 "text-sm",
                 experience.visible
-                  ? "hover:bg-gray-100 text-gray-500 dark:hover:bg-neutral-800 dark:text-neutral-400"
-                  : "hover:bg-gray-100 text-gray-400 dark:hover:bg-neutral-800 dark:text-neutral-600"
+                  ? "hover:bg-muted text-muted-foreground"
+                  : "hover:bg-muted text-muted-foreground"
               )}
               onClick={handleVisibilityToggle}
             >
@@ -181,7 +181,7 @@ const ExperienceItem = ({ experience }: { experience: Experience }) => {
               size="sm"
               className={cn(
                 "text-sm",
-                "dark:hover:bg-red-900/50 dark:text-red-400 hover:bg-red-50 text-red-600"
+                "hover:bg-blush text-danger"
               )}
               onClick={(e) => {
                 e.stopPropagation();

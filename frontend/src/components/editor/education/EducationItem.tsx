@@ -141,7 +141,7 @@ const EducationItem = ({ education }: { education: Education }) => {
         }}
         className={cn(
           "w-12 flex items-center justify-center border-r shrink-0 touch-none",
-          "dark:border-neutral-800",
+          "border-border",
           "border-border",
           expandedId === education.id
             ? "cursor-not-allowed"
@@ -188,8 +188,8 @@ const EducationItem = ({ education }: { education: Education }) => {
                   <p
                     className={cn(
                       "text-sm truncate",
-                      "dark:text-neutral-400",
-                      "text-gray-500"
+                      "text-muted-foreground",
+                      "text-muted-foreground"
                     )}
                   >
                     {[education.major, education.degree]
@@ -219,7 +219,7 @@ const EducationItem = ({ education }: { education: Education }) => {
               size="sm"
               className={cn(
                 "text-sm",
-                "dark:hover:bg-red-900/50 dark:text-red-400 hover:bg-red-50 text-red-600"
+                "hover:bg-blush text-danger"
               )}
               onClick={(e) => {
                 e.stopPropagation();

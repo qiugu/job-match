@@ -56,7 +56,7 @@ const CertificateItem = ({ certificate }: { certificate: Certificate }) => {
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/50 -mr-2"
+                            className="text-danger hover:bg-blush -mr-2"
                             onClick={() => setDeleteDialogOpen(true)}
                         >
                             <Trash2 className="w-4 h-4" />

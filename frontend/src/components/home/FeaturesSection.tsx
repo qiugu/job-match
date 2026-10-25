@@ -28,7 +28,7 @@ const features = [
   {
     icon: Shield,
     badge: "features.storage.badge",
-    badgeColor: "bg-emerald-500/10 text-emerald-600",
+    badgeColor: "bg-mint text-green-ink",
     title: "features.storage.title",
     description: "features.storage.description",
     items: [

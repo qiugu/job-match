@@ -148,7 +148,7 @@ const LayoutItem = ({
                   "hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                 )}
               >
-                <Trash2 className="w-4 h-4 text-red-400" />
+                <Trash2 className="w-4 h-4 text-danger" />
               </motion.button>
             </AlertDialogTrigger>
             <AlertDialogContent onClick={(e) => e.stopPropagation()}>
@@ -180,7 +180,7 @@ const LayoutItem = ({
                       setActiveSection(fallbackSection.id);
                     }
                   }}
-                  className="bg-gradient-to-r from-rose-500 to-orange-400 hover:from-rose-600 hover:to-orange-500 text-white shadow-sm border-0"
+                  className="bg-danger text-white border-0"
                 >
                   {t("confirm")}
                 </AlertDialogAction>

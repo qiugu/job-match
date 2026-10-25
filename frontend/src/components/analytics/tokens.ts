@@ -5,18 +5,12 @@
  * - ECharts 在 **Canvas** 上渲染，无法解析 CSS 变量（`var(--xai-text)` 会画成黑色）；
  * - 本项目的主题是 `html.light` / `html.dark` 上的 class（next-themes 驱动），
  *   色值定义在 `.theme-xai` 作用域内 ⇒ 只能用 `getComputedStyle` 在**运行时**读出；
- * - 因此图表容器必须位于 `.theme-xai` 子树内，否则取到的是 `:root` 的深色兜底值。
+ * - 因此图表容器必须位于 `.theme-xai` 子树内，否则取到的是 `:root` 的兜底值。
  *
- * 纪律：**禁止在图表代码里硬编码色值**（品牌强调色 `BRAND_ACCENT` 是唯一例外），
- * 否则浅色/深色主题切换时会出现不可读的图表。
+ * 纪律：**禁止在图表代码里硬编码色值**（品牌信号色 `cobalt` 与对照色 `tangerine`
+ * 经 ChartTokens 注入，随主题切换），否则浅色/深色主题切换时会出现不可读的图表。
  */
 import type { JobStatus } from "@/lib/jobmatch";
-
-/**
- * 投递分析的主强调色：珊瑚橙。它只标记「已投递」与峰值，和纸张底色形成
- * 清晰的阅读锚点；其余阶段继续用同色不同明度构成单色阶。
- */
-export const BRAND_ACCENT = "#E85D4A";
 
 export interface ChartTokens {
   /** 面板底色（用于把强调色朝底色混合出同色阶） */
@@ -28,22 +22,28 @@ export interface ChartTokens {
   textMid: string;
   mute: string;
   eyebrow: string;
+  /** 纸墨体系信号色（钴蓝）：阶段色阶基色 / 图表主系列（DESIGN.md §投递分析） */
+  cobalt: string;
+  /** 纸墨体系对照色（橘）：图表对照系列 / 峰值标记 */
+  tangerine: string;
   fontSans: string;
   fontMono: string;
 }
 
 /** 无 DOM（SSR / 单测）时的兜底：使用分析页纸张主题的值，保证函数在任何环境都可用。 */
 export const FALLBACK_TOKENS: ChartTokens = {
-  surface: "#FFFDF8",
-  surface2: "#F1EEE7",
-  hairline: "#DDD7CC",
-  hairlineSoft: "#EAE5DC",
-  text: "#17233C",
-  textMid: "#435069",
-  mute: "#6D7788",
-  eyebrow: "#7F6B5A",
-  fontSans: 'Inter, "Noto Sans SC", system-ui, sans-serif',
-  fontMono: '"Geist Mono", ui-monospace, SFMono-Regular, monospace',
+  surface: "#fffdf8",
+  surface2: "#f3ecdc",
+  hairline: "#e2d9c6",
+  hairlineSoft: "#ece5d6",
+  text: "#171310",
+  textMid: "#4b423a",
+  mute: "#75695c",
+  eyebrow: "#75695c",
+  cobalt: "#2b3aff",
+  tangerine: "#ff6a1f",
+  fontSans: '"Instrument Sans", "Noto Sans SC", system-ui, sans-serif',
+  fontMono: '"DM Mono", "Geist Mono", ui-monospace, SFMono-Regular, monospace',
 };
 
 function toRgb(hex: string): [number, number, number] | null {
@@ -95,6 +95,9 @@ export function readChartTokens(el: HTMLElement | null | undefined): ChartTokens
     textMid: get("--xai-text-mid", FALLBACK_TOKENS.textMid),
     mute: get("--xai-mute", FALLBACK_TOKENS.mute),
     eyebrow: get("--xai-eyebrow", FALLBACK_TOKENS.eyebrow),
+    // 纸墨具名令牌：定义在 :root / .dark，.theme-xai 不覆写 ⇒ 控制台内读到主题对应值
+    cobalt: get("--cobalt", FALLBACK_TOKENS.cobalt),
+    tangerine: get("--tangerine", FALLBACK_TOKENS.tangerine),
     fontSans: get("--xai-font-sans", FALLBACK_TOKENS.fontSans),
     fontMono: get("--xai-font-mono", FALLBACK_TOKENS.fontMono),
   };
@@ -103,18 +106,18 @@ export function readChartTokens(el: HTMLElement | null | undefined): ChartTokens
 /**
  * 阶段 → 颜色。
  *
- * 阶段是有序量（待回复 → 待投递 → 已投递），故用**靛蓝单色阶**表达深浅，
- * 而不是四个分类色：单色阶能同时传达「顺序」与「占比」，且符合品牌「唯一强调色」约束。
+ * 阶段是有序量（待回复 → 待投递 → 已投递），故用**钴蓝单色阶**表达深浅，
+ * 而不是四个分类色：单色阶能同时传达「顺序」与「占比」，且符合品牌「唯一信号色」约束。
  * `closed`（已结束）是终态**分支**而非阶段，用中性灰，不参与色阶。
  */
 export function stageColor(stage: JobStatus, tokens: ChartTokens): string {
   switch (stage) {
     case "applied":
-      return BRAND_ACCENT; // 最高阶：满色
+      return tokens.cobalt; // 最高阶：满色
     case "resume_ready":
-      return mixHex(BRAND_ACCENT, tokens.surface, 0.38);
+      return mixHex(tokens.cobalt, tokens.surface, 0.38);
     case "greeting_sent":
-      return mixHex(BRAND_ACCENT, tokens.surface, 0.68);
+      return mixHex(tokens.cobalt, tokens.surface, 0.68);
     case "closed":
       return mixHex(tokens.mute, tokens.surface, 0.25);
   }

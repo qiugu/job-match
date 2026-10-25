@@ -53,8 +53,7 @@ function SettingCard({
   return (
     <Card
       className={cn(
-        "border shadow-sm",
-        "bg-card border-border shadow-sm"
+        "bg-card border-border"
       )}
     >
       <CardHeader className="p-4 pb-0 flex flex-row items-center justify-between space-y-0">

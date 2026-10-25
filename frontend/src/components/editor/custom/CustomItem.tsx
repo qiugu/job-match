@@ -141,8 +141,7 @@ const CustomItem = ({
             {item.subtitle && (
               <p
                 className={cn(
-                  "text-sm truncate",
-                  "dark:text-neutral-400 text-gray-500"
+                  "text-sm truncate text-muted-foreground"
                 )}
               >
                 {item.subtitle}
@@ -168,7 +167,7 @@ const CustomItem = ({
               size="sm"
               className={cn(
                 "text-sm",
-                "dark:hover:bg-red-900/50 dark:text-red-400 hover:bg-red-50 text-red-600"
+                "hover:bg-blush text-danger"
               )}
               onClick={(e) => {
                 e.stopPropagation();

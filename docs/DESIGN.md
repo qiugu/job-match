@@ -471,7 +471,7 @@ Hover（仅可点击卡片）：translate(-2px,-2px) + --shadow-card
 | 1 原语 | ✅ 已落地 | 未重写 `components/ui/*` 的 API，改为在 `globals.css` 的 `@layer components` 增加 `.pp-btn` / `.pp-card` / `.pp-field` / `.pp-seg` / `.pp-sticker` / `.eb-zh`；`.xai-pill-*` 同步改为钴蓝 + 硬阴影 |
 | 2 落地页 | ✅ 已落地 | `LandingHeader` / `HeroSection` / `FeaturesSection` / `FAQSection` / `CTASection` / `Footer` / `NewsAlert` / `ScrollHeader` 按 Loud 重排；`AnimatedFeature` **由 framer-motion 改为 CSS 渐进增强**（原实现把 `opacity:0` 写进 SSR HTML，整页截图/打印/爬虫全空白，修复方式见下方「已知坑」） |
 | 3 控制台 | ✅ 外壳已落地 | `.theme-xai` 收敛为纸墨令牌（含 `html.dark` 墨版纸变体）；侧栏选中态由黑 pill 改钴蓝、圆角改方角；外壳挂 `data-density="calm"` |
-| 4 密集面 | ⬜ 未开始 | 岗位卡 / 分析页 / 编辑器工具栏仍为原组件密度 |
+| 4 密集面 | ✅ 已落地 | 岗位卡阶段圆点/徽章、投递分析图表、admin 控制室、编辑器全部换血：`tokens.ts` 删 `BRAND_ACCENT` 硬编码、`ChartTokens` 增 `cobalt`/`tangerine`（随主题解析）；jobs/match/admin 的珊瑚红/暮光紫/藏青全部换成纸墨令牌；编辑器内部（工具栏、侧栏面板、语法抽屉、Dock、FAQ 贴纸）清除 blur/软阴影/旧 palette，workbench 根节点挂 `data-density="calm"`；仅 A4 纸面（简历模板、页码、`.resume-preview`）按打印契约保留白纸灰字 |
 | 5 深色 | ✅ 令牌已备 | `.dark` 与 `html.dark .theme-xai` 已定义墨版纸值，未做视觉验收 |
 
 > 落地后 `npx vite build` 通过（30.3s），`npx vitest run` 24 个文件 / 167 个测试全部通过。落地效果截图见 `docs/design-preview/shots/final-*.png`。
@@ -501,6 +501,13 @@ Hover（仅可点击卡片）：translate(-2px,-2px) + --shadow-card
 ### Phase 4 — 密集面（1.5 天）
 - 岗位卡、分析页、简历列表、编辑器工具栏。
 - 图表 `tokens.ts` 改为读新令牌。
+- **实施记录（2026-10-25，commit `p4`）**：
+  - `tokens.ts`：删除硬编码 `BRAND_ACCENT`（旧珊瑚红 `#E85D4A`），`ChartTokens` 新增 `cobalt`/`tangerine` 字段（`readChartTokens` 读 `--cobalt`/`--tangerine` 纸墨令牌，明暗自适应），`stageColor` 单色阶基色改 `tokens.cobalt`；`FALLBACK_TOKENS` 更新为纸墨值。
+  - `admin/page.tsx`：16 处旧 xAI 配方（`#E85D4A`/`#17233C`/`#FFFDF8`/`#BFC8D8`/`#6D8A78`）全部换血——KPI 强调用钴蓝、LIVE 脉冲点用橘、错误文字用 `text-danger`、ink banner 用 `bg-ink text-paper`、图表双系列 `[cobalt, tangerine]`。
+  - `jobs/page.tsx`：`STAGE_DOT` 四档改 `var(--stage-*)` CSS 变量（globals.css 明暗双份：钴蓝向 paper 混合三阶 + ink-3 中性 closed）；`STRENGTH_TEXT` 兜底 `text-slate-500` → `text-ink-3`。
+  - `match/page.tsx`：`BRAND_VIOLET`（旧暮光紫，19 处 inline hsl）→ `BRAND_COBALT`（钴蓝 hsl 分量）。
+  - `workbench`：根节点 `data-density="calm"`；`LayoutControls`/`DragHandle`/`PreviewDock`/`MarkdownEditor` 工具栏/`GrammarCheckDrawer`/`MobileWorkbench` 清除 `backdrop-blur`/软阴影；`FAQDialog` 玻璃魔法球重写为钴蓝贴纸按钮；`dock.tsx`（magicui）三处改纸墨实体底；编辑器面板（Basic/Project/Experience/Education/Custom/Certificates/IconSelector）的 gray/neutral/red/green 旧 palette 全部换语义令牌。
+  - 保留不动：`components/templates/**` 简历模板、`MarkdownPreview` 页码、`GithubContribution`（GitHub 官方热力图配色）、`Logo` 品牌紫——均属纸面/外部品牌契约。
 
 ### Phase 5 — 深色（1 天，可延后）
 - §4.3 令牌 + 硬阴影 `--shadow-color` 切换 + 对比度复测。

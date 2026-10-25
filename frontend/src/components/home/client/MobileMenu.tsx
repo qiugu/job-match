@@ -37,7 +37,7 @@ export default function MobileMenu({
       exit={{ opacity: 0, y: -20 }}
       className="fixed inset-x-0 top-16 z-50 md:hidden"
     >
-      <div className="bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t border-b dark:border-gray-800">
+      <div className="bg-background border-t border-b border-border">
         <nav className="mx-auto max-w-[1200px] px-4 py-6 flex flex-col gap-6">
           <div className="flex items-center justify-center gap-8">
             <LanguageSwitch />
