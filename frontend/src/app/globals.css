@@ -546,6 +546,39 @@
     box-shadow: 0 0 0 3px rgb(43 58 255 / 0.16);
   }
 
+  /* 排版设置滑杆（设计稿 03 .slider）：3px 细线轨道 + 13px 空心圆手柄 */
+  .pp-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--line);
+    outline: none;
+    cursor: pointer;
+  }
+  .pp-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--pp-card);
+    border: 2px solid var(--ink);
+    cursor: pointer;
+  }
+  .pp-slider::-moz-range-thumb {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--pp-card);
+    border: 2px solid var(--ink);
+    cursor: pointer;
+  }
+  .pp-slider:focus-visible::-webkit-slider-thumb {
+    border-color: var(--cobalt);
+  }
+
   /* 纸面点阵纹理（Loud 档氛围层，禁 blur） */
   .pp-dotgrid {
     position: absolute;

@@ -509,6 +509,12 @@ Hover（仅可点击卡片）：translate(-2px,-2px) + --shadow-card
   - `workbench`：根节点 `data-density="calm"`；`LayoutControls`/`DragHandle`/`PreviewDock`/`MarkdownEditor` 工具栏/`GrammarCheckDrawer`/`MobileWorkbench` 清除 `backdrop-blur`/软阴影；`FAQDialog` 玻璃魔法球重写为钴蓝贴纸按钮；`dock.tsx`（magicui）三处改纸墨实体底；编辑器面板（Basic/Project/Experience/Education/Custom/Certificates/IconSelector）的 gray/neutral/red/green 旧 palette 全部换语义令牌。
   - 保留不动：`components/templates/**` 简历模板、`MarkdownPreview` 页码、`GithubContribution`（GitHub 官方热力图配色）、`Logo` 品牌紫——均属纸面/外部品牌契约。
   - **补漏记录（2026-10-25 晚，commit `p4b`）**：Phase 4 漏网的 6 个在世组件旧 palette 清零——`ThemeModal` 删除确认 `red-600`→`bg-danger`；`PhotoConfigDrawer` 拖拽态 `blue-500`→`border-cobalt`、抽屉蓝色辉光→`shadow-chip`；`preview/index.tsx` 分页警示线 `red-400/500`→`border/text-danger`；`settings` `green-600`→`text-green-ink`；`AIPolishDialog` 主按钮紫粉渐变（违禁渐变）→`bg-cobalt shadow-chip`；`GitHubStars` 星标黄色→`text-ink-3`/hover `text-amber-ink`。`FAQDialog` 贴纸**移除 `animate-[bounce_5s_ease-in-out_infinite]`**——永久 bounce 在硬偏移阴影下视觉抖动且持续抢注意力，仅保留 hover 抬升。另删 3 个零引用死文件（`themeConfig.ts`、`ScrollBackground.tsx`、`ScrollToTop.tsx`）。
+  - **结构对齐记录（2026-10-26，样张 03 简历工作台）**：Phase 4 只做了换色，编辑页仍是旧两栏结构（编辑 50% + 预览 50%）。本次按样张 03 重排为三栏（逻辑零改动）：
+    - `MarkdownWorkbench`：三栏 `20/32/48`（排版设置 / Markdown 编辑 / 实时预览）。左栏 `.set` 规格——「排版设置 + auto-save eyebrow」标题行、字体 seg 2×2（`getFontOptions` 映射 `globalSettings.fontFamily`）、字号·行距 / 间距（页边距+模块间距）细线滑杆（`.pp-slider`：3px 轨道 + 13px 空心圆手柄）、主题色 swatches（`THEME_COLORS`，含 hex mono 读数）。原预览条 4 个滑块与顶部提示条主题色圆点全部迁入左栏。
+    - `EditorHeader`：去入场动画；标题旁加保存状态行（绿点 `--green` = 已保存 / 橘点 `--tangerine` = 未保存，mono 小字 + 更新时间）；新增「校对」按钮（`SpellCheck2`，dispatch 既有 `open-grammar-drawer` 事件）；保存按钮 `bg-cobalt` 钴蓝主按钮、导出降 1px 边次按钮（样张 btn--calm 规格）。
+    - `MarkdownEditor` 工具条：`.md__tb`/`.tb` 规格——42px 条、卡片底、组间 1px 竖线分隔（弃浮起 chip）；按钮 27px/6px 圆角，激活态 `bg-ink text-paper` 墨色实底（原 `bg-primary` 钴蓝）。
+    - 顺带修令牌双落地缺口：`bg-green`（`--green` 状态点填充）此前**未映射进 tailwind.config**（空操作），补 `green: "var(--green)"`。
+    - 新增 i18n key：`markdownEditor.typeset.*`（title/autoSave/sizeLeading/saved/unsaved）、`grammarCheck.proofread`，zh/en 双写。`.tiptap` 编辑态排版契约（字号锁定 1.4/1.2/1.1/1rem、4px 栅格）**不动**。
 
 ### Phase 5 — 深色（1 天，可延后）
 - §4.3 令牌 + 硬阴影 `--shadow-color` 切换 + 对比度复测。

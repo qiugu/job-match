@@ -495,7 +495,7 @@
     "pitchResult": "话术结果",
     "pitchResultDesc": "独立生成的投递话术，未关联匹配结果",
     "jobsToggle": "我的投递",
-        "analyticsTitle": "投递分析",
+    "analyticsTitle": "投递分析",
     "analyticsSubtitle": "按天的投递节奏与转化洞察",
     "analyticsTabsLabel": "分析视图",
     "analyticsTabDelivery": "投递表现",
@@ -1172,7 +1172,8 @@
     "applied_success": "已应用修改",
     "apply_error": "未找到对应文本，无法自动修改",
     "no_errors_title": "太棒了！",
-    "no_errors_desc": "文档非常完美，没有发现任何错别字或标点错误。"
+    "no_errors_desc": "文档非常完美，没有发现任何错别字或标点错误。",
+    "proofread": "校对"
   },
   "faqDialog": {
     "title": "常见问题 (FAQ)",
@@ -1217,6 +1218,13 @@
       "alignCenter": "居中对齐",
       "alignRight": "右对齐",
       "alignNone": "取消对齐（默认）"
+    },
+    "typeset": {
+      "title": "排版设置",
+      "autoSave": "auto-save",
+      "sizeLeading": "字号 · 行距",
+      "saved": "已保存",
+      "unsaved": "未保存"
     }
   }
 }

@@ -56,6 +56,7 @@ const config = {
         mint: "var(--mint)",
         butter: "var(--butter)",
         blush: "var(--blush)",
+        green: "var(--green)",
         "green-ink": "var(--green-text)",
         "amber-ink": "var(--amber-text)",
         danger: "var(--danger)",

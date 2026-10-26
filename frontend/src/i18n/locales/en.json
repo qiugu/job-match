@@ -494,7 +494,7 @@
     "pitchResult": "Pitch result",
     "pitchResultDesc": "Standalone pitch, not tied to any match result",
     "jobsToggle": "My Applications",
-        "analyticsTitle": "Delivery Analytics",
+    "analyticsTitle": "Delivery Analytics",
     "analyticsSubtitle": "Daily cadence and conversion insights",
     "analyticsTabsLabel": "Analytics view",
     "analyticsTabDelivery": "Delivery",
@@ -1170,7 +1170,8 @@
     "applied_success": "Changes applied",
     "apply_error": "Text not found, cannot apply automatically",
     "no_errors_title": "Perfect!",
-    "no_errors_desc": "No grammar or punctuation errors found."
+    "no_errors_desc": "No grammar or punctuation errors found.",
+    "proofread": "Proofread"
   },
   "faqDialog": {
     "title": "Frequently Asked Questions (FAQ)",
@@ -1215,6 +1216,13 @@
       "alignCenter": "Align center",
       "alignRight": "Align right",
       "alignNone": "Clear alignment"
+    },
+    "typeset": {
+      "title": "Typeset",
+      "autoSave": "auto-save",
+      "sizeLeading": "Size & Leading",
+      "saved": "Saved",
+      "unsaved": "Unsaved"
     }
   }
 }

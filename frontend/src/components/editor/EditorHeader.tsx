@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Download,
   Edit2,
+  SpellCheck2,
   Undo2,
   Redo2,
   Save,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "@/lib/navigation";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import PdfExport from "../shared/PdfExport";
 import ThemeToggle from "../shared/ThemeToggle";
@@ -137,10 +139,8 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
   }, [handleSaveMatch]);
 
   return (
-    <motion.header
-      className={`h-16 border-b sticky top-0 z-10`}
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
+    <header
+      className={`h-16 border-b border-line sticky top-0 z-10 bg-card`}
     >
       <div className="flex items-center justify-between px-6 h-full pr-2">
         <div className="flex items-center space-x-3 scrollbar-hide">
@@ -167,7 +167,7 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
 
           <span className="text-muted-foreground/30 hidden md:inline-block font-light">/</span>
 
-          {/* 标题：pill 输入框 */}
+          {/* 标题：pill 输入框 + 保存状态点（设计稿 03 ed__name） */}
           <div className="relative hidden md:flex items-center group">
             <Input
               key={activeResume?.id || "resume-title"}
@@ -180,6 +180,23 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
             />
             <Edit2 className="w-3.5 h-3.5 absolute right-3.5 text-muted-foreground/40 pointer-events-none transition-colors group-hover:text-muted-foreground/80" />
           </div>
+          <span className="hidden md:flex items-center gap-1.5 font-mono text-[9.5px] tracking-wide text-ink-3">
+            <i
+              className={cn(
+                "w-[5px] h-[5px] rounded-full shrink-0",
+                isDirty ? "bg-tangerine" : "bg-green"
+              )}
+            />
+            {isDirty
+              ? t("markdownEditor.typeset.unsaved")
+              : t("markdownEditor.typeset.saved")}
+            {activeResume?.updatedAt
+              ? ` · ${new Date(activeResume.updatedAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}`
+              : ""}
+          </span>
         </div>
 
         <div className="flex items-center flex-wrap gap-x-3 gap-y-2">
@@ -220,6 +237,16 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
             </TooltipProvider>
           </div>
           <GrammarCheckDrawer />
+          <button
+            type="button"
+            onClick={() =>
+              document.dispatchEvent(new CustomEvent("open-grammar-drawer"))
+            }
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line-strong px-3.5 text-[13px] font-medium text-ink-2 shadow-none transition-colors hover:bg-paper-2 hover:text-ink hover:border-ink"
+          >
+            <SpellCheck2 className="h-4 w-4" />
+            {t("grammarCheck.proofread")}
+          </button>
           {errors.length > 0 && (
              <div 
                 className="flex items-center space-x-1 cursor-pointer animate-pulse"
@@ -238,7 +265,7 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-xai-text px-4 text-[13px] font-medium text-xai-canvas transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-cobalt border border-cobalt px-4 text-[13px] font-semibold text-paper shadow-none transition-colors hover:bg-cobalt-deep hover:border-cobalt-deep disabled:cursor-not-allowed disabled:opacity-40"
                   onClick={handleSaveMatch}
                   disabled={savingMatch || !isDirty}
                 >
@@ -259,7 +286,7 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
             <PdfExport>
               <button
                 type="button"
-                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-xai-hairline px-4 text-[13px] text-xai-text-mid transition-colors hover:border-xai-hairline-strong hover:text-xai-text"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line-strong px-4 text-[13px] font-medium text-ink-2 shadow-none transition-colors hover:bg-paper-2 hover:text-ink hover:border-ink"
               >
                 <Download className="h-4 w-4" />
                 {t("pdfExport.button.export")}
@@ -268,6 +295,6 @@ export function EditorHeader({ isMobile }: EditorHeaderProps) {
           </div>
         </div>
       </div>
-    </motion.header>
+    </header>
   );
 }

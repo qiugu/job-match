@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { FileText, Eye, Palette } from "lucide-react";
+import { Eye, ListChecks } from "lucide-react";
 import { type ImperativePanelHandle } from "react-resizable-panels";
 import { useResumeStore } from "@/store/useResumeStore";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/i18n/compat/client";
 import { DEFAULT_PAGE_PADDING, THEME_COLORS } from "@/types/resume";
+import { getFontOptions, normalizeFontFamily } from "@/utils/fonts";
 import MarkdownEditor from "@/components/editor/MarkdownEditor";
 import MarkdownPreview from "@/components/preview/MarkdownPreview";
 import {
@@ -31,6 +32,8 @@ const MarkdownWorkbench = ({
     useResumeStore();
   const t = useTranslations("markdownEditor");
   const tTheme = useTranslations("workbench.sidePanel.theme");
+  const tTypo = useTranslations("workbench.sidePanel.typography");
+  const tSpacing = useTranslations("workbench.sidePanel.spacing");
   const previewPanelRef = useRef<ImperativePanelHandle>(null);
   // activeResume 就绪前组件整体 return null，面板未挂载、ref 为 null；
   // 若这期间用户切换了折叠态，collapse/expand 会静默丢失（旧版故障模式）。
@@ -70,6 +73,9 @@ const MarkdownWorkbench = ({
   if (!activeResume) return null;
 
   const themeColor = activeResume?.globalSettings?.themeColor || THEME_COLORS[0];
+  // 字体 seg：映射既有 globalSettings.fontFamily（与 SidePanel/预览渲染同一口径）
+  const fontOptions = getFontOptions((key) => tTypo(`font.${key}`));
+  const selectedFont = normalizeFontFamily(activeResume?.globalSettings?.fontFamily);
   // 模块间距：与预览渲染保持同一口径（未设置时 = 半行高），滑块所见即所得
   const lineUnit = Math.round(
     (activeResume?.globalSettings?.lineHeight || 1.5) *
@@ -85,64 +91,176 @@ const MarkdownWorkbench = ({
 
   return (
     <div className="h-full min-h-0 flex flex-col bg-background">
-      {/* 模式内提示条 + 主题色选择 */}
-      <div
-        className={cn(
-          "flex items-center gap-3 px-4 py-2 text-xs border-b shrink-0",
-          "bg-muted/40 text-muted-foreground border-border"
-        )}
-      >
-        <div className="flex items-center gap-2">
-          <FileText className="w-3.5 h-3.5" />
-          <span>{t("modeHint")}</span>
-        </div>
-
-        {/* Markdown 主题色选择：复用 globalSettings.themeColor 与 THEME_COLORS */}
-        <div className="ml-auto flex items-center gap-2">
-          <Palette className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-muted-foreground">{tTheme("title")}</span>
-          <div className="flex items-center gap-1.5">
-            {THEME_COLORS.map((presetTheme) => (
-              <button
-                key={presetTheme}
-                type="button"
-                aria-label={presetTheme}
-                title={presetTheme}
-                onClick={() => handleThemeColorChange(presetTheme)}
-                className={cn(
-                  "relative w-4 h-4 rounded-full overflow-hidden transition-all duration-200 focus:outline-none",
-                  themeColor === presetTheme
-                    ? "ring-2 ring-primary ring-offset-1 ring-offset-background"
-                    : "ring-1 ring-border hover:ring-primary/50 hover:scale-110"
-                )}
-              >
-                <span
-                  className="absolute inset-0"
-                  style={{ backgroundColor: presetTheme }}
-                />
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
       <div className="flex-1 min-h-0">
         <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
-          {/* 左：Markdown 编辑器 */}
+          {/* 左：排版设置（设计稿 03 .set：20% / Calm 档） */}
+          <ResizablePanel
+            id="typeset-panel"
+            order={1}
+            defaultSize={20}
+            minSize={15}
+            maxSize={30}
+            className="min-h-0 bg-paper-2 border-r border-line"
+          >
+            <div className="h-full overflow-y-auto">
+              {/* set__top：面板标题 + auto-save eyebrow */}
+              <div className="flex items-center gap-2 px-4 pt-3.5 pb-3 border-b border-line">
+                <ListChecks className="w-3.5 h-3.5 text-ink-2" />
+                <b className="text-xs font-semibold text-ink">{t("typeset.title")}</b>
+                <span className="ml-auto font-mono text-[9px] tracking-wider text-ink-3">
+                  {t("typeset.autoSave")}
+                </span>
+              </div>
+
+              {/* 字体：seg 按钮组（globalSettings.fontFamily） */}
+              <div className="px-4 pt-3.5">
+                <p className="text-[10.5px] font-semibold text-ink-3 mb-1.5">
+                  {tTypo("font.title")}
+                </p>
+                <div className="grid grid-cols-2 gap-0.5 p-[3px] bg-paper border border-line rounded-lg">
+                  {fontOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() =>
+                        updateGlobalSettings({ fontFamily: option.value })
+                      }
+                      className={cn(
+                        "h-6 rounded-md text-[11px] transition-colors",
+                        selectedFont === option.value
+                          ? "bg-card text-ink font-semibold shadow-sm"
+                          : "text-ink-2 hover:bg-paper-2"
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 字号 · 行距 */}
+              <div className="px-4 pt-4">
+                <p className="text-[10.5px] font-semibold text-ink-3 mb-1">
+                  {t("typeset.sizeLeading")}
+                </p>
+                <div className="flex items-baseline justify-between text-[11px] text-ink-2">
+                  <span>{tTypo("baseFontSize.title")}</span>
+                  <b className="font-mono text-[10px] font-medium text-ink">
+                    {activeResume.globalSettings?.baseFontSize || 16}
+                  </b>
+                </div>
+                <input
+                  type="range"
+                  min={12}
+                  max={20}
+                  step={1}
+                  value={activeResume.globalSettings?.baseFontSize || 16}
+                  onChange={(e) =>
+                    updateGlobalSettings({ baseFontSize: Number(e.target.value) })
+                  }
+                  className="pp-slider mt-2.5 mb-1.5 mx-1"
+                />
+                <div className="flex items-baseline justify-between text-[11px] text-ink-2">
+                  <span>{tTypo("lineHeight.title")}</span>
+                  <b className="font-mono text-[10px] font-medium text-ink">
+                    {(activeResume.globalSettings?.lineHeight || 1.5).toFixed(2)}
+                  </b>
+                </div>
+                <input
+                  type="range"
+                  min={1.15}
+                  max={2}
+                  step={0.05}
+                  value={activeResume.globalSettings?.lineHeight || 1.5}
+                  onChange={(e) =>
+                    updateGlobalSettings({ lineHeight: Number(e.target.value) })
+                  }
+                  className="pp-slider mt-2.5 mb-1.5 mx-1"
+                />
+              </div>
+
+              {/* 间距：页边距 + 模块间距 */}
+              <div className="px-4 pt-3">
+                <p className="text-[10.5px] font-semibold text-ink-3 mb-1">
+                  {tSpacing("title")}
+                </p>
+                <div className="flex items-baseline justify-between text-[11px] text-ink-2">
+                  <span>{tSpacing("pagePadding.title")}</span>
+                  <b className="font-mono text-[10px] font-medium text-ink">
+                    {activeResume.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING}
+                  </b>
+                </div>
+                <input
+                  type="range"
+                  min={16}
+                  max={64}
+                  step={2}
+                  value={activeResume.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING}
+                  onChange={(e) =>
+                    updateGlobalSettings({ pagePadding: Number(e.target.value) })
+                  }
+                  className="pp-slider mt-2.5 mb-1.5 mx-1"
+                />
+                <div className="flex items-baseline justify-between text-[11px] text-ink-2">
+                  <span>{tSpacing("sectionSpacing.title")}</span>
+                  <b className="font-mono text-[10px] font-medium text-ink">
+                    {moduleSpacing}
+                  </b>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={64}
+                  step={2}
+                  value={moduleSpacing}
+                  onChange={(e) =>
+                    updateGlobalSettings({ sectionSpacing: Number(e.target.value) })
+                  }
+                  className="pp-slider mt-2.5 mb-1.5 mx-1"
+                />
+              </div>
+
+              {/* 强调色：swatches（THEME_COLORS） */}
+              <div className="px-4 pt-3 pb-6">
+                <p className="text-[10.5px] font-semibold text-ink-3 mb-2">
+                  {tTheme("title")}
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {THEME_COLORS.map((presetTheme) => (
+                    <button
+                      key={presetTheme}
+                      type="button"
+                      aria-label={presetTheme}
+                      title={presetTheme}
+                      onClick={() => handleThemeColorChange(presetTheme)}
+                      className={cn(
+                        "w-5 h-5 rounded-full border-[1.5px] border-ink shrink-0 transition-all",
+                        themeColor === presetTheme &&
+                          "shadow-[0_0_0_2px_var(--paper-2),0_0_0_3.5px_var(--ink)]"
+                      )}
+                      style={{ backgroundColor: presetTheme }}
+                    />
+                  ))}
+                  <span className="ml-auto font-mono text-[9px] text-ink-3">
+                    {themeColor.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </ResizablePanel>
+
+          <ResizableHandle />
+
+          {/* 中：Markdown 编辑（32% / 编辑态） */}
           <ResizablePanel
             id="markdown-editor-panel"
-            order={1}
-            defaultSize={50}
-            minSize={30}
+            order={2}
+            defaultSize={32}
+            minSize={22}
             className="min-h-0 bg-background"
           >
             <div className="flex h-full min-h-0 flex-col">
-              <div
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 text-xs font-medium",
-                  "border-b bg-background border-border text-muted-foreground"
-                )}
-              >
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-line bg-card">
                 <p className="xai-eyebrow">{t("editorTitle")}</p>
               </div>
               <div className="min-h-0 flex-1">
@@ -157,115 +275,24 @@ const MarkdownWorkbench = ({
 
           <ResizableHandle />
 
-          {/* 右：实时预览 */}
+          {/* 右：实时预览（48% / 产出态） */}
           <ResizablePanel
             ref={previewPanelRef}
             id="markdown-preview-panel"
-            order={2}
+            order={3}
             collapsible
             collapsedSize={0}
-            defaultSize={50}
-            minSize={30}
-            className="min-h-0 bg-muted"
+            defaultSize={48}
+            minSize={25}
+            className="min-h-0 bg-paper-2"
           >
               <div className="flex h-full min-h-0 flex-col">
-                <div
-                  className={cn(
-                    "flex items-center gap-3 overflow-x-auto border-b bg-background px-4 py-2 text-xs font-medium text-muted-foreground"
-                  )}
-                >
-                  <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-                    <Eye className="h-3.5 w-3.5" />
-                    <p className="xai-eyebrow">{t("previewTitle")}</p>
-                  </div>
-
-                  {/* 行高 / 字号 / 边距 调节（分页按内容真实块边界切分，文字不会被页边界截断） */}
-                  <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2">
-                    <label className="flex items-center gap-1.5" title="行高">
-                      <span>行高</span>
-                      <input
-                        type="range"
-                        min={1.15}
-                        max={2}
-                        step={0.05}
-                        value={activeResume.globalSettings?.lineHeight || 1.5}
-                        onChange={(e) =>
-                          updateGlobalSettings({
-                            lineHeight: Number(e.target.value),
-                          })
-                        }
-                        className="w-20 accent-primary"
-                      />
-                      <span className="w-8 text-right tabular-nums">
-                        {(activeResume.globalSettings?.lineHeight || 1.5).toFixed(2)}
-                      </span>
-                    </label>
-
-                    <label className="flex items-center gap-1.5" title="字体大小">
-                      <span>字号</span>
-                      <input
-                        type="range"
-                        min={12}
-                        max={20}
-                        step={1}
-                        value={activeResume.globalSettings?.baseFontSize || 16}
-                        onChange={(e) =>
-                          updateGlobalSettings({
-                            baseFontSize: Number(e.target.value),
-                          })
-                        }
-                        className="w-20 accent-primary"
-                      />
-                      <span className="w-8 text-right tabular-nums">
-                        {activeResume.globalSettings?.baseFontSize || 16}
-                      </span>
-                    </label>
-
-                    <label className="flex items-center gap-1.5" title="页面内边距">
-                      <span>边距</span>
-                      <input
-                        type="range"
-                        min={16}
-                        max={64}
-                        step={2}
-                        value={activeResume.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING}
-                        onChange={(e) =>
-                          updateGlobalSettings({
-                            pagePadding: Number(e.target.value),
-                          })
-                        }
-                        className="w-20 accent-primary"
-                      />
-                      <span className="w-8 text-right tabular-nums">
-                        {activeResume.globalSettings?.pagePadding ?? DEFAULT_PAGE_PADDING}
-                      </span>
-                    </label>
-
-                    {/* 模块间距：h2 顶级模块标题上方的留白（px）。
-                        未设置时与预览渲染一致（半行高），拖动滑块后写入 sectionSpacing 固定像素值 */}
-                    <label
-                      className="flex items-center gap-1.5"
-                      title="模块间距：h2 顶级模块标题上方的留白"
-                    >
-                      <span>模块间距</span>
-                      <input
-                        type="range"
-                        min={0}
-                        max={64}
-                        step={2}
-                        value={moduleSpacing}
-                        onChange={(e) =>
-                          updateGlobalSettings({
-                            sectionSpacing: Number(e.target.value),
-                          })
-                        }
-                        className="w-20 accent-primary"
-                      />
-                      <span className="w-8 text-right tabular-nums">
-                        {moduleSpacing}
-                      </span>
-                    </label>
-                  </div>
+                <div className="flex items-center gap-2 px-4 py-2 border-b border-line bg-card">
+                  <Eye className="h-3.5 w-3.5 text-ink-2" />
+                  <p className="xai-eyebrow">{t("previewTitle")}</p>
+                  <span className="ml-auto font-mono text-[9px] px-1.5 py-0.5 border border-line rounded text-ink-3">
+                    A4
+                  </span>
                 </div>
                 <div className="min-h-0 flex-1">
                 {/* 显式传入 activeResume：版式变体按 resume.templateId 解析，

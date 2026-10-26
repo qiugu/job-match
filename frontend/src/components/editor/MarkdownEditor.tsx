@@ -58,27 +58,23 @@ const ToolbarButton = ({ onClick, active, disabled, title, children }: ToolbarBu
     onMouseDown={(e) => e.preventDefault()} // 防止按钮抢走编辑器焦点
     onClick={onClick}
     className={cn(
-      // 尺寸与基础：克制、统一，hover 给轻微浮起感而非强背景
-      // 语义 token 在 light/dark 下都正确解析（.theme-xai 作用域内变量已覆盖为深色）
-      "inline-flex items-center justify-center w-7 h-7 rounded-[7px] shrink-0",
-      "text-muted-foreground",
-      "transition-[background-color,color,box-shadow] duration-150",
-      "hover:bg-muted hover:text-foreground",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+      // 设计稿 03 .tb：27px 高、6px 圆角、hover 纸底；激活 = 墨色实底（唯一强态）
+      "inline-flex items-center justify-center h-[27px] min-w-[27px] px-1.5 rounded-md shrink-0",
+      "text-ink-2",
+      "transition-colors duration-150",
+      "hover:bg-paper-2 hover:text-ink",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cobalt/40",
       "disabled:opacity-40 disabled:pointer-events-none",
-      // 唯一用 bold 的地方：被选中 = 实色填充，让当前块类型「亮起来」
-      active &&
-      "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+      active && "bg-ink text-paper hover:bg-ink hover:text-paper"
     )}
   >
     {children}
   </button>
 );
 
-// 分组容器：把块级 / 行内 / 列表 / 对齐四类工具做成轻微浮起的圆角 chip，
-// 组间留白，使工具栏读起来像「功能分区」而非一长串散落图标。
+// 分组容器：组间用 1px 竖线分隔（设计稿 03 .tb__sep），不再用浮起 chip
 const ToolbarGroup = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-center gap-0.5 rounded-lg bg-muted/40 px-1 py-1">
+  <div className="flex items-center gap-0.5 px-1 border-r border-line last:border-r-0">
     {children}
   </div>
 );
@@ -88,9 +84,9 @@ const EditorToolbar = ({ editor }: { editor: Editor }) => {
   return (
     <div
       className={cn(
-        // 顶部条：与编辑区共享一条底边，工具条本身低调，把焦点留给内容
-        "flex items-center gap-2 px-3 py-2 border-b shrink-0 select-none",
-        "bg-background border-border",
+        // 设计稿 03 .md__tb：42px、卡片底、1px 底边，工具条本身不抢焦点
+        "flex items-center gap-1 px-3 h-[42px] border-b shrink-0 select-none",
+        "bg-card border-line",
         "overflow-x-auto"
       )}
     >
