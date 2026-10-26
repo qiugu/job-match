@@ -11,6 +11,7 @@ export const useGrammarCheck = () => {
   const {
     errors,
     isChecking,
+    hasChecked,
     selectedErrorIndex,
     checkGrammar,
     clearErrors,
@@ -21,6 +22,7 @@ export const useGrammarCheck = () => {
   return {
     errors,
     isChecking,
+    hasChecked,
     selectedErrorIndex,
     checkGrammar,
     clearErrors,

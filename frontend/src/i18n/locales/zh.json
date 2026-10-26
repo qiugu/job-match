@@ -1173,7 +1173,11 @@
     "apply_error": "未找到对应文本，无法自动修改",
     "no_errors_title": "太棒了！",
     "no_errors_desc": "文档非常完美，没有发现任何错别字或标点错误。",
-    "proofread": "校对"
+    "proofread": "校对",
+    "checking": "正在校对…",
+    "checking_desc": "AI 正在检查错别字与标点符号，请稍候",
+    "check_failed_title": "校对未完成",
+    "check_failed_desc": "本次校对没有完成，请稍后重试"
   },
   "faqDialog": {
     "title": "常见问题 (FAQ)",

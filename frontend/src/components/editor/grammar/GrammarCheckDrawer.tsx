@@ -10,9 +10,9 @@ import {
 } from "@/components/ui/sheet-no-overlay";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, ArrowRight } from "lucide-react";
+import { AlertCircle, ArrowRight, Check, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Mark from "mark.js";
 import { toast } from "sonner";
 import { ResumeData } from "@/types/resume";
@@ -26,6 +26,9 @@ export function GrammarCheckDrawer() {
   const t = useTranslations("grammarCheck");
   const {
     errors,
+    isChecking,
+    hasChecked,
+    checkGrammar,
     clearErrors,
     selectError,
     selectedErrorIndex,
@@ -42,13 +45,34 @@ export function GrammarCheckDrawer() {
     }
   }, [errors.length]);
 
+  // 点击「校对」→ 打开抽屉并立即对预览正文发起 AI 校对。
+  // 此前只有展示逻辑、无人调用 checkGrammar（69f3036 删除浮动按钮时断链），
+  // 导致抽屉永远显示空态「太棒了」，用户以为检查过其实从未请求过 AI。
+  const runCheck = useCallback(async () => {
+    clearErrors();
+    const preview = document.getElementById("resume-preview");
+    const text = (preview?.innerText || activeResume?.markdownContent || "").trim();
+    if (!text) {
+      toast.error(t("check_failed_desc"));
+      return;
+    }
+    try {
+      await checkGrammar(text);
+    } catch {
+      // checkGrammar 内部已置 hasChecked=false 并 toast，这里吞掉避免 unhandledrejection
+    }
+  }, [activeResume, checkGrammar, clearErrors, t]);
+
   useEffect(() => {
-    const handleOpenDrawer = () => setIsOpen(true);
+    const handleOpenDrawer = () => {
+      setIsOpen(true);
+      void runCheck();
+    };
     document.addEventListener("open-grammar-drawer", handleOpenDrawer);
     return () => {
       document.removeEventListener("open-grammar-drawer", handleOpenDrawer);
     };
-  }, []);
+  }, [runCheck]);
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
@@ -252,13 +276,37 @@ export function GrammarCheckDrawer() {
                 
                 {errors.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-                        <div className="w-20 h-20 bg-mint rounded-full flex items-center justify-center mb-6 animate-in zoom-in duration-500">
-                             <Check className="w-10 h-10 text-green-ink" />
-                        </div>
-                        <h3 className="text-xl font-semibold mb-2">{t("no_errors_title")}</h3>
-                        <p className="text-muted-foreground max-w-[250px]">
-                            {t("no_errors_desc")}
-                        </p>
+                        {isChecking ? (
+                            <>
+                                <div className="w-20 h-20 bg-butter rounded-full flex items-center justify-center mb-6">
+                                    <Loader2 className="w-10 h-10 text-amber-ink animate-spin" />
+                                </div>
+                                <h3 className="text-xl font-semibold mb-2">{t("checking")}</h3>
+                                <p className="text-muted-foreground max-w-[250px]">
+                                    {t("checking_desc")}
+                                </p>
+                            </>
+                        ) : hasChecked ? (
+                            <>
+                                <div className="w-20 h-20 bg-mint rounded-full flex items-center justify-center mb-6 animate-in zoom-in duration-500">
+                                     <Check className="w-10 h-10 text-green-ink" />
+                                </div>
+                                <h3 className="text-xl font-semibold mb-2">{t("no_errors_title")}</h3>
+                                <p className="text-muted-foreground max-w-[250px]">
+                                    {t("no_errors_desc")}
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <div className="w-20 h-20 bg-blush rounded-full flex items-center justify-center mb-6">
+                                    <AlertCircle className="w-10 h-10 text-danger" />
+                                </div>
+                                <h3 className="text-xl font-semibold mb-2">{t("check_failed_title")}</h3>
+                                <p className="text-muted-foreground max-w-[250px]">
+                                    {t("check_failed_desc")}
+                                </p>
+                            </>
+                        )}
                     </div>
                 )}
             </div>

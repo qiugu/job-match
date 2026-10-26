@@ -1171,7 +1171,11 @@
     "apply_error": "Text not found, cannot apply automatically",
     "no_errors_title": "Perfect!",
     "no_errors_desc": "No grammar or punctuation errors found.",
-    "proofread": "Proofread"
+    "proofread": "Proofread",
+    "checking": "Proofreading…",
+    "checking_desc": "AI is checking typos and punctuation",
+    "check_failed_title": "Check incomplete",
+    "check_failed_desc": "The check did not complete. Please try again later."
   },
   "faqDialog": {
     "title": "Frequently Asked Questions (FAQ)",

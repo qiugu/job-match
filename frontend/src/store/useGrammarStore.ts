@@ -14,6 +14,7 @@ export interface GrammarError {
 
 interface GrammarStore {
   isChecking: boolean;
+  hasChecked: boolean;
   errors: GrammarError[];
   selectedErrorIndex: number | null;
   highlightKey: number;
@@ -78,6 +79,7 @@ const getPreviewScrollContainer = (element: HTMLElement): HTMLElement | null => 
 
 export const useGrammarStore = create<GrammarStore>((set, get) => ({
   isChecking: false,
+  hasChecked: false,
   errors: [],
   selectedErrorIndex: null,
   highlightKey: 0,
@@ -89,7 +91,7 @@ export const useGrammarStore = create<GrammarStore>((set, get) => ({
     set((state) => ({ highlightKey: state.highlightKey + 1 })),
 
   checkGrammar: async (text: string) => {
-    set({ isChecking: true });
+    set({ isChecking: true, hasChecked: false, errors: [] });
 
     try {
       const response = await fetch("/api/ai/grammar", {
@@ -128,11 +130,11 @@ export const useGrammarStore = create<GrammarStore>((set, get) => ({
       try {
         const grammarErrors = JSON.parse(aiResponse);
         if (grammarErrors.errors.length === 0) {
-          set({ errors: [] });
+          set({ errors: [], hasChecked: true });
           toast.success("无语法错误");
           return;
         }
-        set({ errors: grammarErrors.errors });
+        set({ errors: grammarErrors.errors, hasChecked: true });
 
         const preview = document.getElementById("resume-preview");
         if (preview) {
@@ -145,10 +147,10 @@ export const useGrammarStore = create<GrammarStore>((set, get) => ({
         }
       } catch (parseError) {
         toast.error(`解析AI响应失败: ${parseError}`);
-        set({ errors: [] });
+        set({ errors: [], hasChecked: false });
       }
     } catch (error) {
-      set({ errors: [] });
+      set({ errors: [], hasChecked: false });
     } finally {
       set({ isChecking: false });
     }
