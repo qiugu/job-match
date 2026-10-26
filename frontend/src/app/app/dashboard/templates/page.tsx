@@ -82,9 +82,6 @@ const TemplateCardItem = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: shouldReduceMotion ? 0 : 0.3, delay: shouldReduceMotion ? 0 : index * 0.08 }}
       whileHover={shouldReduceMotion ? undefined : { y: -4 }}
       whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
     >

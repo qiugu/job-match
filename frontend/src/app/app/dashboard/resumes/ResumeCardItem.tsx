@@ -74,17 +74,7 @@ export const ResumeCardItem = ({
     }, []);
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{
-                duration: 0.3,
-                delay: index * 0.1,
-            }}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-        >
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Card
                 className={cn(
                     "workbench-panel group flex aspect-[210/297] flex-col overflow-hidden shadow-none transition-colors duration-200",

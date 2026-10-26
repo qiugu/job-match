@@ -181,19 +181,8 @@ export const ResumeWorkbench = () => {
 
     return (
         <ScrollArea className="h-[calc(100vh-2rem)] w-full">
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="workbench-page flex-1 space-y-7 py-9"
-            >
-                <motion.div
-                    className="workbench-header flex flex-col gap-4 border-b px-6 pb-6 sm:flex-row sm:items-end sm:justify-between"
-                    initial={{ y: -20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                >
+            <div className="workbench-page flex-1 space-y-7 py-9">
+                <div className="workbench-header flex flex-col gap-4 border-b px-6 pb-6 sm:flex-row sm:items-end sm:justify-between">
                     <div className="flex flex-col gap-2.5">
                         <p className="xai-eyebrow">MY RESUMES — MARKDOWN</p>
                         <h1 className="text-[32px] font-medium leading-none tracking-tight text-xai-text">
@@ -224,14 +213,9 @@ export const ResumeWorkbench = () => {
                             {t("dashboard.resumes.newResume")}
                         </button>
                     </div>
-                </motion.div>
+                </div>
 
-                <motion.div
-                    className="w-full flex-1 px-6"
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ duration: 0.3, delay: 0.2 }}
-                >
+                <div className="w-full flex-1 px-6">
                     <div className="grid grid-cols-2 gap-5 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                         <motion.div
                             whileHover={{ scale: 1.02 }}
@@ -285,7 +269,7 @@ export const ResumeWorkbench = () => {
                                 ))}
                         </AnimatePresence>
                     </div>
-                </motion.div>
+                </div>
 
                 <CreateResumeModal
                     open={isCreateModalOpen}
@@ -307,7 +291,7 @@ export const ResumeWorkbench = () => {
                         if (file) void handleImportFile(file);
                     }}
                 />
-            </motion.div>
+            </div>
         </ScrollArea>
     );
 };
