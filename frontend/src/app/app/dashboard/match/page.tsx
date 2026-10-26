@@ -3,7 +3,6 @@ import { useRouterState } from "@tanstack/react-router";
 import { useLocale, useTranslations } from "@/i18n/compat/client";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/useAuthStore";
-import { motion } from "framer-motion";
 import {
   Target,
   FileText,
@@ -695,12 +694,8 @@ export default function JobMatchPage() {
 
   return (
     <div className="workbench-page h-full w-full">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="flex h-full w-full flex-col px-4 py-6 sm:px-6"
-      >
+      {/* 禁 framer-motion initial={{opacity:0}}：会把透明度写进 SSR HTML，截图/打印/无 JS 全空白 */}
+      <div className="flex h-full w-full flex-col px-4 py-6 sm:px-6">
         {/* 页头：标题 + 环形靶签名装饰 */}
         <div className="workbench-header mb-6 flex flex-col gap-5 border-b pb-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
@@ -1591,7 +1586,7 @@ export default function JobMatchPage() {
             />
           )}
         </div>
-      </motion.div>
+      </div>
 
       {/* JD 失焦查重命中确认：仅提示不拦截，提供「继续机会 / 仍然新建」 */}
       <AlertDialog

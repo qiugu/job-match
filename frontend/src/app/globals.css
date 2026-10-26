@@ -297,7 +297,8 @@
   }
 
   .analytics-page .analytics-header {
-    background: linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(251, 246, 234, 0.88));
+    /* 令牌驱动（勿写死色值）：浅色=暖白→纸，深色=墨面→墨底 */
+    background: linear-gradient(180deg, var(--xai-surface), var(--xai-canvas));
   }
 
   .analytics-page .analytics-panel {
