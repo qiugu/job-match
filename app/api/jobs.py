@@ -91,6 +91,10 @@ def _ensure_owner(job: Job | None, user: User) -> Job:
 
 async def _to_summary(db: AsyncSession, job: Job) -> JobSummary:
     agg = await get_job_aggregates(db, job.id)
+    # 契约（frontend lib/jobmatch.ts JobSummary）：无子记录活动时回退 jobs.updated_at，
+    # 否则「2 小时前」等相对时间在无话术/简历的卡上恒为空。
+    if agg.get("last_activity_at") is None:
+        agg["last_activity_at"] = job.updated_at.isoformat()
     return JobSummary(
         id=job.id,
         user_id=job.user_id,
@@ -169,7 +173,12 @@ async def list_jobs(
             jd_text=j.jd_text,
             created_at=j.created_at.isoformat(),
             updated_at=j.updated_at.isoformat(),
-            **aggregates[j.id],
+            **{
+                **aggregates[j.id],
+                # 契约回退：无子记录活动时取 jobs.updated_at（与 _to_summary 一致）
+                "last_activity_at": aggregates[j.id]["last_activity_at"]
+                or j.updated_at.isoformat(),
+            },
         )
         for j in rows
     ]
