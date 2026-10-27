@@ -18,14 +18,14 @@
     "registerConfirmPassword": "确认密码",
     "registerConfirmPasswordPlaceholder": "再次输入密码",
     "registerPasswordMismatch": "两次输入的密码不一致",
-    "code": "注册码",
-    "codePlaceholder": "粘贴你领取的注册码，如 ABCD-EFGH-JKLM",
+    "code": "注册码（可选）",
+    "codePlaceholder": "注册码（可选）：如 ABCD-EFGH-JKLM，留空则使用默认 50 试用积分",
     "quota": "剩余积分",
     "quotaUnlimited": "积分不限",
     "submitLogin": "登录",
     "submitRegister": "注册并登录",
     "toRegister": "还没有账号？立即注册",
-    "getCodeCta": "还没有注册码？免费领取",
+    "getCodeCta": "免费领取注册码（可选）",
     "codeAutoFilled": "注册码已领取并自动填入",
     "toLogin": "已有账号？返回登录",
     "loginSuccess": "登录成功",
@@ -116,7 +116,7 @@
         "item1": "账号隔离",
         "item1_description": "你的简历与匹配记录仅自己可见",
         "item2": "积分余额",
-        "item2_description": "注册码为新账号充入积分，简历匹配与话术生成按需消耗",
+        "item2_description": "新账号注册即获赠 50 试用积分（注册码可选），简历匹配与话术生成按需消耗",
         "item3": "历史可追溯"
       },
       "preview": {
@@ -149,7 +149,7 @@
         },
         {
           "question": "使用需要登录吗？",
-          "answer": "是的。AI 能力由服务端统一提供，为避免资源被滥用，需使用注册码注册并登录后使用。注册码会为新账号充入积分。",
+          "answer": "是的。AI 能力由服务端统一提供，为避免资源被滥用，本站采用自助注册：无需注册码，直接用用户名和密码即可注册并登录，新账号自动获赠 50 试用积分。注册码为可选项，免费领取后可在注册时填入。",
           "action": "registration-code"
         },
         {
@@ -162,15 +162,15 @@
         },
         {
           "question": "积分用完怎么办？",
-          "answer": "积分由注册时使用的注册码充入；简历匹配每次消耗 5 积分、话术生成每次消耗 1 积分，耗尽后将无法继续发起。如需补充，可点击上方「获取注册码」免费领取新的注册码。"
+          "answer": "新账号注册即获赠 50 试用积分（注册时也可选填注册码）；简历匹配每次消耗 5 积分、话术生成每次消耗 1 积分，耗尽后无法继续发起。注册码仅在新账号注册时一次性充入，不能用于为已有账号补充积分。"
         }
       ]
     },
     "registrationCode": {
       "button": "获取注册码",
-      "dailyHint": "网站每天最多发放 10 个注册账号",
+      "dailyHint": "网站每天最多发放 10 个注册码",
       "dialogTitle": "获取注册码",
-      "dialogDescription": "注册码是注册账号的入场券，会为新账号充入积分（简历匹配扣 5、话术生成扣 1）。每日限量发放。",
+      "dialogDescription": "注册码为可选项：注册时填入可为本账号充入积分（简历匹配扣 5、话术生成扣 1）。本站注册无需注册码，新账号自动获赠 50 试用积分；注册码每日限量发放，先到先得。",
       "statusLoading": "正在查询今日名额…",
       "remaining": "今日名额 {total} 个，剩余 {count} 个",
       "resetAt": "{time} 重置",
@@ -182,7 +182,7 @@
       "validUntil": "有效期至 {date}",
       "copy": "复制",
       "copied": "已复制",
-      "goRegisterHint": "拿到注册码后，",
+      "goRegisterHint": "拿到注册码（可选）后，",
       "goRegister": "前往登录页完成注册",
       "loadFailed": "查询失败",
       "issueFailed": "领取失败",

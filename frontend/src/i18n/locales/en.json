@@ -18,14 +18,14 @@
     "registerConfirmPassword": "Confirm password",
     "registerConfirmPasswordPlaceholder": "Re-enter your password",
     "registerPasswordMismatch": "The two passwords do not match",
-    "code": "Registration code",
-    "codePlaceholder": "Paste your claimed code, e.g. ABCD-EFGH-JKLM",
+    "code": "Registration code (optional)",
+    "codePlaceholder": "Registration code (optional), e.g. ABCD-EFGH-JKLM — leave blank for default credits",
     "quota": "Credits left",
     "quotaUnlimited": "Unlimited credits",
     "submitLogin": "Sign in",
     "submitRegister": "Sign up",
     "toRegister": "No account yet? Sign up",
-    "getCodeCta": "No code? Claim one free",
+    "getCodeCta": "Claim a registration code (optional)",
     "codeAutoFilled": "Code claimed and auto-filled",
     "toLogin": "Already have an account? Sign in",
     "loginSuccess": "Signed in",
@@ -116,7 +116,7 @@
         "item1": "Account Isolation",
         "item1_description": "Your resumes and matches are visible only to you",
         "item2": "Credits Balance",
-        "item2_description": "Your registration code credits the account; matching and pitches consume them",
+        "item2_description": "New accounts get 50 trial credits on sign-up (code optional); matching and pitches consume them",
         "item3": "Revisable History"
       },
       "preview": {
@@ -148,7 +148,7 @@
         },
         {
           "question": "Do I need to log in?",
-          "answer": "Yes. AI capabilities are served centrally to prevent resource abuse, so you must register with a registration code and log in. The code credits the new account.",
+          "answer": "Yes. AI capabilities are served centrally to prevent abuse, and sign-up is self-service: no code is required — just register with a username and password and you'll get 50 trial credits automatically. A registration code is optional and can be entered at sign-up.",
           "action": "registration-code"
         },
         {
@@ -161,7 +161,7 @@
         },
         {
           "question": "What if my credits run out?",
-          "answer": "Credits are granted by the registration code used at sign-up. A resume match costs 5 credits and a pitch generation costs 1 credit. Once exhausted, no further requests can be started. To top up, click 'Get a registration code' above to claim a new code for free."
+          "answer": "New accounts receive 50 trial credits on sign-up (a code is optional). A match costs 5 credits and a pitch costs 1; once exhausted you can't start new requests. Codes are applied once at sign-up only and cannot top up an existing account."
         }
       ]
     },
@@ -169,7 +169,7 @@
       "button": "Get a registration code",
       "dailyHint": "The site issues at most 10 registration codes per day",
       "dialogTitle": "Get a registration code",
-      "dialogDescription": "A registration code is your ticket to sign up — it credits the new account (a match costs 5 credits, a pitch costs 1). Daily supply is limited.",
+      "dialogDescription": "A registration code is optional: entering one at sign-up credits your account (a match costs 5 credits, a pitch costs 1). Sign-up needs no code — new accounts get 50 trial credits automatically. Codes are limited to 10 per day, first come first served.",
       "statusLoading": "Checking today's availability…",
       "remaining": "{count} of {total} codes left today",
       "resetAt": "Resets {time}",

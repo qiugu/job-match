@@ -137,8 +137,8 @@ describe("OG 图与可索引路径", () => {
 
 describe("JSON-LD 结构化数据", () => {
   const faq: FaqEntry[] = [
-    { question: "如何注册？", answer: "使用注册码注册即可。" },
-    { question: "是否免费？", answer: "注册即赠积分，耗尽后可用注册码补充。" },
+    { question: "如何注册？", answer: "注册开放，无需注册码，使用用户名与密码即可注册并登录。" },
+    { question: "是否免费？", answer: "注册即赠 50 试用积分；注册码为可选，仅在新账号注册时充入，不能补充已有账号。" },
     { question: "", answer: "空问题应被过滤" },
     { question: "空答案", answer: "" },
   ];
