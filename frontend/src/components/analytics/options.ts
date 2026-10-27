@@ -123,8 +123,9 @@ function backfillAreas(series: DailySeries): MarkAreaRange[] {
 /**
  * 每日投递趋势：并列双序列。
  *
- * 「确认投递」用品牌强调色（主序列，读者最先要找的量）；
- * 「新建机会」用中性浅灰（上下文量，不应与主序列争夺注意力）。
+ * 「确认投递」用钴蓝（主序列，读者最先要找的量）；
+ * 「新建机会」用 tangerine 橘做对照（DESIGN.md §投递分析：
+ * 「图表用 cobalt 单色阶 + tangerine 对照」——两序列构成 cobalt/tangerine 对比）。
  */
 export function buildDailyTrendOption(params: {
   series: DailySeries;
@@ -138,7 +139,7 @@ export function buildDailyTrendOption(params: {
 }): EChartsOption {
   const { series, tokens, locale, labels } = params;
   const axisMax = niceAxisMax([...series.created, ...series.applied]);
-  const neutral = mixHex(tokens.mute, tokens.surface, 0.62);
+  const contrast = tokens.tangerine;
 
   return {
     grid: { left: 4, right: 8, top: 12, bottom: 0, containLabel: true },
@@ -172,7 +173,7 @@ export function buildDailyTrendOption(params: {
         data: series.created,
         barMaxWidth: 10,
         barGap: "15%",
-        itemStyle: { color: neutral, borderRadius: [2, 2, 0, 0] },
+        itemStyle: { color: contrast, borderRadius: [2, 2, 0, 0] },
         markArea: {
           silent: true,
           itemStyle: { color: mixHex(tokens.mute, tokens.surface, 0.82) },
