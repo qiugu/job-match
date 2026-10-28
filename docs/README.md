@@ -23,6 +23,7 @@
 | `FIX_editor_heading_rhythm.md` | 编辑态标题垂直节奏：`.tiptap` 间距按 4px 栅格重排（含前后对比与回归测试约定）                  | 已落地         |
 | `FIX_editor_align_scope.md`    | 编辑态对齐作用域：整块对齐的合理性论证、工具栏高亮缺陷、配对行压平缺陷（含前后对比与回归测试） | 已落地         |
 | `screenshots/`                 | README「界面预览」截图（landing / workbench / jobs / analytics，WebP，虚构演示数据）            | 随 UI 变更更新 |
+| `review/`                      | 全量代码评审（4 分册 + 总览）：安全隔离 / 前端 / 工程设施 / 文档一致性，含问题 ID 与验收标准     | 2026-10-27 评审 |
 
 ## 归档文档索引
 
