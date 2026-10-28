@@ -27,26 +27,40 @@ import { useTranslations } from "@/i18n/compat/client";
  * 钴蓝填充 + 墨边 + 硬阴影的圆形贴纸。不带循环动画——永久 bounce 在
  * 硬偏移阴影下视觉上「抖动」，且持续抢动线注意力；仅保留 hover 抬升。
  */
-const DynamicHelpIcon = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement>>(
-  (props, ref) => (
-    <button
-      ref={ref}
-      {...props}
-      className={cn(
-        "relative flex size-11 items-center justify-center rounded-full",
-        "border-2 border-ink bg-cobalt text-white shadow-chip",
-        "transition-transform duration-200 hover:-translate-y-0.5",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-        props.className
-      )}
-    >
-      <HelpCircle className="size-6" />
-    </button>
-  )
-);
+interface DynamicHelpIconProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  /**
+   * 紧凑模式（用于右侧 dock，I16）：与其它 dock 项统一为 28px chip、
+   * 仅换底色不带贴纸边/硬阴影，避免一列里出现第三种体量。
+   */
+  compact?: boolean;
+}
+
+const DynamicHelpIcon = React.forwardRef<
+  HTMLButtonElement,
+  DynamicHelpIconProps
+>(({ compact = false, className, ...props }, ref) => (
+  <button
+    ref={ref}
+    {...props}
+    className={cn(
+      "relative flex items-center justify-center rounded-full transition-colors",
+      "focus:outline-none focus-visible:ring-2 focus-visible:ring-cobalt/40",
+      compact
+        ? "h-7 w-7 text-ink-2 hover:bg-paper-2 hover:text-ink"
+        : cn(
+            "size-11 border-2 border-ink bg-cobalt text-white shadow-chip",
+            "transition-transform duration-200 hover:-translate-y-0.5"
+          ),
+      className
+    )}
+  >
+    <HelpCircle className={compact ? "h-4 w-4" : "size-6"} />
+  </button>
+));
 DynamicHelpIcon.displayName = "DynamicHelpIcon";
 
-export const FAQDialog = () => {
+export const FAQDialog = ({ compact = false }: { compact?: boolean }) => {
   const [open, setOpen] = useState(false);
   const t = useTranslations("faqDialog");
 
@@ -56,7 +70,7 @@ export const FAQDialog = () => {
         <Tooltip>
           <TooltipTrigger asChild>
             <DialogTrigger asChild>
-              <DynamicHelpIcon />
+              <DynamicHelpIcon compact={compact} />
             </DialogTrigger>
           </TooltipTrigger>
           <TooltipContent side="left" sideOffset={16}>

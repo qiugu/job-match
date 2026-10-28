@@ -4,7 +4,6 @@ import { useResumeStore } from "@/store/useResumeStore";
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet-no-overlay";
@@ -13,13 +12,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, ArrowRight, Check, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useState } from "react";
-import Mark from "mark.js";
 import { toast } from "sonner";
-import { ResumeData } from "@/types/resume";
 
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { useTranslations } from "@/i18n/compat/client";
 
 export function GrammarCheckDrawer() {
@@ -33,25 +29,35 @@ export function GrammarCheckDrawer() {
     selectError,
     selectedErrorIndex,
     dismissError,
+    remarkErrors,
   } = useGrammarCheck();
 
   const { activeResume, updateResume } = useResumeStore();
 
   const [isOpen, setIsOpen] = useState(false);
 
-  useEffect(() => {
-    if (errors.length > 0) {
-      setIsOpen(true);
-    }
-  }, [errors.length]);
+  // 打开抽屉的唯一来源是「用户点了校对入口」：runCheck 内部会先 setIsOpen(true)。
+  // 旧版额外用 `errors.length > 0` 的 effect 兜底自动打开，但 errors 只能由
+  // checkGrammar 产生、而 checkGrammar 只被 runCheck 调用，因此该 effect 既冗余，
+  // 又会在用户主动关闭抽屉（ESC / 点击外部）后把它强行弹回来。已移除。
 
   // 点击「校对」→ 打开抽屉并立即对预览正文发起 AI 校对。
   // 此前只有展示逻辑、无人调用 checkGrammar（69f3036 删除浮动按钮时断链），
   // 导致抽屉永远显示空态「太棒了」，用户以为检查过其实从未请求过 AI。
   const runCheck = useCallback(async () => {
     clearErrors();
-    const preview = document.getElementById("resume-preview");
-    const text = (preview?.innerText || activeResume?.markdownContent || "").trim();
+    // I3：拼合所有分页的可见正文，避免旧实现只读第一页（#resume-preview）
+    // 导致 2 页简历的后半段等于没有校对。
+    const roots = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        ".md-page-sheet .resume-markdown-preview"
+      )
+    );
+    const text = (
+      roots.length
+        ? roots.map((root) => root.innerText).join("\n")
+        : activeResume?.markdownContent || ""
+    ).trim();
     if (!text) {
       toast.error(t("check_failed_desc"));
       return;
@@ -74,6 +80,16 @@ export function GrammarCheckDrawer() {
     };
   }, [runCheck]);
 
+  // I3：预览每次 markdown 变化都会重建 DOM（dangerouslySetInnerHTML），
+  // 旧的 mark 会被整体抹掉。预览提交后广播该事件，这里把高亮重新套回所有分页，
+  // 避免「敲一个字 → 波浪线全消失、抽屉里错误仍在」的割裂。
+  useEffect(() => {
+    const onPreviewUpdated = () => remarkErrors();
+    window.addEventListener("resume-preview-updated", onPreviewUpdated);
+    return () =>
+      window.removeEventListener("resume-preview-updated", onPreviewUpdated);
+  }, [remarkErrors]);
+
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
   };
@@ -82,56 +98,41 @@ export function GrammarCheckDrawer() {
     const error = errors[index];
     if (!error || !activeResume) return;
 
-    // 递归查找并替换简历数据中的文本
-    const newResume = JSON.parse(JSON.stringify(activeResume));
-    let replaced = false;
-
-    const traverseAndReplace = (obj: any) => {
-      for (const key in obj) {
-        if (typeof obj[key] === "string") {
-            // 优先匹配 context
-            if (error.context && obj[key].includes(error.context)) {
-                 // 在 context 中查找并替换 text，确保只替换错误部分
-                 // 1. 获取原文片段
-                 const originalContext = error.context;
-                 // 2. 在原文片段中替换错误词汇为建议词汇
-                 // 注意：这里假设 text 在 context 中只出现一次，或者我们需要替换的是 context 中的那个实例
-                 // 为了安全，我们只替换 context 中的 text
-                 if (originalContext.includes(error.text)) {
-                     const correctedContext = originalContext.replace(error.text, error.suggestion);
-                     // 3. 将修改后的 context 替换回 obj[key]
-                     obj[key] = obj[key].replace(originalContext, correctedContext);
-                     replaced = true;
-                 } else {
-                     // 如果 text 不在 context 中（奇怪的情况），尝试直接替换 context
-                     // 这通常是 fallback，但如果是整句替换也可以
-                     // 但根据新的 Prompt，suggestion 应该是片段，所以这里可能不适用
-                     // 暂时保留作为最后的手段，但记录日志或谨慎处理
-                     // obj[key] = obj[key].replace(error.context, error.suggestion); 
-                     // 由于 suggestion 现在是片段，直接替换 context 是错误的。
-                 }
-            } 
-            // 如果 context 没找到，尝试全局匹配 text（风险较高，但在某些情况下有效）
-            // 只有当 text 足够长或者很独特时才安全
-            else if (error.text && obj[key].includes(error.text) && error.text.length > 2) {
-                 obj[key] = obj[key].replace(error.text, error.suggestion);
-                 replaced = true;
-            }
-        } else if (typeof obj[key] === "object" && obj[key] !== null) {
-          traverseAndReplace(obj[key]);
-        }
-      }
-    };
-
-    traverseAndReplace(newResume);
-
-    if (replaced) {
-      updateResume(activeResume.id, newResume);
-      dismissError(index);
-      toast.success(t("applied_success"));
-    } else {
+    // I3：直接改 Markdown 单一真源（markdownContent）里的目标片段，
+    // 而不是对整份简历对象递归替换 innerText。后者既可能误改标题等无关字段，
+    // 又因为 context 来自渲染后文本、与 markdown 标记不一致而匹配率不稳定。
+    const source = activeResume.markdownContent ?? "";
+    const target = error.text;
+    const suggestion = error.suggestion ?? "";
+    if (!target) {
       toast.error(t("apply_error"));
+      return;
     }
+
+    let nextSource = source;
+    if (
+      error.context &&
+      error.context.includes(target) &&
+      source.includes(error.context)
+    ) {
+      // 有上下文时优先整段定位，把替换范围限制在 context 内。
+      nextSource = source.replace(
+        error.context,
+        error.context.replace(target, suggestion)
+      );
+    } else if (source.includes(target)) {
+      // 退化：仅在 markdown 源码中替换首个命中的目标片段。
+      nextSource = source.replace(target, suggestion);
+    }
+
+    if (nextSource === source) {
+      toast.error(t("apply_error"));
+      return;
+    }
+
+    updateResume(activeResume.id, { markdownContent: nextSource });
+    dismissError(index);
+    toast.success(t("applied_success"));
   };
 
   const handleIgnore = (index: number) => {
@@ -140,8 +141,28 @@ export function GrammarCheckDrawer() {
 
   return (
     <Sheet open={isOpen} onOpenChange={handleOpenChange} modal={false}>
-      <SheetContent side="left" className="w-[400px] sm:w-[450px] p-0 flex flex-col gap-0 border-r bg-muted/30">
-        <div className="p-6 pb-4 bg-background sticky top-0 z-10 border-b">
+      {/*
+        遮挡问题的两个根因（此前「校对弹框被排版设置遮挡」的观感来源）：
+        1. 背景曾是「muted 色 30% 不透明度」——底下的排版设置面板
+           （滑块、色板）会整片透出来，看起来就像被外层面板压住。
+           改为不透明的 paper-2，抽屉自成一层。
+        2. z-index 只有 50，与 PreviewDock 的 z-[50] 同级；同层时按 DOM 顺序
+           决定堆叠，浮动的 Dock 会压在抽屉边缘上。抬到 z-[70]。
+        另：`sm:max-w-sm`(384px) 是 cva 内置上限，会静默吃掉 w-[450px]，
+        这里显式给出 max-w 上限，宽度才真的生效。
+      */}
+      <SheetContent
+        side="left"
+        className={cn(
+          "z-[70] flex w-[400px] flex-col gap-0 p-0 sm:w-[450px] sm:max-w-[450px]",
+          // 顶部让出 64px 的 EditorHeader：抽屉是非模态检查器，
+          // 打开期间「保存 / 导出」仍应可点。
+          // 底色用 paper-2（下沉控件区），错误卡片用 card（上浮），两者才分得开；
+          // 若抽屉与卡片同为 card，卡片边界会糊成一片。
+          "top-16 h-auto border-r border-line bg-paper-2"
+        )}
+      >
+        <div className="sticky top-0 z-10 border-b border-line bg-card p-6 pb-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-primary/10 rounded-lg">

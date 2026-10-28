@@ -1,4 +1,5 @@
 import React, {
+  useCallback,
   useMemo,
   useRef,
   forwardRef,
@@ -16,12 +17,16 @@ import type { MarkdownTemplateVariant } from "@/config/markdownTemplates";
 import { buildVariantCss, resolveMarkdownVariant } from "./markdownVariants";
 import {
   A4_HEIGHT_PX,
+  MM_TO_PX,
   SHEET_GAP_PX,
   buildPageWindows,
   collectBlockMetrics,
   paginateBlocks,
   type BlockMetric,
 } from "./pagination";
+
+/** A4 纸张宽度（px）：210mm @96dpi ≈ 793.7px，用于缩放适配计算 */
+const A4_WIDTH_PX = 210 * MM_TO_PX;
 
 interface MarkdownPreviewProps {
   markdown: string;
@@ -40,18 +45,26 @@ interface MarkdownPreviewProps {
    * 不传时按 resume.templateId 查模板；模板页缩略图即依赖这一路径。
    */
   variant?: MarkdownTemplateVariant;
+  /**
+   * 预览缩放（修复 I4）：
+   * - "fit"（默认）：按容器可用宽度等比缩放，窄视口也能一眼看全整页；
+   * - 0.75 / 1：固定缩放档位。
+   * 只作用于「显示副本」；隐藏测量副本始终按真实尺寸测量，分页坐标不受影响。
+   */
+  zoom?: "fit" | 0.75 | 1;
+  /**
+   * 把内部纵向滚动容器暴露给父级（用于「编辑区 ↔ 预览」滚动联动）。
+   * 传稳定的 setter（如 useState 的 setX）即可；React 会在卸载时回调 null。
+   */
+  onScrollContainer?: (el: HTMLDivElement | null) => void;
 }
 
 // PDF 提取简历的【模块名】方括号标题后处理：
 // 把形如 `<p>【教育经历】...</p>` 的段落重写成有视觉层级的结构，
 // 否则 markdown-it 把【】当成普通文本，模块之间完全没有标题样式。
 // 同时拆出 project/work 子标题（`公司 · 角色（日期）`）为 .mod-item-title。
-const MODULE_TITLES = new Set([
-  "教育经历", "工作经历", "项目经历", "工作经验", "项目经验",
-  "技能", "专业技能", "个人技能", "获奖经历", "自我评价",
-]);
-
-const RE_MOD_H1 = /^([^|]{2,30}\|\s*[^\n<]{2,30})$/;
+// 子标题形态：`公司 · 角色（日期）`。模块名白名单与「姓名 | 职位」正则
+// （MODULE_TITLES / RE_MOD_H1）随旧的整段重写逻辑一并删除，当前只按结构识别。
 const RE_MOD_SUBTITLE = /^[^\n·]{2,40}[·][^\n（]{2,40}[（][^）\n]{2,40}[）]/;
 
 // 把 markdown-it 输出的"【xxx】标题 + 后继段落/列表"重写为带视觉分层的结构；
@@ -255,7 +268,7 @@ const PageSheet = React.memo(
     return (
       <div
         data-pdf-export-ignore
-        className="md-page-sheet relative bg-white shadow-lg overflow-hidden"
+        className="md-page-sheet relative bg-white overflow-hidden"
         style={{
           width: "210mm",
           height: `${sheetHeightPx}px`,
@@ -264,6 +277,8 @@ const PageSheet = React.memo(
           overflow: "hidden",
           position: "relative",
           display: "block",
+          // I15：纸墨体系禁 blur > 2px，纸张改用硬偏移阴影令牌（无柔光）。
+          boxShadow: "var(--shadow-card, 4px 4px 0 rgba(23,19,16,0.16))",
         }}
       >
         {/*
@@ -302,7 +317,7 @@ const PageSheet = React.memo(
 
         {/* 底部页码：仅预览显示，导出 PDF 时不包含（data-pdf-export-ignore） */}
         <div
-          className="absolute bottom-1 left-0 right-0 text-center text-xs text-gray-400 pointer-events-none select-none"
+          className="absolute bottom-1 left-0 right-0 text-center text-xs text-ink-3 pointer-events-none select-none"
           style={{ paddingBottom: Math.max(2, pagePadding * 0.15) }}
         >
           {pageNumber} / {pageCount}
@@ -317,8 +332,22 @@ PageSheet.displayName = "MarkdownPageSheet";
 // React Renderer：将 Markdown Parser 输出的 HTML 渲染为 A4 纸张上的简历。
 // 容器保留 id="resume-preview"，供导出/打印克隆（pdfExportServer.ts / print.ts）。
 const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
-  ({ markdown, embedded = false, resume, variant }, ref) => {
+  ({ markdown, embedded = false, resume, variant, zoom, onScrollContainer }, ref) => {
     const internalRef = useRef<HTMLDivElement>(null);
+    // 缩放容器：用 ResizeObserver 跟踪可用宽度，为 "fit" 计算等比缩放（I4）。
+    // 显式写成 `T | null`：@types/react 18 的 `useRef<T>(null)` 会推出只读的
+    // RefObject，下面合并回调 ref 时需要可写。
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+    // 内部 ref 与父级回调 ref 合并：同一节点既要被本组件读取（fit 缩放测量），
+    // 又要交给父级做滚动联动。用稳定引用的回调避免每次渲染先置 null 再赋值。
+    const setScrollContainer = useCallback(
+      (el: HTMLDivElement | null) => {
+        scrollContainerRef.current = el;
+        onScrollContainer?.(el);
+      },
+      [onScrollContainer]
+    );
+    const [containerWidth, setContainerWidth] = useState(0);
     const previewRef = (ref as React.MutableRefObject<HTMLDivElement>) || internalRef;
     const previewIdRef = useRef<string>(`mdp-${generateUUID()}`);
     const previewId = previewIdRef.current;
@@ -354,16 +383,29 @@ const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
     const subheaderSize = settings?.subheaderSize || 17;
     // 版式变体：决定模块标题等标题的排版规则，是模板之间的核心视觉差异
     const activeVariant = resolveMarkdownVariant(resume, variant);
-    const variantCss = buildVariantCss(
-      activeVariant,
-      {
+    // I14：样式变体只随排版设置/模板变化，与正文内容无关，缓存避免每次按键重算。
+    const variantCss = useMemo(
+      () =>
+        buildVariantCss(
+          activeVariant,
+          {
+            themeColor,
+            headerSize,
+            subheaderSize,
+            lineUnit,
+            moduleSpacing,
+          },
+          `.resume-markdown-preview[data-preview-id="${previewId}"]`
+        ),
+      [
+        activeVariant,
         themeColor,
         headerSize,
         subheaderSize,
         lineUnit,
         moduleSpacing,
-      },
-      `.resume-markdown-preview[data-preview-id="${previewId}"]`
+        previewId,
+      ]
     );
 
     // 主题色变量，供渲染样式引用
@@ -453,6 +495,33 @@ const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
       return buildPageWindows(cuts, contentAreaPx, metrics.height);
     }, [metrics, contentAreaPx]);
 
+    // 跟踪滚动容器可用宽度，供 "fit" 缩放计算（I4）。
+    useEffect(() => {
+      const el = scrollContainerRef.current;
+      if (!el) return;
+      setContainerWidth(el.clientWidth);
+      const ro = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          setContainerWidth(entry.contentRect.width);
+        }
+      });
+      ro.observe(el);
+      return () => ro.disconnect();
+    }, []);
+
+    // 缩放系数：fit 时按容器宽等比缩放且不放大（上限 1），固定档位直接使用。
+    // 计算用「未缩放」的 A4 宽度与页面堆叠总高，缩放只影响视觉，不影响分页测量。
+    const fitScale =
+      containerWidth > 0
+        ? Math.min(1, (containerWidth - 32) / A4_WIDTH_PX)
+        : 1;
+    // 未显式传 zoom（如仪表盘缩略图）时保持 1:1，不改变既有缩略图渲染。
+    const scale = zoom === undefined ? 1 : zoom === "fit" ? fitScale : zoom;
+    // 未缩放时整个纸张堆叠的总高（页高 × 页数 + 页间间隙），用于缩放后撑出正确滚动高度。
+    const unscaledStackHeight =
+      pages.length * A4_HEIGHT_PX +
+      Math.max(0, pages.length - 1) * SHEET_GAP_PX;
+
     // 开发期不变量自检：测量副本与显示副本必须解析出完全相同的排版样式。
     // 切点按测量副本的坐标算、却要套用到显示副本上，两者一旦不一致，切点就会
     // 错位，表现为「分页处内容消失 / 被遮挡」——这类问题过去反复出现且极难定位，
@@ -474,6 +543,13 @@ const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
       );
     }, [metrics, enhancedHtml, previewRef]);
 
+    // I3：正文每次重建（dangerouslySetInnerHTML）都会抹掉语法高亮的 <mark>。
+    // 提交后广播事件，由校对容器把高亮重新套回所有分页。
+    useEffect(() => {
+      if (typeof window === "undefined") return;
+      window.dispatchEvent(new CustomEvent("resume-preview-updated"));
+    }, [enhancedHtml]);
+
     if (!activeResume) {
       // 允许在「无激活简历」上下文中渲染（如仪表盘缩略卡片）：
       // settings 已回退到默认值，markdown 仍可由 props 传入。
@@ -481,6 +557,11 @@ const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
 
     return (
       <div
+        ref={setScrollContainer}
+        data-sync-scroll="preview"
+        // 供语法检查「跳到出错处」定位滚动容器（useGrammarStore 按此属性精确匹配，
+        // 避免在多栏页面里认错外层滚动区）
+        data-preview-scroll-container="true"
         className={cn(
           "h-full min-h-0 overflow-y-auto",
           embedded ? "bg-muted py-4" : "bg-muted py-4"
@@ -512,7 +593,23 @@ const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
           }}
           dangerouslySetInnerHTML={{ __html: enhancedHtml }}
         />
-        <div className="mx-auto w-[210mm]">
+        {/* 缩放包装（I4）：外层按「缩放后尺寸」占位，内层按未缩放尺寸渲染后
+            做 scale 变换（origin top-left），因此滚动高度与宽度都正确、
+            不会出现横向溢出，也不影响隐藏测量副本的分页坐标。 */}
+        <div
+          className="mx-auto"
+          style={{
+            width: A4_WIDTH_PX * scale,
+            height: unscaledStackHeight * scale,
+          }}
+        >
+          <div
+            className="w-[210mm]"
+            style={{
+              transform: `scale(${scale})`,
+              transformOrigin: "top left",
+            }}
+          >
           {pages.map((page, i) => {
             const pageNumber = i + 1;
             const isFirst = pageNumber === 1;
@@ -545,6 +642,7 @@ const MarkdownPreview = forwardRef<HTMLDivElement, MarkdownPreviewProps>(
               </PageSheet>
             );
           })}
+          </div>
         </div>
 
         {/* 渲染样式：仅在简历预览作用域内生效，避免污染全局 */}

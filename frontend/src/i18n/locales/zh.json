@@ -1226,8 +1226,20 @@
   "markdownEditor": {
     "switchForm": "表单编辑",
     "switchMarkdown": "Markdown 编辑",
-    "editorTitle": "Markdown 源",
+    "editorTitle": "Markdown 编辑",
     "previewTitle": "实时预览",
+    "previewZoom": {
+      "fit": "适配"
+    },
+    "colors": {
+      "ink": "墨黑",
+      "kleinBlue": "克莱因蓝",
+      "brightBlue": "亮蓝",
+      "deepRed": "深红",
+      "orange": "橙",
+      "indigo": "靛紫",
+      "seaGreen": "海绿"
+    },
     "placeholder": "# 张三\n## 高级前端工程师\n\n## 工作经历\n### 阿里巴巴\n2022 - 2025\n- 负责 XXX\n- 使用 React / TypeScript 构建核心模块",
     "modeHint": "Markdown 编辑模式：左侧编写 Markdown，右侧实时预览，可一键导出 PDF（所见即所得）。",
     "saveHint": "将当前简历保存到数据库",
@@ -1250,7 +1262,9 @@
       "autoSave": "auto-save",
       "sizeLeading": "字号 · 行距",
       "saved": "已保存",
-      "unsaved": "未保存"
+      "unsaved": "未保存",
+      "collapsePanel": "收起排版设置",
+      "expandPanel": "展开排版设置"
     }
   }
 }

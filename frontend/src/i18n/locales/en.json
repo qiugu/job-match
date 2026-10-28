@@ -1224,8 +1224,20 @@
   "markdownEditor": {
     "switchForm": "Form Editor",
     "switchMarkdown": "Markdown Editor",
-    "editorTitle": "Markdown Source",
+    "editorTitle": "Markdown Editor",
     "previewTitle": "Live Preview",
+    "previewZoom": {
+      "fit": "Fit"
+    },
+    "colors": {
+      "ink": "Ink Black",
+      "kleinBlue": "Klein Blue",
+      "brightBlue": "Bright Blue",
+      "deepRed": "Deep Red",
+      "orange": "Orange",
+      "indigo": "Indigo",
+      "seaGreen": "Sea Green"
+    },
     "placeholder": "# John Doe\n## Senior Frontend Engineer\n\n## Experience\n### Alibaba\n2022 - 2025\n- Responsible for XXX\n- Built core modules with React / TypeScript",
     "modeHint": "Markdown mode: write Markdown on the left, preview live on the right, and export to PDF with one click (what you see is what you get).",
     "saveHint": "Save the current resume to the database",
@@ -1248,7 +1260,9 @@
       "autoSave": "auto-save",
       "sizeLeading": "Size & Leading",
       "saved": "Saved",
-      "unsaved": "Unsaved"
+      "unsaved": "Unsaved",
+      "collapsePanel": "Collapse typeset panel",
+      "expandPanel": "Expand typeset panel"
     }
   }
 }

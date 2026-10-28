@@ -15,12 +15,27 @@ describe("workbench floating dock actions", () => {
     expect(dock).toContain("onClick={handleCopyResume}");
     expect(dock).toContain('router.push("/app/dashboard")');
     expect(dock.match(/<button\b/g)?.length ?? 0).toBeGreaterThanOrEqual(5);
-    expect(dock).not.toContain("handleGrammarCheck");
+    // 校对入口**回到** Dock（2026-10-28 依据用户反馈改判）：
+    // 校对作用于「预览里的正文」，与模板/导出/复制同属一类操作；
+    // 曾一度上提到 EditorHeader，结果是顶部多出一个与「保存」抢权重的按钮，
+    // 且入口与抽屉分居两个组件。现在入口与抽屉都由 Dock 承载。
+    expect(dock).toContain("SpellCheck2");
+    expect(dock).toContain("data-dock-proofread");
+    expect(dock).toContain("<GrammarCheckDrawer />");
     expect(dock).not.toContain("toggleEditPanel");
-    expect(dock).not.toContain("SpellCheck2");
     expect(dock).not.toContain("autoOnePage");
     expect(dock).not.toContain("<Edit2");
     expect(dock).not.toContain("{/* <DockIcon>");
+  });
+
+  it("keeps the proofread trigger out of the top editor header", () => {
+    const header = source("src/components/editor/EditorHeader.tsx");
+
+    // 顶部工具行只保留「撤销/重做 · 主题 · 保存 · 导出」，不再派发抽屉事件，
+    // 也不内联渲染抽屉——避免同一能力出现两个入口。
+    expect(header).not.toContain("open-grammar-drawer");
+    expect(header).not.toContain("GrammarCheckDrawer");
+    expect(header).not.toContain("SpellCheck2");
   });
 
   it("connects the visible preview dock action to the markdown workbench", () => {

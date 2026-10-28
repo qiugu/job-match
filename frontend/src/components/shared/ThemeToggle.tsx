@@ -10,7 +10,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-const ThemeToggle = ({ children }: { children?: React.ReactNode }) => {
+const ThemeToggle = ({
+  children,
+  className,
+}: {
+  children?: React.ReactNode;
+  /** 覆写触发按钮外观：顶部工具行需要与同排其它控件统一 36px 高（默认 icon 档是 40px） */
+  className?: string;
+}) => {
   const { theme, setTheme, systemTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
@@ -34,7 +41,7 @@ const ThemeToggle = ({ children }: { children?: React.ReactNode }) => {
           <Button
             variant="outline"
             size="icon"
-            className="relative overflow-hidden"
+            className={cn("relative overflow-hidden", className)}
           >
             <Sun
               className={cn(
