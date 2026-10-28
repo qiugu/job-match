@@ -19,8 +19,8 @@
     }
   },
   "include": [
-    "src/routes/**/*.ts",
-    "src/routes/**/*.tsx",
+    "src",
+    "tests",
     "src/router.tsx",
     "src/routeTree.gen.ts",
     "src/vite-env.d.ts",

@@ -17,7 +17,9 @@
     "release": "bumpp",
     "generate:template-snapshots": "tsx scripts/generate-template-snapshots.ts",
     "install:playwright": "playwright install chromium",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -63,7 +65,9 @@
     "date-fns": "^3.6.0",
     "dayjs": "^1.11.12",
     "echarts": "^6.1.0",
+    "eslint-config-next": "^16.4.3",
     "framer-motion": "^11.11.10",
+    "isomorphic-dompurify": "^4.6.0",
     "lodash": "^4.17.21",
     "lucide-react": "^0.379.0",
     "mark.js": "^8.11.1",
