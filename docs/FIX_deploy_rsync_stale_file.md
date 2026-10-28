@@ -135,8 +135,35 @@ overlayfs（而且是 deps / prod-deps 两遍），在小规格 VPS 上是数量
 **3.8 秒**，不构成分钟级影响。
 
 现处理：`--no-cache` 改为 `workflow_dispatch` 的 `force_rebuild` 手动开关（默认 false），
-常态走层缓存；并且它的存在理由本身也不成立 —— `COPY . .` 层的缓存键是内容校验和，
-源码变动必然失效并重跑后续 `RUN`，不存在「改了源码却复用旧编译层」。
+常态走层缓存。除了性能，它**存在的前提本身也不成立**，见下节。
+
+### 7.2 为什么「复用缓存 ⇒ 编译到旧源码」不成立
+
+Docker 官方文档对 `COPY` / `ADD` 的缓存判定写得很明确
+（https://docs.docker.com/build/cache/invalidation/）：
+
+> "For the `ADD` and `COPY` instructions … the builder calculates a cache checksum from file metadata
+> to determine whether cache is valid. During cache lookup, cache is invalidated if the file metadata
+> has changed for any of the files involved."
+>
+> "The modification time of a file (`mtime`) is not taken into account when calculating the cache
+> checksum. If only the `mtime` of the copied files have changed, the cache is not invalidated."
+
+由此有两条结论：
+
+1. **内容变了 ⇒ `COPY . .` 层失效 ⇒ 后续 `RUN pnpm run build` 必然重跑。** 所以「层缓存把旧源码编出来」在
+   `COPY . .` + `RUN` 这种结构里没有发生路径。
+2. **只有 mtime 变、内容没变 ⇒ 缓存仍然命中。** 这一条正好解释了「3 分钟构建」为何能成立：
+   `actions/checkout` 让所有文件 mtime 都是新的，但因为内容校验和不变，`pnpm install` / `build` 层照样复用。
+
+更直接的一条反证与机制无关，只看现象：**缓存命中意味着 `RUN` 根本不执行，也就不可能报 rollup 错误。**
+本次是一个具体的编译错误（rollup 解析源码失败），说明 bundler 确实跑了、且读到的 `options.ts`
+第 16 行是 `BRAND_ACCENT` —— 镜像里的文件内容本身就是旧的。这只能是**上传环节没更新文件**（第 3 节），
+而不是缓存。
+
+真正需要 `--no-cache` 的场景很窄，且都是一次性排障：`--mount=type=cache` 的 pnpm store / corepack
+缓存损坏、基础镜像 tag 漂移但仍要强制重拉、或已排除其他因素后怀疑层损坏。这类场景按需手动触发即可，
+不该写进每次部署。
 
 ## 8. 后续可选项（未实施，待决策）
 
