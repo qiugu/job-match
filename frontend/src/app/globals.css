@@ -550,8 +550,19 @@
     border: 2px solid var(--ink);
     cursor: pointer;
   }
+  /* I8：键盘聚焦必须可见（WCAG 2.4.7）。轨道给 2px 钴蓝描边，
+     手柄加一圈信号色光晕，替代原先仅「描边变蓝」的弱提示。 */
+  .pp-slider:focus-visible {
+    outline: 2px solid var(--cobalt);
+    outline-offset: 4px;
+  }
   .pp-slider:focus-visible::-webkit-slider-thumb {
     border-color: var(--cobalt);
+    box-shadow: 0 0 0 3px rgba(43, 58, 255, 0.35);
+  }
+  .pp-slider:focus-visible::-moz-range-thumb {
+    border-color: var(--cobalt);
+    box-shadow: 0 0 0 3px rgba(43, 58, 255, 0.35);
   }
 
   /* 纸面点阵纹理（Loud 档氛围层，禁 blur） */

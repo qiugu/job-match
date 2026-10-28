@@ -44,6 +44,13 @@ interface ResumeStore {
   /** 已落库到后端 master_resumes 的简历 id 集合。store 不污染 ResumeData 类型，
    *  用此集合区分「内存新建（临时 id）」与「已落库（后端 id）」。 */
   syncedIds: Set<string>;
+  /**
+   * 脏标记基准快照：以「最近一次成功落库（或刚从后端加载）的内容」为该简历的
+   * 干净基准，key 为简历 id。顶栏据此判定 isDirty。由所有成功落库的路径
+   * （syncResumeToBackend）与后端加载（loadResumesFromBackend）统一写入，
+   * 保证「自动保存 / 手动保存 / 换简历」任一路径后脏标记都一致（修复 I2）。
+   */
+  savedSnapshots: Record<string, string>;
 
   createResume: (templateId: string | null, isBlank?: boolean) => Promise<string>;
   deleteResume: (resume: ResumeData) => void;
@@ -108,6 +115,13 @@ interface ResumeStore {
 }
 
 type PersistedResumeStore = Pick<ResumeStore, "resumes" | "activeResumeId">;
+
+/**
+ * 排版设置自动保存的模块级防抖计时器（修复 I1）。
+ * 放在 store 外层，使「左侧面板所有排版控件 + 主题色」共用一个落库节流窗口，
+ * 拖动滑块时不会每次 onChange 都发请求。
+ */
+let globalSettingsSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 const createDefaultCustomItem = (): CustomItem => ({
   id: generateUUID(),
@@ -195,6 +209,7 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
   history: {},
   future: {},
   syncedIds: new Set<string>(),
+  savedSnapshots: {},
 
       createResume: async (templateId = null, isBlank = false) => {
         const locale =
@@ -531,7 +546,19 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
           return;
         }
 
-        set({ activeResume: nextResume, activeResumeId: resumeId });
+        set((state) => {
+          // 切换到一个已落库、但尚未记录脏基准的简历时，以当前内容作干净起点
+          // （否则首帧会拿另一份简历的旧快照比较 → 误报未保存，修复 I2 的时序窗口）。
+          const hasBaseline = state.savedSnapshots[resumeId] !== undefined;
+          const shouldSeed = nextResume && state.syncedIds.has(resumeId) && !hasBaseline;
+          return {
+            activeResume: nextResume,
+            activeResumeId: resumeId,
+            savedSnapshots: shouldSeed
+              ? { ...state.savedSnapshots, [resumeId]: JSON.stringify(nextResume) }
+              : state.savedSnapshots,
+          };
+        });
       },
 
       updateBasicInfo: (data) => {
@@ -858,6 +885,16 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
             },
           });
         }
+        // 自动保存（防抖）：让左栏排版设置真正落库，兑现面板「auto-save」承诺（修复 I1）。
+        // 与主题色共用同一落库路径，drag 过程中 600ms 内多次调用只触发一次保存。
+        if (activeResumeId) {
+          if (globalSettingsSaveTimer) clearTimeout(globalSettingsSaveTimer);
+          globalSettingsSaveTimer = setTimeout(() => {
+            get()
+              .saveActiveResumeToBackend()
+              .catch((err) => console.error("排版设置自动保存失败:", err));
+          }, 600);
+        }
       },
 
       setThemeColor: (color) => {
@@ -869,6 +906,15 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
               themeColor: color,
             },
           });
+        }
+        // 主题色同样走自动保存（防抖），与排版设置同源（修复 I1）。
+        if (activeResumeId) {
+          if (globalSettingsSaveTimer) clearTimeout(globalSettingsSaveTimer);
+          globalSettingsSaveTimer = setTimeout(() => {
+            get()
+              .saveActiveResumeToBackend()
+              .catch((err) => console.error("主题色自动保存失败:", err));
+          }, 600);
         }
       },
 
@@ -963,6 +1009,14 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
           }
           nextResumes[backendId] = updated;
 
+          // 落库成功 → 刷新脏基准。所有保存路径（手动 / 自动）都经此处，
+          // 因此脏标记不会像旧实现那样只被手动保存刷新（修复 I2）。
+          const nextSnapshots = { ...state.savedSnapshots };
+          if (backendId !== resumeId) {
+            delete nextSnapshots[resumeId];
+          }
+          nextSnapshots[backendId] = JSON.stringify(updated);
+
           const sameActive =
             state.activeResumeId === resumeId ? backendId : state.activeResumeId;
 
@@ -972,6 +1026,7 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
             activeResume:
               sameActive === backendId ? updated : state.activeResume,
             syncedIds: nextSynced,
+            savedSnapshots: nextSnapshots,
           };
         });
 
@@ -995,6 +1050,7 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
         set((state) => {
           const nextResumes = { ...state.resumes };
           const nextSynced = new Set(state.syncedIds);
+          const nextSnapshots = { ...state.savedSnapshots };
           for (const detail of details) {
             if (!detail) continue;
             nextSynced.add(detail.id);
@@ -1003,8 +1059,14 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
             // 前端临时 uuid 被当作记录 id，导致删除/更新时 404。
             const aligned = { ...detail.resumeJson, id: detail.id };
             nextResumes[detail.id] = aligned;
+            // 从后端加载即为干净起点（未被本地修改前不应显示「未保存」，修复 I2）。
+            nextSnapshots[detail.id] = JSON.stringify(aligned);
           }
-          return { resumes: nextResumes, syncedIds: nextSynced };
+          return {
+            resumes: nextResumes,
+            syncedIds: nextSynced,
+            savedSnapshots: nextSnapshots,
+          };
         });
 
         return summaries;

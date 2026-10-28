@@ -301,7 +301,16 @@ export const generateResumeMarkdown = (
   resume: ResumeData,
   options?: ResumeMarkdownOptions
 ) => {
-  const topTitle = normalizeText(resume.title) || "Resume";
+  // I11：H1 是简历正文标题（姓名 | 职位），不是文件名（resume.title）。
+  // 旧实现直接用 resume.title，导致新建简历的 H1 变成「宋哈娜 | 新建简历 45f671」，
+  // 用户误以为改顶栏文件名就会改正文标题。这里优先用「姓名 | 职位」，缺失再退化。
+  const headline = [
+    normalizeText(resume.basic?.name),
+    normalizeText(resume.basic?.title),
+  ]
+    .filter(Boolean)
+    .join(" | ");
+  const topTitle = headline || normalizeText(resume.title) || "Resume";
   const sections = getOrderedEnabledSections(resume);
   const blocks: string[] = [`# ${topTitle}`];
 

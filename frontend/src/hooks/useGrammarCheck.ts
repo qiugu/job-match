@@ -17,6 +17,7 @@ export const useGrammarCheck = () => {
     clearErrors,
     selectError,
     dismissError,
+    remarkErrors,
   } = useGrammarStore();
 
   return {
@@ -28,5 +29,6 @@ export const useGrammarCheck = () => {
     clearErrors,
     selectError,
     dismissError,
+    remarkErrors,
   };
 };
