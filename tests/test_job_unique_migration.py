@@ -9,10 +9,40 @@ import sys
 from pathlib import Path
 
 import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 
-PREVIOUS_HEAD = "l5f7a9c2d4e6"
-NEW_HEAD = "n7h9j1k3m5p7"
+# 被测试迁移：按 (user_id, jd_text) 收敛历史重复岗位卡并新建唯一约束
+# （migrations/versions/m6a8c0e2f4b7_make_job_attachment_unique.py）。
+# 该 id 固定，不随后续新增迁移改变；它的 down_revision（l5f7a9c2d4e6）才是
+# 「前置状态」的锚点——先升级到它，再插入重复数据模拟历史脏数据。
+MIGRATION_UNDER_TEST = "m6a8c0e2f4b7"
+
+
+def _script_directory() -> ScriptDirectory:
+    # 不读取带中文注释的 alembic.ini，避免 C/ASCII locale 下把编码问题
+    # 误报成迁移图问题（与 tests/test_migration_graph.py 一致）。
+    root = Path(__file__).resolve().parents[1]
+    config = Config()
+    config.set_main_option("script_location", str(root / "migrations"))
+    return ScriptDirectory.from_config(config)
+
+
+def _current_head() -> str:
+    """当前迁移链的真实 head（动态取，避免硬编码常量随新增迁移失效）。"""
+    head = _script_directory().get_current_head()
+    assert head is not None, "迁移图无 head"
+    return head
+
+
+def _previous_head() -> str:
+    """被测试迁移的前置 revision：先升级到它，再插入重复数据模拟历史脏数据。"""
+    down_revision = _script_directory().get_revision(MIGRATION_UNDER_TEST).down_revision
+    assert down_revision is not None, f"{MIGRATION_UNDER_TEST} 缺少 down_revision"
+    if isinstance(down_revision, (tuple, list)):
+        return down_revision[0]
+    return down_revision
 
 
 def _run_alembic(root: Path, database_url: str, *args: str) -> None:
@@ -32,7 +62,7 @@ def test_job_uniqueness_migration_reparents_associated_records(tmp_path: Path) -
     root = Path(__file__).resolve().parents[1]
     db_path = tmp_path / "duplicate-jobs.db"
     database_url = f"sqlite+aiosqlite:///{db_path}"
-    _run_alembic(root, database_url, "upgrade", PREVIOUS_HEAD)
+    _run_alembic(root, database_url, "upgrade", _previous_head())
 
     with sqlite3.connect(db_path) as connection:
         connection.execute(
@@ -86,9 +116,11 @@ def test_job_uniqueness_migration_reparents_associated_records(tmp_path: Path) -
     _run_alembic(root, database_url, "upgrade", "head")
 
     with sqlite3.connect(db_path) as connection:
+        # head 到位：迁移链走到当前 head，证明被测试迁移已被纳入（动态取，
+        # 不再硬编码常量，避免后续新增迁移后此断言必然失败一次）。
         assert connection.execute(
             "SELECT version_num FROM alembic_version"
-        ).fetchone() == (NEW_HEAD,)
+        ).fetchone() == (_current_head(),)
         assert connection.execute(
             "SELECT id, title, company, status, created_at, updated_at FROM jobs "
             "WHERE user_id = 'user-1' AND jd_text = 'Python engineer'"
