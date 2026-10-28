@@ -35,6 +35,15 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
+        with:
+          # pnpm 版本唯一来源＝frontend/package.json 的 `packageManager`（pnpm@8.14.3，
+          # 与 frontend/Dockerfile 里 corepack 使用的版本一致）。
+          # 注意：`defaults.run.working-directory` 只作用于 run 步骤，**对 uses 步骤无效**，
+          # 因此 action 默认仍在仓库根目录找 package.json —— 而根目录没有（后端是
+          # pyproject.toml），于是启动瞬间失败：
+          #   Error: No pnpm version is specified.
+          # 必须显式指向 frontend/package.json（实测：该步骤 0 秒即失败）。
+          package_json_file: frontend/package.json
 
       - uses: actions/setup-node@v4
         with:
@@ -75,7 +84,17 @@ jobs:
         run: pip install uv
 
       - name: Sync dependencies
-        run: uv sync --no-dev
+        # 测试作业必须装 dev 组：pytest / pytest-asyncio / reportlab 都在
+        # pyproject.toml 的 [dependency-groups].dev 里，原先的 `--no-dev` 让测试依赖缺席，
+        # 只能依赖 `uv run` 的隐式二次同步兜底 —— 行为脆弱且难以诊断。
+        # `--frozen`：不改写 uv.lock，且本地锁与 uv.lock 不一致时直接失败（门禁应有语义）。
+        run: uv sync --frozen
+
+      - name: Show toolchain versions
+        # 把解释器与 pytest 版本写进日志：CI 与本地结果不一致时，第一件事就是比对这两行。
+        run: |
+          uv run --frozen python -V
+          uv run --frozen pytest --version
 
       - name: Run tests
-        run: uv run pytest -q --basetemp=/tmp/pytest-backend
+        run: uv run --frozen pytest -q --basetemp=/tmp/pytest-backend

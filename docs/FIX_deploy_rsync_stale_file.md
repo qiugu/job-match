@@ -165,7 +165,70 @@ Docker 官方文档对 `COPY` / `ADD` 的缓存判定写得很明确
 缓存损坏、基础镜像 tag 漂移但仍要强制重拉、或已排除其他因素后怀疑层损坏。这类场景按需手动触发即可，
 不该写进每次部署。
 
-## 8. 后续可选项（未实施，待决策）
+## 8. 附：CI 门禁的三条故障线（独立于本次部署事故）
+
+`ci.yml` 自 2026-10-28 18:46 接入后三次运行全红（`7de70ab`、`9db626c`、`b506626` 各一次），
+与部署链路无关，是三条独立问题叠在一起。
+
+### 8.1 前端作业：pnpm 版本无法解析（已修，证据确凿）
+
+GitHub API 返回的注解原文：
+
+> Error: No pnpm version is specified.
+> Please specify it by one of the following ways:
+>  - in the GitHub Action config with the key "version"
+>  - in the package.json with the key "packageManager"
+
+机制：`pnpm/action-setup@v4` 未给 `version`，只能读 `packageManager`；而它默认在**仓库根目录**
+找 `package.json` —— 本仓库根目录没有（后端是 `pyproject.toml`，前端在 `frontend/`）。
+`defaults.run.working-directory: frontend` **只作用于 `run` 步骤，对 `uses` 步骤无效**，
+所以该 action 在 0 秒内失败，后续 5 个步骤全部 skipped。
+
+修法：显式 `with: package_json_file: frontend/package.json`，版本仍以
+`frontend/package.json` 的 `packageManager: pnpm@8.14.3` 为唯一来源（与 Dockerfile 的 corepack 一致）。
+
+顺带验证：`pnpm test -- --reporter=dot` 的参数透传在 pnpm 8 下正常（本地实跑 187 用例通过），
+故该步骤无需改动。
+
+### 8.2 后端作业：3 个部署契约测试被 deploy.yml 改动打破（已修）
+
+`tests/test_deploy_workflow.py` 对 `deploy.yml` 做源码级断言，本次改动命中其中三处：
+
+| 测试 | 失败原因 |
+| --- | --- |
+| `test_deploy_workflow_builds_images_on_server_without_registry_or_archives` | 断言字面串 `build backend`，而命令已变为 `build ${CACHE_FLAG} backend` |
+| `test_remote_build_reuses_docker_layers_for_playwright_cache` | 同上（该测试的本意是「默认复用层缓存」，与参数化并不冲突） |
+| `test_deploy_builds_images_on_server_and_does_not_transfer_archives` | 同上 |
+
+**更值得记的是第四个测试**：`test_code_upload_excludes_local_worktrees_and_has_transfer_guardrails`
+原本断言 `"--append-verify" in text` —— 等于把第 3 节的缺陷**钉成了规范**。移除该 flag 后，
+这条断言其实仍在通过，但只是因为我写的注释里提到了它，属于「假绿」。
+
+修法（改测试而非迁就代码，但只放松字面耦合、保留性质断言）：
+
+- 构建命令改为正则 `build (?:[^\s]+ )?backend|frontend`（允许一个可选 flag）；
+- 新增性质断言：`"build --no-cache" not in text`（默认复用缓存）+ 全量重建只能来自 `force_rebuild`；
+- 参数类断言改为在 **`RSYNC_ARGS=( … )` 参数块内**进行，并**反转方向**：
+  `"--append-verify" not in args`、`"--partial" in args`，同时要求存在
+  `--checksum` / `--itemize-changes`（上传后一致性校验）。
+
+### 8.3 后端作业：pytest `exit code 4`（部分修，待日志确认）
+
+注解原文：`Process completed with exit code 4.` —— pytest 的 `4` 是 **usage error**（参数/配置层），
+不是「用例失败」（那会是 1）。同一命令在本地（`pytest -q --basetemp=...`）exit 0、237 用例全过，
+说明是 CI 侧的调用或环境差异，且与本次代码改动无关（`7de70ab` 那次同样报 4）。
+
+已做的加固（机制上正确，但**尚未证实**就是这次的触发点）：
+
+- `uv sync --no-dev` → `uv sync --frozen`。测试作业把 `pytest` / `pytest-asyncio` / `reportlab`
+  排除在外本来就是错的（它们在 `[dependency-groups].dev` 里），此前只靠 `uv run` 的隐式二次同步兜底；
+  `--frozen` 还能保证「lockfile 与 pyproject 不一致时直接失败」。
+- 新增 `Show toolchain versions` 步骤，把 `python -V` 与 `pytest --version` 打进日志 ——
+  下次若仍红，这两行足以判定是环境差异还是参数问题。
+- 该步骤的完整日志需要仓库 admin 权限才能经 API 拉取，故此处无法直接引用；若加固后仍复现，
+  需要人工提供该步骤的日志尾部。
+
+## 9. 后续可选项（未实施，待决策）
 
 
 1. **加 `pnpm build` 到 `ci.yml`**：当前 CI 只跑 lint / typecheck / test，不含生产构建。
