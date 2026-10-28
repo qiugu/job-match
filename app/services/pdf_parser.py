@@ -552,6 +552,15 @@ async def extract_pdf_text(data: bytes) -> str:
     return "\n".join(p for p in parts if p.strip())
 
 
+def count_pdf_pages(data: bytes) -> int:
+    """返回 PDF 页数；损坏文件由 pypdf 抛异常，由调用方映射为 422。
+
+    用于上传护栏（S4）：在整体解析前先快速校验页数上限，避免超大 PDF
+    直接进入 CPU 密集的同步解析路径。
+    """
+    return len(PdfReader(BytesIO(data)).pages)
+
+
 async def extract_pdf_layout(data: bytes) -> dict:
     """提取 PDF 版式元数据，用于还原原文件样式。
 

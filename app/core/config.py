@@ -66,8 +66,10 @@ class Settings(BaseSettings):
     # JWT 签名密钥。生产必须显式配置 AUTH_SECRET_KEY：留空时进程会生成随机密钥，
     # 重启后所有登录态立即失效（详见 app/core/security.py 的 _secret_key）。
     auth_secret_key: str = ""
-    # 登录令牌有效期（分钟），默认 7 天
-    auth_token_expire_minutes: int = 60 * 24 * 1
+    # 登录令牌有效期（分钟），默认 7 天（10080 分钟）。
+    # 注：.env.example 与 AGENTS.md 均声明默认 10080，此处必须保持一致，否则
+    # 裸跑（未设环境变量）与 compose（注入 .env）行为会分叉，表现为「隔天被强制登出」。
+    auth_token_expire_minutes: int = 60 * 24 * 7
     # 是否开放注册；关闭后只能由 AUTH_BOOTSTRAP_* 或已有账号登录
     auth_allow_registration: bool = True
     # 初始账号（可选）：服务启动时若该账号不存在则创建，并接管迁移遗留的历史数据。
@@ -87,6 +89,13 @@ class Settings(BaseSettings):
     registration_code_validity_days: int = 30
     # 每日发放窗口的时区偏移（小时）：「每天 0 点重置」按该时区计算，默认 UTC+8（北京时间）
     registration_reset_utc_offset: int = 8
+
+    # ---------- 简历 PDF 上传（导入侧护栏，S4） ----------
+    # 上传 PDF 的体积硬上限（字节）：超过直接返回 413，不在整体读入内存后再判断。
+    # 对照：PDF 导出侧另有 pdf_export_max_* 六项上限，导入侧此前缺失。
+    resume_upload_max_bytes: int = 10 * 1024 * 1024
+    # 上传 PDF 的页数硬上限：防止超大/恶意 PDF 拖垮同步解析线程（pymupdf 需遍历全文档预扫描标题）。
+    resume_upload_max_pages: int = 50
 
     # ---------- 服务端 PDF 导出（headless Chromium 矢量渲染） ----------
     # 打印版 HTML 内 root-relative 字体 URL（/fonts/...）的解析源。

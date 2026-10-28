@@ -23,12 +23,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.logging import get_logger
 from app.models.master_resume import MasterResume
 from app.models.user import User
 from app.schemas.resume import ResumeData
 from app.services.pdf_parser import (
+    count_pdf_pages,
     extract_markdown_structure,
     extract_markdown_via_pymupdf,
     extract_pdf_layout,
@@ -236,6 +238,48 @@ async def _extract_upload_artifacts(
     return text, markdown_structure, global_settings
 
 
+_CHUNK_SIZE = 1024 * 1024  # 上传读取分块（1MB），避免一次性把整文件读入内存
+
+
+async def _read_upload_with_limits(file: UploadFile) -> bytes:
+    """分块读取上传 PDF 并施加体积/页数护栏（S4）。
+
+    - 体积超限直接 413，不等待 `await file.read()` 返回整文件后再判断；
+    - 页数超限同样 413（同步解析线程对超大 PDF 是 CPU 密集调用，提前拦截）。
+    """
+    max_bytes = settings.resume_upload_max_bytes
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(_CHUNK_SIZE)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"简历文件过大（上限 {max_bytes // (1024 * 1024)}MB），"
+                    "请压缩或拆分后重试"
+                ),
+            )
+        chunks.append(chunk)
+    data = b"".join(chunks)
+
+    try:
+        page_count = await asyncio.to_thread(count_pdf_pages, data)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(
+            status_code=422, detail="无法读取 PDF 页数（文件可能已损坏）"
+        ) from e
+    if page_count > settings.resume_upload_max_pages:
+        raise HTTPException(
+            status_code=413,
+            detail=f"简历页数过多（上限 {settings.resume_upload_max_pages} 页）",
+        )
+    return data
+
+
 def _ensure_owner(r: MasterResume | None, user: User) -> MasterResume:
     """校验记录归属当前用户：非本人记录返回 404，不暴露资源是否存在。"""
     if r is None or r.user_id != user.id:
@@ -290,7 +334,7 @@ async def upload_master_resume(
             status_code=409,
             detail=f"简历名称「{base_title}」已存在，请重命名文件后重新上传",
         )
-    data = await file.read()
+    data = await _read_upload_with_limits(file)
     text, markdown_structure, global_settings = await _extract_upload_artifacts(data)
     if not text.strip():
         raise HTTPException(status_code=422, detail="无法从 PDF 提取文本内容")
