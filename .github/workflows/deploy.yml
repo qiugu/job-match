@@ -46,6 +46,10 @@ on:
         description: "不重建镜像（docker compose up -d 不做 --build）"
         type: boolean
         default: false
+      force_rebuild:
+        description: "强制 --no-cache 全量重建镜像（耗时会从约 3 分钟涨到 30 分钟以上，仅在怀疑构建层异常时使用）"
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -57,7 +61,8 @@ permissions:
 jobs:
   deploy:
     name: Deploy
-    # 镜像在目标服务器本地构建（--no-cache 全量重建，避免复用陈旧构建层导致旧源码被编译），避免跨公网传输约 900MB 归档。
+    # 镜像在目标服务器本地构建，**默认复用 Docker 层缓存**（约 3 分钟）；避免跨公网传输约 900MB 归档。
+    # 仅当手动勾选 force_rebuild 时才 --no-cache 全量重建（30 分钟以上，见 Build 步骤内说明）。
     timeout-minutes: 180
     runs-on: ubuntu-latest
     # 避免因密钥缺失导致静默成功
@@ -229,16 +234,34 @@ jobs:
           SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
           RP=$(printf '%q' "$REMOTE_PATH")
 
-          # 清理可能残留的编译产物：src 下不应有任何 .js/.js.map（源码全是 .ts/.tsx）。
-          # 若有陈旧 .js（如 tokens.js）留在远端，Vite 的 resolve.extensions 会优先解析 .js 而非
-          # .ts，导致「旧源码被编译」——这正是此前部署报 BRAND_ACCENT 未导出的根因。
+          # 清理可能残留的编译产物：src 下不应有任何 .js/.js.map（源码全是 .ts/.tsx），
+          # 万一有人把编译结果落在远端此处，Vite 的 resolve.extensions 会优先解析 .js 而非 .ts。
+          # 说明：这是**防御性卫生检查**，不是 2026-10-28 事故的根因（根因见上传步骤的 rsync 说明）；
+          # 正常目录下它不删任何文件。
           echo "==> 清理远端 frontend/src 下可能残留的陈旧编译产物（*.js / *.js.map）"
           ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "find ${RP}/frontend/src -type f \( -name '*.js' -o -name '*.js.map' \) -delete 2>/dev/null || true"
 
-          echo "==> 在服务器本地构建 backend/frontend（--no-cache 强制全量重建，避免复用陈旧构建层）"
-          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build --no-cache backend"
-          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build --no-cache frontend"
+          # ---------- 构建缓存策略 ----------
+          # 默认复用 Docker 层缓存。理由：`COPY . .` 这一层的缓存键是**被复制内容的内容校验和**，
+          # 源码一变该层即失效、紧随其后的 `RUN pnpm run build` 必然重跑 —— 不存在「源码已改却
+          # 复用旧编译层」的可能。因此常态无需 --no-cache。
+          #
+          # 教训（2026-10-28）：曾误判为「陈旧构建层」，把 --no-cache 写死进每次部署，实测把构建
+          # 从约 3 分钟拖到 40 分钟以上仍未完成 —— pnpm install（deps + prod-deps 两遍）与
+          # uv sync 全量重来，在小规格 VPS + overlayfs 上极慢。故改为仅手动勾选 force_rebuild
+          # 时才全量重建。
+          CACHE_FLAG=""
+          if [[ "${FORCE_REBUILD:-}" == "true" ]]; then
+            echo "::warning::force_rebuild=true：本次 --no-cache 全量重建，预计 30 分钟以上"
+            CACHE_FLAG="--no-cache"
+          fi
+
+          echo "==> 在服务器本地构建 backend/frontend（缓存策略：${CACHE_FLAG:-复用层缓存}）"
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build ${CACHE_FLAG} backend"
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build ${CACHE_FLAG} frontend"
           echo "    服务器镜像构建完成"
+        env:
+          FORCE_REBUILD: ${{ github.event.inputs.force_rebuild }}
 
       # ---------- 第 4 步：服务器端 .env 与数据库迁移（对应 deploy.sh [4/5]） ----------
       - name: Server env check & database migration
