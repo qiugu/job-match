@@ -76,3 +76,20 @@ jobmatch.db.bak.*
 # Alembic 迁移产物（versions/ 下的迁移脚本需提交，仅忽略缓存）
 migrations/__pycache__/
 __pycache__/
+
+# 本地验证探针（playwright-cli 会话、临时 app、pytest basetemp、build 校验输出）
+# 都是「跑一次就废」的中间产物，误提交会把截图与 bundle 一起推进仓库。
+.playwright-cli/
+.probe-app/
+frontend/.probe-*/
+frontend/.build-verify*/
+
+# pytest basetemp（本机禁止写系统临时目录，统一落在工作区内）
+.pytest-tmp/
+
+# playwright-cli 页面快照（根目录 *.yaml 快照；docker-compose.yml 为 .yml 不受影响）
+/*.yaml
+
+# SQLite WAL/SHM 旁路文件（*.db 本身已忽略）
+*.db-shm
+*.db-wal
