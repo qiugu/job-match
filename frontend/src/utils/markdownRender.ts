@@ -1,4 +1,5 @@
 import MarkdownIt from "markdown-it";
+import { sanitizeResumeHtml } from "@/lib/sanitize";
 
 // 单例 MarkdownIt 实例：负责将 Markdown 源文本解析为 HTML。
 // 这是架构中的 "Markdown Parser" 环节。
@@ -312,9 +313,14 @@ export const renderMarkdownToHtml = (markdown: string): string => {
   // 会原样透传为裸露 ":::" 文本。这里在 HTML 层面把残留的 ::: 段落清除，
   // 避免页面上出现无意义的 ":::" 符号。已正常消费的 ::: 会渲染成
   // <div class="md-align-*"> 而非 <p>:::</p>，不受影响。
-  return raw
-    .replace(/<p>\s*:::\s*<\/p>/g, "")
-    .replace(/<p>\s*:::\s*[a-zA-Z]+\s*<\/p>/g, "");
+  // S1 修复：markdown-it 开启 html:true（PDF 提取产物含 <ul><li> 残标，关闭会丢失列表），
+  // 因此原始 HTML 会被透传——必须在注入 dangerouslySetInnerHTML 前做白名单清洗，
+  // 剥离 <script> / 事件处理器 / 危险协议等。
+  return sanitizeResumeHtml(
+    raw
+      .replace(/<p>\s*:::\s*<\/p>/g, "")
+      .replace(/<p>\s*:::\s*[a-zA-Z]+\s*<\/p>/g, "")
+  );
 };
 
 export default md;

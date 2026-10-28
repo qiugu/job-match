@@ -1,3 +1,5 @@
+import { sanitizeResumeHtml } from "@/lib/sanitize";
+
 const HTML_TAG_REGEX = /<\/?[a-z][\s\S]*>/i;
 const EMPTY_PARAGRAPH_REGEX = /<p>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>/gi;
 const HTML_BREAK_REGEX = /<br\s*\/?>/gi;
@@ -23,8 +25,23 @@ const escapeHtml = (text: string) =>
 
 const decorateRichTextAnchors = (content: string) =>
   content.replace(RICH_TEXT_ANCHOR_REGEX, (match, attrs: string) => {
+    // S2 修复：原实现只补 class，从不校验 href。这里用 normalizeLinkHref 规范化协议
+    // （// → https:、裸域名 → https://、javascript:/data: 等危险协议返回 null），
+    // 危险链接直接剥离 <a> 仅保留文本。
+    const hrefMatch = /href\s*=\s*"([^"]*)"|href\s*=\s*'([^']*)'/i.exec(attrs);
+    const safeHref = hrefMatch ? normalizeLinkHref(hrefMatch[1] ?? hrefMatch[2]) : null;
+
+    if (hrefMatch && !safeHref) {
+      return match.replace(/^<a\b[^>]*>/i, "").replace(/<\/a>/i, "");
+    }
+
+    let result = match;
+    if (safeHref) {
+      result = result.replace(/href\s*=\s*("([^"]*)"|'([^']*)')/i, `href="${safeHref}"`);
+    }
+
     if (CLASS_ATTRIBUTE_REGEX.test(attrs)) {
-      return match.replace(CLASS_ATTRIBUTE_REGEX, (_classMatch, quotedValue, doubleQuoted, singleQuoted) => {
+      result = result.replace(CLASS_ATTRIBUTE_REGEX, (_classMatch, quotedValue, doubleQuoted, singleQuoted) => {
         const currentValue = doubleQuoted ?? singleQuoted ?? quotedValue ?? "";
         const classes = currentValue.split(/\s+/).filter(Boolean);
 
@@ -34,9 +51,11 @@ const decorateRichTextAnchors = (content: string) =>
 
         return `class="${classes.join(" ")}"`;
       });
+    } else {
+      result = result.replace(/^<a\b/i, '<a class="rich-text-link"');
     }
 
-    return `<a class="rich-text-link"${attrs}>`;
+    return result;
   });
 
 export const stripLegacyRichTextClasses = (content?: string) => {
@@ -111,11 +130,13 @@ export const normalizeRichTextContent = (content?: string) => {
     normalized = escapeHtml(content).replace(/\r\n|\r|\n/g, "<br />");
   }
 
-  return decorateRichTextAnchors(
-    stripTrailingListParagraph(stripLegacyRichTextClasses(normalized))
-  ).replace(
-    EMPTY_PARAGRAPH_REGEX,
-    "<p><br /></p>"
+  // S2 修复：Tiptap 富文本可能携带原始 HTML（用户粘贴 / 含标签内容）。原实现在「含 HTML
+  // 标签即完全信任」分支下不做任何清洗，直接 dangerouslySetInnerHTML。这里在返回前做白名单
+  // 清洗，剥离 <script> / 事件处理器 / 危险协议（normalizeLinkHref 已在上方拦截危险链接）。
+  return sanitizeResumeHtml(
+    decorateRichTextAnchors(
+      stripTrailingListParagraph(stripLegacyRichTextClasses(normalized))
+    ).replace(EMPTY_PARAGRAPH_REGEX, "<p><br /></p>")
   );
 };
 
