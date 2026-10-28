@@ -57,7 +57,7 @@ permissions:
 jobs:
   deploy:
     name: Deploy
-    # 镜像在目标服务器本地构建，复用 Docker 层缓存，避免跨公网传输约 900MB 归档。
+    # 镜像在目标服务器本地构建（--no-cache 全量重建，避免复用陈旧构建层导致旧源码被编译），避免跨公网传输约 900MB 归档。
     timeout-minutes: 180
     runs-on: ubuntu-latest
     # 避免因密钥缺失导致静默成功
@@ -133,10 +133,19 @@ jobs:
 
           # 排除：git、依赖、构建产物、隔离工作树、数据库、本地 .env（服务器 .env 为唯一真相）。
           # .worktrees 可能包含多个完整 node_modules/venv，不能随代码上传。
+          #
+          # ⚠ 禁止添加 --append / --append-verify。
+          #   这两个选项的语义是「接收端文件是发送端文件的**前缀**」，只适用于续传同一份
+          #   文件；用于代码树同步时，凡是本次**变短**的文件（接收端反而更长）会被整份跳过，
+          #   服务器上永久停留在旧版本，且 rsync 不报任何错误。
+          #   2026-10-28 的部署事故即由此引起：frontend/src/components/analytics/options.ts
+          #   从 12707 字节缩到 12638 后一直被跳过，而同目录的 tokens.ts 变长被正常更新，
+          #   服务器上形成「新 tokens.ts + 旧 options.ts」的混合代码树，镜像构建报
+          #   `"BRAND_ACCENT" is not exported by "src/components/analytics/tokens.ts"`。
+          #   断点续传由 --partial（保留半截文件，下次按 delta 算法续传）承担，已足够。
           RSYNC_ARGS=(
             -az
             --partial
-            --append-verify
             --timeout=60
             --info=progress2,stats2
             --exclude '.git/' \
@@ -188,6 +197,25 @@ jobs:
             fi
           fi
           echo "    上传完成"
+
+          # ---------- 上传后一致性校验（后置条件，防「静默偏离」） ----------
+          # 为什么需要：rsync 的「快速检查」只看 大小 + mtime，一旦某次传输因参数或中断
+          # 导致部分文件未落盘，服务器上就是混合代码树，而后续每次 rsync 都「看起来成功」，
+          # 只有等 docker build 报一个与该文件毫不相干的错误时才暴露（见 2026-10-28）。
+          # 这里以 --checksum 空跑一次作断言：内容层面仍有待传文件 ⇒ 立即失败。
+          # 只统计内容差异（>fc / >f.s 等），忽略「仅时间戳不同」（>f..t）这类正常抖动。
+          echo "==> 校验上传完整性（--checksum 空跑，期望零内容差异）"
+          drift_list="$(rsync --dry-run --checksum --itemize-changes -e "$RSYNC_SSH" "${RSYNC_ARGS[@]}" ./ "$REMOTE/" \
+            | grep -E '^>f' | grep -vE '^>f\.\.t' || true)"
+          if [[ -n "$drift_list" ]]; then
+            echo "::error::上传后服务器仍有文件与发送端内容不一致（共 $(printf '%s\n' "$drift_list" | wc -l) 项）：" >&2
+            printf '%s\n' "$drift_list" | head -n 20 >&2
+            echo "    rsync 参数或链路不满足幂等同步语义，拒绝用混合代码树构建镜像。" >&2
+            echo "    典型成因：曾使用 --append/--append-verify 导致「变短文件被跳过」；" >&2
+            echo "    处置：在服务器删除上述文件后重跑部署，或在服务器侧对同一目录做一次全量比对。" >&2
+            exit 1
+          fi
+          echo "    一致性校验通过（无待传文件）"
         env:
           DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
 
@@ -201,9 +229,15 @@ jobs:
           SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -T -i ~/.ssh/id_deploy)
           RP=$(printf '%q' "$REMOTE_PATH")
 
-          echo "==> 保持现有服务运行，在服务器本地构建 backend/frontend（复用 Docker 层缓存）"
-          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build backend"
-          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build frontend"
+          # 清理可能残留的编译产物：src 下不应有任何 .js/.js.map（源码全是 .ts/.tsx）。
+          # 若有陈旧 .js（如 tokens.js）留在远端，Vite 的 resolve.extensions 会优先解析 .js 而非
+          # .ts，导致「旧源码被编译」——这正是此前部署报 BRAND_ACCENT 未导出的根因。
+          echo "==> 清理远端 frontend/src 下可能残留的陈旧编译产物（*.js / *.js.map）"
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "find ${RP}/frontend/src -type f \( -name '*.js' -o -name '*.js.map' \) -delete 2>/dev/null || true"
+
+          echo "==> 在服务器本地构建 backend/frontend（--no-cache 强制全量重建，避免复用陈旧构建层）"
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build --no-cache backend"
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build --no-cache frontend"
           echo "    服务器镜像构建完成"
 
       # ---------- 第 4 步：服务器端 .env 与数据库迁移（对应 deploy.sh [4/5]） ----------
