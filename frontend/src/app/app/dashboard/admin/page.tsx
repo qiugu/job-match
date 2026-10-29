@@ -19,6 +19,7 @@ import {
   type AdminDashboard,
 } from "@/lib/admin";
 import { EChart } from "@/components/analytics/EChart";
+import { AdminAiSection } from "@/components/analytics/AdminAiSection";
 import { useAuthStore } from "@/store/useAuthStore";
 import type { ChartTokens } from "@/components/analytics/tokens";
 import type { EChartsOption } from "echarts";
@@ -55,7 +56,8 @@ function MetricCard({
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+/** 分段标签（导出给 AI 观测段复用，保证同页分段样式只有一处定义）。 */
+export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="mb-3 flex items-center gap-2 px-1">
       <span className="size-1.5 rounded-full bg-cobalt" aria-hidden="true" />
@@ -280,6 +282,8 @@ export default function AdminPage() {
                 </section>
               </div>
             </section>
+
+            <AdminAiSection days={range} />
           </div>
         ) : (
           <div className="flex h-full items-center justify-center text-[13px] text-xai-mute">{t("adminEmpty")}</div>

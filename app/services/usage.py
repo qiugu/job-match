@@ -16,6 +16,7 @@
 """
 from __future__ import annotations
 
+import json
 import threading
 import time
 from contextlib import asynccontextmanager, contextmanager
@@ -201,6 +202,8 @@ async def track_llm(
     user_id: str = "",
     model: str = "",
     match_run_id: str | None = None,
+    prompt_version: str = "",
+    detail_ref: dict | None = None,
 ) -> AsyncIterator[None]:
     """记录一次业务端点调用的 LLM 用量。
 
@@ -208,6 +211,18 @@ async def track_llm(
 
         async with track_llm(ENDPOINT_MATCH, user_id=user.id):
             result = await run_match(...)
+
+    需要记录端点级诊断摘要时，额外传一个**可变空字典**作为 `detail_ref`，
+    在事务体内把统计结果 `update()` 进去，退出时统一落库：
+
+        stats: dict = {}
+        async with track_llm(ENDPOINT_AI_TRANSLATE, user_id=user.id, detail_ref=stats):
+            translated = await ai_proxy.translate_fields(...)
+            stats.update(ai_proxy.summarize_translation(fields, translated))
+
+    之所以用可变容器而不是返回值：统计只有在业务调用**之后**才知道，而台账写入
+    发生在 `finally`，容器是唯一能跨越这两个时点的通道，且不给业务函数增加返回值
+    负担（`translate_fields` 的签名对既有调用方保持不变）。
 
     无论内部成功还是抛异常都会落库（异常时 status=error 并保留异常类名），
     随后原样向上抛出，不改变既有错误处理语义。
@@ -248,7 +263,37 @@ async def track_llm(
             status=status,
             error_type=error_type,
             match_run_id=match_run_id,
+            prompt_version=prompt_version,
+            detail=serialize_detail(detail_ref),
         )
+
+
+# detail 列的硬上限：观测页要读它，但台账不该被长简历撑爆（SQLite 行越大越慢）。
+_DETAIL_MAX_BYTES = 8 * 1024
+
+
+def serialize_detail(detail: dict | None) -> str:
+    """把端点的结构化摘要序列化为 JSON 文本，超限时逐级降级。
+
+    降级顺序刻意保留「计数」丢弃「明细」：页面最需要的是「几项未变化、哪一类」，
+    而不变 key 的全量列表只是辅助。任何一级降级后仍是合法 JSON——页面直接
+    `json.loads` 即可，不需要为截断单独写容错分支。
+    """
+    if not detail:
+        return ""
+    text = json.dumps(detail, ensure_ascii=False)
+    if len(text.encode("utf-8")) <= _DETAIL_MAX_BYTES:
+        return text
+
+    # 第一级：丢掉最长的明细列表，保留计数与分组
+    trimmed = {k: v for k, v in detail.items() if k != "unchangedKeys"}
+    trimmed["truncated"] = True
+    text = json.dumps(trimmed, ensure_ascii=False)
+    if len(text.encode("utf-8")) <= _DETAIL_MAX_BYTES:
+        return text
+
+    # 第二级：兜底骨架，保证「有记录但明细不可用」仍可区分于「无记录」
+    return json.dumps({"truncated": True}, ensure_ascii=False)
 
 
 async def record_llm_usage(
@@ -263,6 +308,8 @@ async def record_llm_usage(
     status: str = USAGE_STATUS_SUCCESS,
     error_type: str = "",
     match_run_id: str | None = None,
+    prompt_version: str = "",
+    detail: str = "",
 ) -> None:
     """写入一条用量记录（独立短事务，失败只记日志）。
 
@@ -283,6 +330,8 @@ async def record_llm_usage(
                     status=status,
                     error_type=error_type,
                     match_run_id=match_run_id,
+                    prompt_version=prompt_version,
+                    detail=detail,
                 )
             )
             await db.commit()

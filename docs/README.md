@@ -23,6 +23,9 @@
 | `FIX_editor_heading_rhythm.md` | 编辑态标题垂直节奏：`.tiptap` 间距按 4px 栅格重排（含前后对比与回归测试约定）                  | 已落地         |
 | `FIX_editor_align_scope.md`    | 编辑态对齐作用域：整块对齐的合理性论证、工具栏高亮缺陷、配对行压平缺陷（含前后对比与回归测试） | 已落地         |
 | `PLAN_editor_align_selection.md` | 选中文字对齐：改为「包裹选区」语义（单块内部分选区只包裹选中文字；配对按钮方案已作废）             | 已落地         |
+| `PLAN_resume_translate.md`     | 简历内容翻译：键值映射、字段清单、三档专名策略、中英双向与积分裁决                             | 已实现         |
+| `FIX_translate_proper_nouns.md` | 翻译静默漏译复盘：学校名/项目名被「专名保留」规则整类吞掉（双向实测证据 + 分组护栏）           | 已落地         |
+| `PLAN_ai_observability.md`     | AI 可观测性：翻译台账落 detail/prompt 版本，接入 analytics 与 admin 观测页                      | 已落地         |
 | `screenshots/`                 | README「界面预览」截图（landing / workbench / jobs / analytics，WebP，虚构演示数据）            | 随 UI 变更更新 |
 | `review/`                      | 全量代码评审（4 分册 + 总览）：安全隔离 / 前端 / 工程设施 / 文档一致性，含问题 ID 与验收标准     | 2026-10-27 评审 |
 

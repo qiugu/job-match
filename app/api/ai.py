@@ -8,11 +8,12 @@ from __future__ import annotations
 import json
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_db
 from app.core.logging import get_logger
 from app.models.llm_usage import (
     ENDPOINT_AI_GRAMMAR,
@@ -21,7 +22,7 @@ from app.models.llm_usage import (
     ENDPOINT_AI_TRANSLATE,
 )
 from app.models.user import User
-from app.services import ai_proxy
+from app.services import ai_proxy, ai_stats
 from app.services.usage import track_llm
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -142,9 +143,19 @@ async def translate(req: TranslateRequest, user: User = Depends(get_current_user
     total_chars = sum(len(v) for v in req.fields.values())
     if total_chars > TRANSLATE_MAX_TOTAL_CHARS:
         return {"error": {"message": "fields 总长度超限", "code": "BadRequest"}}
+    # 统计在调用之后才知道，所以先备一个可变容器，由台账在 finally 统一落库
+    stats: dict = {}
     try:
-        async with track_llm(ENDPOINT_AI_TRANSLATE, user_id=user.id):
+        async with track_llm(
+            ENDPOINT_AI_TRANSLATE,
+            user_id=user.id,
+            prompt_version=ai_proxy.TRANSLATE_PROMPT_VERSION,
+            detail_ref=stats,
+        ):
             translated = await ai_proxy.translate_fields(req.fields, req.targetLang)
+            stats.update(
+                ai_proxy.summarize_translation(req.fields, translated, req.targetLang)
+            )
     except ValueError as e:
         return {"error": {"message": str(e), "code": "BadRequest"}}
     except RuntimeError as e:
@@ -154,3 +165,35 @@ async def translate(req: TranslateRequest, user: User = Depends(get_current_user
         logger.exception("简历翻译调用失败: %s", e)
         return {"error": {"message": str(e)}}
     return {"fields": translated}
+
+
+# ---------- 观测：把翻译台账读回页面 ----------
+#
+# 台账写进了 llm_usage，但如果没人读，「哪个字段没译、哪类字段整组没译」依然要靠猜。
+# 这两个端点只读不写，且只返回字段路径与计数（无简历正文）。
+
+
+@router.get("/translate/observability", summary="翻译端点可观测性统计")
+async def translate_observability(
+    days: int = 30,
+    tz_offset: int = 480,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """当前用户自己的翻译记录（KPI / 按日趋势 / 未变化分组 / 最近调用）。"""
+    return await ai_stats.compute_translation_observability(
+        db, days=days, tz_offset=tz_offset, user_id=user.id
+    )
+
+
+@router.get("/translate/observability/calls/{call_id}", summary="单次翻译调用详情")
+async def translate_call_detail(
+    call_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """单次明细；他人记录与学生无关的统一返回 404（不泄露存在性）。"""
+    result = await ai_stats.get_translation_call_detail(db, call_id, user_id=user.id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="翻译记录不存在")
+    return result

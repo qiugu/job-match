@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_admin_user, get_db
 from app.models.site_visit import SiteVisit
+from app.services import ai_stats
 from app.services.admin_stats import build_admin_dashboard
 
 router = APIRouter(tags=["admin"])
@@ -45,3 +46,33 @@ async def admin_dashboard(
     if days not in (7, 30, 90):
         raise HTTPException(status_code=422, detail="days 仅支持 7、30 或 90")
     return await build_admin_dashboard(db, days)
+
+
+# AI 端点白名单：与 models/llm_usage.py 的 ENDPOINT_* 常量对齐，
+# 避免把一个拼错的 endpoint 当成「某端点零调用」静默返回空数据。
+AI_ENDPOINTS = {
+    "match",
+    "cover_letter",
+    "ai.polish",
+    "ai.grammar",
+    "ai.resume_import",
+    "ai.translate",
+}
+
+
+@router.get("/api/admin/ai/observability", summary="AI 端点跨用户观测")
+async def admin_ai_observability(
+    days: int = 30,
+    tz_offset: int = 480,
+    endpoint: str | None = None,
+    _: object = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """管理员视角：跨用户调用量、失败清单与最近调用（含翻译字段摘要）。"""
+    if days not in (7, 30, 90):
+        raise HTTPException(status_code=422, detail="days 仅支持 7、30 或 90")
+    if endpoint is not None and endpoint not in AI_ENDPOINTS:
+        raise HTTPException(status_code=422, detail="不支持的 endpoint")
+    return await ai_stats.compute_global_ai_observability(
+        db, days=days, tz_offset=tz_offset, endpoint=endpoint
+    )

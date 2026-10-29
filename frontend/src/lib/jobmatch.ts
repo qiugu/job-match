@@ -680,3 +680,135 @@ export async function getMatchObservability(
 export async function getMatchRunDetail(runId: string): Promise<MatchRunDetail> {
   return request(`/api/derived-resumes/observability/runs/${runId}`);
 }
+
+// ---------- AI 翻译可观测性 ----------
+// 口径与后端 app/services/ai_stats.py 对齐：字段统计来自 llm_usage.detail，
+// 只含字段路径与计数，不含简历正文。
+export interface TranslationSummary {
+  target_lang: string | null;
+  fields_total: number;
+  fields_translated: number;
+  fields_unchanged: number;
+  fields_missing: number;
+}
+
+export type AiCallStatus = "success" | "error" | "running";
+
+export interface AiCallSummary {
+  id: string;
+  endpoint: string;
+  user_id: string;
+  status: AiCallStatus;
+  error_type: string | null;
+  model: string;
+  latency_ms: number;
+  total_tokens: number;
+  /** 生效 prompt 指纹：用来判断「行为变了」是不是「指令变了」导致 */
+  prompt_version: string | null;
+  created_at: string | null;
+  /** false 表示旧记录（观测上线前），页面应显示「无明细」而不是「0 字段」 */
+  detail_available: boolean;
+  summary: TranslationSummary | null;
+}
+
+export interface TranslationDailyPoint {
+  date: string;
+  total: number;
+  success: number;
+  error: number;
+  total_tokens: number;
+}
+
+export interface TranslationObservability {
+  range: JobStatsRange;
+  scope: "self" | "global";
+  overview: {
+    total: number;
+    success: number;
+    error: number;
+    success_rate: number;
+    avg_latency_ms: number | null;
+    p95_latency_ms: number | null;
+    total_tokens: number;
+    fields_total: number;
+    fields_translated: number;
+    fields_unchanged: number;
+    fields_missing: number;
+    unchanged_rate: number;
+    avg_fields_per_call: number | null;
+  };
+  daily: TranslationDailyPoint[];
+  unchanged_groups: Array<{ group: string; count: number }>;
+  recent_calls: AiCallSummary[];
+}
+
+export interface TranslationCallDetail {
+  call: AiCallSummary;
+  detail: Record<string, unknown> | null;
+  unchanged_keys: string[];
+  unchanged_keys_truncated: number;
+  truncated: boolean;
+}
+
+export interface AdminAiEndpointRow {
+  endpoint: string;
+  calls: number;
+  success: number;
+  error: number;
+  total_tokens: number;
+  success_rate: number;
+  avg_latency_ms: number | null;
+}
+
+export interface AdminAiObservability {
+  range: JobStatsRange;
+  overview: {
+    total: number;
+    success: number;
+    error: number;
+    total_tokens: number;
+    endpoints: number;
+  };
+  endpoints: AdminAiEndpointRow[];
+  failures: AiCallSummary[];
+  recent_calls: AiCallSummary[];
+}
+
+function observabilityParams(
+  days: AnalyticsDays | number,
+  tzOffset?: number
+): URLSearchParams {
+  const params = new URLSearchParams({ days: String(days) });
+  params.set(
+    "tz_offset",
+    String(
+      tzOffset ?? (typeof window !== "undefined" ? -new Date().getTimezoneOffset() : 480)
+    )
+  );
+  return params;
+}
+
+export async function getTranslationObservability(
+  days: AnalyticsDays | number = 30,
+  tzOffset?: number
+): Promise<TranslationObservability> {
+  return request(
+    `/api/ai/translate/observability?${observabilityParams(days, tzOffset).toString()}`
+  );
+}
+
+export async function getTranslationCallDetail(
+  callId: string
+): Promise<TranslationCallDetail> {
+  return request(`/api/ai/translate/observability/calls/${callId}`);
+}
+
+export async function getAdminAiObservability(
+  days: AnalyticsDays | number = 30,
+  tzOffset?: number,
+  endpoint?: string
+): Promise<AdminAiObservability> {
+  const params = observabilityParams(days, tzOffset);
+  if (endpoint) params.set("endpoint", endpoint);
+  return request(`/api/admin/ai/observability?${params.toString()}`);
+}

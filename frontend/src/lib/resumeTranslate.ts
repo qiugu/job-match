@@ -36,6 +36,13 @@ type FieldSetter = (value: string) => void;
  * 刻意不包含：所有 id、createdAt/updatedAt、templateId、globalSettings、
  * photoConfig、日期字符串、gpa、邮箱/电话/URL、certificates、
  * menuSections 的 order/enabled/icon——这些非文本配置不上传 LLM。
+ *
+ * 注意：本模块只决定「发不发」，不决定「怎么译」——翻译策略在后端
+ * `TRANSLATE_SYSTEM`（见 docs/PLAN_resume_translate.md §2.4 的三档策略表）：
+ * 学校名/项目名必须本地化，公司名/人名/纯代号保留原文。**新增字段时必须同步
+ * 确认后端策略档位**，否则会出现「进了清单却整类原样返回」的静默漏译
+ * （2026-10-29 修复：`school` 与 `projects.name` 曾因 prompt 的专名保留规则
+ * 在英译中方向 100% 未翻译，详见 docs/FIX_translate_proper_nouns.md）。
  */
 function forEachTranslatableField(
   resume: ResumeData,
