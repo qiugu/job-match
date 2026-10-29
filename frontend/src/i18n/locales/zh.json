@@ -1277,8 +1277,7 @@
       "alignLeft": "左对齐",
       "alignCenter": "居中对齐",
       "alignRight": "右对齐",
-      "alignNone": "取消对齐（默认）",
-      "alignPair": "同行左右分列（左列 | 右列）"
+      "alignNone": "取消对齐（默认）"
     },
     "typeset": {
       "title": "排版设置",

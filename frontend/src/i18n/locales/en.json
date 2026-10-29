@@ -1275,8 +1275,7 @@
       "alignLeft": "Align left",
       "alignCenter": "Align center",
       "alignRight": "Align right",
-      "alignNone": "Clear alignment",
-      "alignPair": "Left-right columns"
+      "alignNone": "Clear alignment"
     },
     "typeset": {
       "title": "Typeset",

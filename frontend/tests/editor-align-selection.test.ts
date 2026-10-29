@@ -1,413 +1,320 @@
 import { describe, expect, it } from "vitest";
 import { getSchema } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import {
-  Align,
-  getPairAction,
-  planPairLayout,
-  splitBlockFragments,
-} from "@/components/editor/extensions/align";
+import { Align, splitBlockFragments } from "@/components/editor/extensions/align";
+import { renderMarkdownToHtml } from "@/utils/markdownRender";
 
 /**
- * 「同行左右分列」按钮的交互契约测试（2026-10-28）。
+ * 「包裹选区」语义的节点级契约（2026-10-29）。
  *
- * 契约来源：docs/PLAN_editor_align_selection.md（用户拍板：对齐按钮语义不动，
- * 新增按钮用既有 :::left / :::right 语法一键生成同行左右分列）：
- *   行 1 部分选区（单块内）→ [前缀 | 选中] 左右分列，后缀顺延下一段
- *   行 2 光标在行中间      → 在光标处拆 [光标前 | 光标后]
- *   行 3 跨两个相邻顶层块  → 上段左列、下段右列（内容不动）
- *   行 4 落在已有配对行    → toggle 合并回单段
- *   行 5 整块选区/行首行尾光标/嵌套块 → 按钮禁用
+ * 契约来源：docs/PLAN_editor_align_selection.md。
+ * 一句话语义：**单块内的部分选区 → 只把选中的文字拆成独立对齐块**，
+ * 前后片段原样保留；其余路径（光标 / 整块 / 跨块 / 嵌套）回落块级语义
+ * （由 editor-align-scope.test.ts 钉住）。
  *
- * 分层：本文件在 node 环境用**真实 schema/doc/Fragment**（@tiptap/core re-export，
- * 无需 prosemirror 直依赖）验证纯函数与命令产物；DOM/序列化端到端由
+ * 分层：本文件在 node 环境用**真实 schema / doc / Fragment**（经 @tiptap/core
+ * re-export）验证命令产物；DOM 与序列化端到端由
  * frontend/scripts/editor-probe/ 在真实 Chromium 中验证（vitest 无 jsdom）。
  */
 
 // Align 一并喂给 getSchema，paragraph/heading 才带 align 全局属性
 const schema = getSchema([StarterKit, Align]);
-const p = (text: string, attrs: Record<string, unknown> = {}) =>
+const para = (text: string, attrs: Record<string, unknown> = {}) =>
   schema.nodes.paragraph.create({ align: null, ...attrs }, text ? schema.text(text) : null);
-const h = (text: string, attrs: Record<string, unknown> = {}) =>
-  schema.nodes.heading.create({ align: null, level: 2, ...attrs }, text ? schema.text(text) : null);
+const heading = (text: string, level = 2, attrs: Record<string, unknown> = {}) =>
+  schema.nodes.heading.create({ level, align: null, ...attrs }, text ? schema.text(text) : null);
 const docOf = (...blocks: any[]) => schema.nodes.doc.create(null, blocks);
+const blockquote = (...blocks: any[]) => schema.nodes.blockquote.create(null, blocks);
 
-// Fragment 没有 textContent（那是 Node 的属性），取文本用 textBetween
-const fragText = (f: any): string | null => (f ? f.textBetween(0, f.size, "") : null);
+/** 文档中第 index 个顶层块的起始位置（ProseMirror 坐标） */
+const blockPos = (docNode: any, index: number) => {
+  let pos = 0;
+  for (let i = 0; i < index; i++) pos += docNode.child(i).nodeSize;
+  return pos;
+};
+
+interface Applied {
+  from: number;
+  to: number;
+  nodes: any[];
+}
 
 /**
- * 用真实 ResolvedPos 伪装 selection（vitest 无 jsdom，不建完整 EditorState）。
- * 注意：传入的是 **doc 坐标**；单块文档中内容从 pos 1 开始（contentStart = pos + 1）。
+ * 最小 state / tr：
+ * - `$from` / `$to` 用真实 `doc.resolve()`（Resolve 提供 depth / node / before）；
+ * - `tr` 只记录 replaceWith / setNodeMarkup，不构造真实 Transform
+ *   （pnpm 隔离下 prosemirror-transform 不可直接解析，已实测）。
  */
-const sel = (doc: any, from: number, to = from) => ({
-  empty: from === to,
-  from,
-  to,
-  $from: doc.resolve(from),
-  $to: doc.resolve(to),
-  map: () => ({ empty: true }), // 事务里 setSelection 的占位
-});
+const makeHarness = (docNode: any, from: number, to: number) => {
+  const $from = docNode.resolve(from);
+  const $to = docNode.resolve(to);
+  const selection: any = { empty: from === to, from, to, $from, $to };
+  selection.map = () => selection;
 
-const options = { types: ["paragraph", "heading"] };
-// 鸭子类型 harness：命令经 addCommands.call 注入 options（与 editor-align-scope 同模式）。
-// as any 规避 Tiptap 配置对象的严格 this/可选性检查 —— 仅测试用，运行时行为由用例断言。
-const commands: any = (Align.config.addCommands as any).call({ options });
-
-/** 命令级 harness：真实 doc/节点 + 记录型 tr（参照 editor-align-scope.test.ts） */
-const runCommand = (name: "setAlignPair" | "toggleAlignPair", doc: any, selection: any) => {
-  const calls: { replaceWith: any[][]; setNodeMarkup: any[][]; setSelection: number } = {
-    replaceWith: [],
-    setNodeMarkup: [],
-    setSelection: 0,
-  };
+  const replaced: Applied[] = [];
+  const markups: Array<{ pos: number; attrs: Record<string, unknown> }> = [];
   const tr = {
-    doc,
+    doc: docNode,
     mapping: {},
-    replaceWith: (...args: any[]) => calls.replaceWith.push(args),
-    setNodeMarkup: (...args: any[]) => calls.setNodeMarkup.push(args),
-    setSelection: () => {
-      calls.setSelection += 1;
+    replaceWith(start: number, end: number, nodes: any) {
+      replaced.push({ from: start, to: end, nodes: Array.isArray(nodes) ? nodes : [nodes] });
+    },
+    setNodeMarkup(pos: number, _type: unknown, attrs: Record<string, unknown>) {
+      markups.push({ pos, attrs });
+    },
+    setSelection() {
+      /* no-op：选区回落不影响本文件的断言 */
     },
   };
-  const state = { doc, selection, schema };
-  const changed = commands[name]()({ state, tr, dispatch: true });
-  return { changed, calls };
+
+  return { state: { doc: docNode, selection }, tr, replaced, markups };
+};
+
+const options = { types: ["paragraph", "heading"] };
+const commands = (Align.config.addCommands as any).call({ options });
+
+const runAlign = (
+  align: string | null,
+  docNode: any,
+  from: number,
+  to: number
+) => {
+  const h = makeHarness(docNode, from, to);
+  const changed = (align ? commands.setAlign(align) : commands.unsetAlign())({
+    state: h.state,
+    tr: h.tr,
+    dispatch: true,
+  });
+  return { changed, ...h };
 };
 
 // =====================================================================
-// 一、splitBlockFragments：Fragment 三切（marks 保留、边界空白修剪）
+// 一、三切（纯节点运算）
 // =====================================================================
-describe("splitBlockFragments：按相对偏移三切 textblock 内容", () => {
-  it("选区在行尾 → [前缀 | 选中]，无后缀", () => {
-    const node = p("字节跳动 · 高级前端工程师 2021.07 – 2024.12");
-    // 「2021」起始偏移：前缀含尾随空格，修剪后不带入列内容
-    const fromRel = node.content.size - "2021.07 – 2024.12".length;
-    const { prefix, middle, suffix } = splitBlockFragments(node, fromRel, node.content.size);
-    expect(fragText(prefix)).toBe("字节跳动 · 高级前端工程师");
-    expect(fragText(middle)).toBe("2021.07 – 2024.12");
-    expect(suffix).toBeNull();
+
+describe("splitBlockFragments：按选区三切并修剪两端空白", () => {
+  const text = "公司 职位 日期"; // 0公 1司 2空格 3职 4位 5空格 6日 7期
+  const node = para(text);
+
+  const pieceText = (piece: any) => (piece ? piece.textBetween(0, piece.size, "") : null);
+
+  it("中间选区 → 前缀 / 选中 / 后缀 三段齐全，剪掉边界空格", () => {
+    const cut = splitBlockFragments(node, 3, 5);
+    expect(pieceText(cut.prefix)).toBe("公司");
+    expect(pieceText(cut.middle)).toBe("职位");
+    expect(pieceText(cut.suffix)).toBe("日期");
   });
 
-  it("选区在行首 → 无前缀；选区在行中 → 三段俱全", () => {
-    const node = p("ABCDE");
-    const head = splitBlockFragments(node, 0, 2);
-    expect(head.prefix).toBeNull();
-    expect(fragText(head.middle)).toBe("AB");
-    expect(fragText(head.suffix)).toBe("CDE");
-
-    const mid = splitBlockFragments(node, 1, 3);
-    expect(fragText(mid.prefix)).toBe("A");
-    expect(fragText(mid.middle)).toBe("BC");
-    expect(fragText(mid.suffix)).toBe("DE");
+  it("选区贴行首 → 没有前缀", () => {
+    const cut = splitBlockFragments(node, 0, 3);
+    expect(cut.prefix).toBeNull();
+    expect(pieceText(cut.middle)).toBe("公司");
+    expect(pieceText(cut.suffix)).toBe("职位 日期");
   });
 
-  it("接缝空白随修剪丢弃：选中前后各留干净内容", () => {
-    const node = p("left   mid   right");
-    // 选中「   mid   」（含两侧空格）→ 三段内容都不得残留边界空白
-    const { prefix, middle, suffix } = splitBlockFragments(node, 4, 12);
-    expect(fragText(prefix)).toBe("left");
-    expect(fragText(middle)).toBe("mid");
-    expect(fragText(suffix)).toBe("right");
+  it("选区贴行尾 → 没有后缀", () => {
+    const cut = splitBlockFragments(node, 5, 8);
+    expect(pieceText(cut.prefix)).toBe("公司 职位");
+    expect(pieceText(cut.middle)).toBe("日期");
+    expect(cut.suffix).toBeNull();
   });
 
-  it("行内标记（bold 等）随 Fragment.cut 留在原侧", () => {
-    const bold = schema.marks.bold.create();
-    const node = schema.nodes.paragraph.create(
-      null,
-      schema.text("公司日期", [bold]) // 全程 bold，切割后各自保持
-    );
-    const cutAt = 2;
-    const { prefix, middle } = splitBlockFragments(node, cutAt, node.content.size);
-    expect(fragText(prefix)).toBe("公司");
-    expect(fragText(middle)).toBe("日期");
-    expect(middle?.firstChild?.marks?.some((m: any) => m.type.name === "bold")).toBe(true);
-  });
-
-  it("纯空白选区修剪后为空 → middle 为 null（命令层退化为光标拆或拒绝）", () => {
-    const node = p("AB  CD");
-    const { middle } = splitBlockFragments(node, 2, 4);
-    expect(middle).toBeNull();
+  it("纯空白选区 → 中间为空（调用方据此回落块级语义）", () => {
+    const cut = splitBlockFragments(node, 2, 3); // 只有一个空格
+    expect(cut.middle).toBeNull();
   });
 });
 
 // =====================================================================
-// 二、planPairLayout：配对布局决策表
+// 二、命令：包裹选区
 // =====================================================================
-describe("planPairLayout：片段归属与对齐的决策表", () => {
-  it("行 1：部分选区（选中在行尾）→ [前缀 left | 选中 right]", () => {
-    expect(planPairLayout(true, true, false, null)).toEqual([
-      { part: "prefix", align: "left" },
-      { part: "middle", align: "right" },
-    ]);
+
+describe("setAlign 包裹选区：只让选中的文字获得对齐", () => {
+  const text = "公司 职位 日期";
+  const node = para(text);
+  const docNode = docOf(node);
+  const contentStart = 1; // 单段文档：段落起始 0，内容从 1 开始
+  const rel = (offset: number) => contentStart + offset;
+
+  it("中间选区 → 拆 3 段，只有中间段写入目标对齐", () => {
+    const { changed, replaced } = runAlign("right", docNode, rel(3), rel(5));
+    expect(changed).toBe(true);
+    expect(replaced).toHaveLength(1);
+    expect(replaced[0].nodes).toHaveLength(3);
+
+    const [prefix, middle, suffix] = replaced[0].nodes;
+    expect(prefix.textContent).toBe("公司");
+    expect(middle.textContent).toBe("职位");
+    expect(suffix.textContent).toBe("日期");
+    expect(middle.attrs.align).toBe("right");
+    // 前后片段回到默认对齐（原块无对齐）
+    expect(prefix.attrs.align).toBeNull();
+    expect(suffix.attrs.align).toBeNull();
   });
 
-  it("行 1 变体：选中在行中，后缀顺延并继承原对齐", () => {
-    expect(planPairLayout(true, true, true, "right")).toEqual([
-      { part: "prefix", align: "left" },
-      { part: "middle", align: "right" },
-      { part: "suffix", align: "right" }, // 继承原块对齐
-    ]);
+  it("替换区间恰好覆盖原块（单条 undo，不残留旧块）", () => {
+    const { replaced } = runAlign("right", docNode, rel(3), rel(5));
+    expect(replaced[0].from).toBe(0);
+    expect(replaced[0].to).toBe(node.nodeSize);
   });
 
-  it("选中贴行首 → 镜像布局 [选中 left | 后缀 right]（空左列合不出同行，取镜像）", () => {
-    expect(planPairLayout(false, true, true, null)).toEqual([
-      { part: "middle", align: "left" },
-      { part: "suffix", align: "right" },
-    ]);
+  it("选区贴行尾 → 只拆 2 段（前缀 + 选中）", () => {
+    const { replaced } = runAlign("right", docNode, rel(5), rel(8));
+    expect(replaced[0].nodes.map((n: any) => n.textContent)).toEqual(["公司 职位", "日期"]);
+    expect(replaced[0].nodes[1].attrs.align).toBe("right");
   });
 
-  it("行 2：光标拆 → [光标前 left | 光标后 right]", () => {
-    expect(planPairLayout(true, false, true, null)).toEqual([
-      { part: "prefix", align: "left" },
-      { part: "suffix", align: "right" },
-    ]);
+  it("选区贴行首 → 只拆 2 段（选中 + 后缀）", () => {
+    const { replaced } = runAlign("right", docNode, rel(0), rel(2));
+    expect(replaced[0].nodes.map((n: any) => n.textContent)).toEqual(["公司", "职位 日期"]);
+    expect(replaced[0].nodes[0].attrs.align).toBe("right");
   });
 
-  it("原块居中时左列保持 center（预览 alignPairRow 允许 center+right）", () => {
-    expect(planPairLayout(true, true, false, "center")).toEqual([
-      { part: "prefix", align: "center" },
-      { part: "middle", align: "right" },
-    ]);
+  it("标题拆分保留级别（heading level 不被拆丢）", () => {
+    const head = heading("字节跳动 · 高级前端工程师 2021.07 – 2024.12", 2);
+    const hDoc = docOf(head);
+    // "字节跳动 · 高级前端工程师 " 共 13 个字符 → 日期从 13 开始
+    const { replaced } = runAlign("right", hDoc, 1 + 13, 1 + head.textContent.length);
+    const nodes = replaced[0].nodes;
+    expect(nodes).toHaveLength(2);
+    expect(nodes.every((n: any) => n.type.name === "heading")).toBe(true);
+    expect(nodes.every((n: any) => n.attrs.level === 2)).toBe(true);
+    expect(nodes[1].attrs.align).toBe("right");
   });
 
-  it("构不成两列的组合 → 结果 <2 项（命令层返回 false）", () => {
-    // 选中 = 整块内容 / 光标在行尾（无右列）→ 均构不成两列
-    expect(planPairLayout(false, true, false, null).length).toBeLessThan(2);
-    expect(planPairLayout(true, false, false, null).length).toBeLessThan(2);
-    // 光标拆的正常形态仍是两项
-    expect(planPairLayout(true, false, true, null)).toHaveLength(2);
+  it("原块居中 → 前后片段继承居中（「前后文字原样」）", () => {
+    const centered = para(text, { align: "center" });
+    const { replaced } = runAlign("right", docOf(centered), rel(3), rel(5));
+    const [prefix, middle, suffix] = replaced[0].nodes;
+    expect(prefix.attrs.align).toBe("center");
+    expect(middle.attrs.align).toBe("right");
+    expect(suffix.attrs.align).toBe("center");
+  });
+
+  it("原块 align=left → 继承值归一为 null（left 与默认渲染一致，且不触发预览配对）", () => {
+    const lefted = para(text, { align: "left" });
+    const { replaced } = runAlign("right", docOf(lefted), rel(3), rel(5));
+    const [prefix, , suffix] = replaced[0].nodes;
+    expect(prefix.attrs.align).toBeNull();
+    expect(suffix.attrs.align).toBeNull();
+  });
+
+  it("unsetAlign 部分选区 → 只清掉选中段的对齐，两侧继承原值", () => {
+    const righted = para(text, { align: "right" });
+    const { replaced } = runAlign(null, docOf(righted), rel(3), rel(5));
+    const [prefix, middle, suffix] = replaced[0].nodes;
+    expect(prefix.attrs.align).toBe("right");
+    expect(middle.attrs.align).toBeNull();
+    expect(suffix.attrs.align).toBe("right");
+  });
+
+  it("中心对齐块点「居左」→ 中间段落 null（left 归一），前后仍居中", () => {
+    const centered = para(text, { align: "center" });
+    const { replaced } = runAlign("left", docOf(centered), rel(3), rel(5));
+    const [prefix, middle, suffix] = replaced[0].nodes;
+    expect(middle.attrs.align).toBeNull();
+    expect(prefix.attrs.align).toBe("center");
+    expect(suffix.attrs.align).toBe("center");
   });
 });
 
 // =====================================================================
-// 三、getPairAction：交互契约 5 态决策
+// 三、no-op：目标对齐与现状等价时不产生新块
 // =====================================================================
-describe("getPairAction：按钮可用动作判定（契约 5 态）", () => {
-  const line = "字节跳动 · 高级前端工程师 2021.07 – 2024.12";
-  const docOne = docOf(p(line));
-  const size = docOne.firstChild!.content.size;
 
-  it("行 1：单块内部分选区 → split；整块选区 → 禁用", () => {
-    // doc 坐标：内容从 pos 1 起，[size-3, size+1) 即行尾一小段
-    expect(getPairAction({ doc: docOne, selection: sel(docOne, size - 3, size + 1) })).toBe("split");
-    // 整块：[内容起点, 内容终点]
-    expect(getPairAction({ doc: docOne, selection: sel(docOne, 1, size + 1) })).toBeNull();
+describe("目标对齐与现状等价 → 返回 false，不产生历史记录", () => {
+  const text = "公司 职位 日期";
+
+  it("已居右的块再次点「居右」（部分选区） → 不拆块", () => {
+    const { changed, replaced, markups } = runAlign("right", docOf(para(text, { align: "right" })), 4, 6);
+    expect(changed).toBe(false);
+    expect(replaced).toHaveLength(0);
+    expect(markups).toHaveLength(0);
   });
 
-  it("行 2：光标在行中间 → split；行首/行尾光标 → 禁用", () => {
-    expect(getPairAction({ doc: docOne, selection: sel(docOne, 5) })).toBe("split");
-    expect(getPairAction({ doc: docOne, selection: sel(docOne, 1) })).toBeNull();
-    expect(getPairAction({ doc: docOne, selection: sel(docOne, size + 1) })).toBeNull();
+  it("默认对齐的块点「居左」（部分选区） → 不拆块（left 与 null 渲染一致）", () => {
+    const { changed, replaced, markups } = runAlign("left", docOf(para(text)), 4, 6);
+    expect(changed).toBe(false);
+    expect(replaced).toHaveLength(0);
+    expect(markups).toHaveLength(0);
   });
 
-  it("行 3：跨两个相邻顶层块的选区 → split（直接配对，内容不动）", () => {
-    const docTwo = docOf(p("阿里巴巴"), p("2022 - 2025"));
-    expect(getPairAction({ doc: docTwo, selection: sel(docTwo, 2, docTwo.content.size - 3) })).toBe(
-      "split"
-    );
-  });
-
-  it("行 3 边界：跨 >2 块或不相邻 → 禁用", () => {
-    const docThree = docOf(p("A"), p("B"), p("C"));
-    expect(
-      getPairAction({ doc: docThree, selection: sel(docThree, 2, docThree.content.size - 2) })
-    ).toBeNull();
-  });
-
-  it("行 4：光标落在配对行任一列 → merge（toggle 取消配对）", () => {
-    const left = p("字节跳动 · 高级前端工程师", { align: "left" });
-    const right = p("2021.07 – 2024.12", { align: "right" });
-    const docPair = docOf(left, right);
-    // 光标在左列
-    expect(getPairAction({ doc: docPair, selection: sel(docPair, 3) })).toBe("merge");
-    // 光标在右列
-    expect(getPairAction({ doc: docPair, selection: sel(docPair, left.nodeSize + 3) })).toBe("merge");
-    // 部分选区落在配对列上，同样优先合并（不向下拆）
-    expect(
-      getPairAction({ doc: docPair, selection: sel(docPair, left.nodeSize + 1, left.nodeSize + 5) })
-    ).toBe("merge");
-  });
-
-  it("行 4 变体：跨配对行两列的选区 → merge", () => {
-    const left = p("公司", { align: "left" });
-    const right = p("日期", { align: "right" });
-    const docPair = docOf(left, right);
-    expect(getPairAction({ doc: docPair, selection: sel(docPair, 2, left.nodeSize + 2) })).toBe(
-      "merge"
-    );
-  });
-
-  it("非配对形态（左列非 left/center）不算配对行 → 正常拆分", () => {
-    // align=null + right 不满足 alignPairRow 合并条件，与预览同构
-    const docOdd = docOf(p("公司"), p("日期", { align: "right" }));
-    expect(getPairAction({ doc: docOdd, selection: sel(docOdd, 2) })).toBe("split");
-  });
-
-  it("行 5：嵌套块（列表项内）→ 禁用", () => {
-    const item = schema.nodes.listItem.create(null, p("列表里的文字"));
-    const list = schema.nodes.bulletList.create(null, item);
-    const docList = docOf(list);
-    // 光标在 list item 内的段落中（depth=2）
-    expect(getPairAction({ doc: docList, selection: sel(docList, 3) })).toBeNull();
-  });
-
-  it("标题块与段落同样支持拆分（types 覆盖 heading）", () => {
-    const docHeading = docOf(h("模块标题副标题"));
-    const sizeH = docHeading.firstChild!.content.size;
-    expect(getPairAction({ doc: docHeading, selection: sel(docHeading, sizeH - 2, sizeH + 1) })).toBe(
-      "split"
-    );
+  it("显式 :::left 块点「居左」（部分选区） → 同样不拆块", () => {
+    const { changed, replaced } = runAlign("left", docOf(para(text, { align: "left" })), 4, 6);
+    expect(changed).toBe(false);
+    expect(replaced).toHaveLength(0);
   });
 });
 
 // =====================================================================
-// 四、命令产物：拆分/合并落成的节点（:::left + :::right 的节点级等价物）
+// 四、回落块级语义（不拆块）
 // =====================================================================
-describe("命令产物：拆分为 [左列 | 右列]，合并回单段", () => {
-  it("行 1 产物：replaceWith 两段，前缀 left、选中 right，后缀顺延", () => {
-    const node = p("字节跳动 · 高级前端工程师 2021.07 – 2024.12 附加说明");
-    const doc = docOf(node);
-    // doc 坐标 = 文本偏移 + 1（单块内容从 pos 1 起）
-    const dateFrom = "字节跳动 · 高级前端工程师 ".length + 1;
-    const dateTo = dateFrom + "2021.07 – 2024.12".length;
-    const { changed, calls } = runCommand("setAlignPair", doc, sel(doc, dateFrom, dateTo));
 
+describe("没有可包裹的「局部」→ 回落块级语义（作用于整块）", () => {
+  const text = "公司 职位 日期";
+
+  it("整块选区 → setNodeMarkup，不拆块", () => {
+    const node = para(text);
+    const { changed, replaced, markups } = runAlign("right", docOf(node), 1, 1 + text.length);
     expect(changed).toBe(true);
-    expect(calls.replaceWith).toHaveLength(1);
-    const [from, to, newNodes] = calls.replaceWith[0];
-    expect(from).toBe(0);
-    expect(to).toBe(node.nodeSize);
-    expect(newNodes).toHaveLength(3);
-    expect(newNodes.map((n: any) => n.attrs.align)).toEqual(["left", "right", null]);
-    expect(newNodes.map((n: any) => n.textContent)).toEqual([
-      "字节跳动 · 高级前端工程师",
-      "2021.07 – 2024.12",
-      "附加说明",
-    ]);
+    expect(replaced).toHaveLength(0);
+    expect(markups).toHaveLength(1);
+    expect(markups[0].pos).toBe(0);
+    expect(markups[0].attrs.align).toBe("right");
   });
 
-  it("行 2 产物：光标处拆为 [光标前 left | 光标后 right]", () => {
-    const node = p("字节跳动 · 高级前端工程师 2021.07 – 2024.12");
-    const doc = docOf(node);
-    // 光标落在接缝空格之后（doc 坐标 = 文本偏移 + 1）
-    const at = "字节跳动 · 高级前端工程师 ".length + 1;
-    const { changed, calls } = runCommand("setAlignPair", doc, sel(doc, at));
-
+  it("光标（无选区）→ 只作用于光标所在块", () => {
+    const node = para(text);
+    const { changed, replaced, markups } = runAlign("center", docOf(node), 4, 4);
     expect(changed).toBe(true);
-    const newNodes = calls.replaceWith[0][2];
-    expect(newNodes).toHaveLength(2);
-    expect(newNodes.map((n: any) => n.attrs.align)).toEqual(["left", "right"]);
-    // 接缝空格不带入列内容
-    expect(newNodes[0].textContent).toBe("字节跳动 · 高级前端工程师");
-    expect(newNodes[1].textContent).toBe("2021.07 – 2024.12");
+    expect(replaced).toHaveLength(0);
+    expect(markups).toHaveLength(1);
+    expect(markups[0].attrs.align).toBe("center");
   });
 
-  it("行 3 产物：跨两块直接配对（内容不动，仅 setNodeMarkup 两次）", () => {
-    const a = p("阿里巴巴");
-    const b = p("2022 - 2025");
-    const doc = docOf(a, b);
-    const { changed, calls } = runCommand("setAlignPair", doc, sel(doc, 2, a.nodeSize + 2));
-
-    expect(changed).toBe(true);
-    expect(calls.replaceWith).toHaveLength(0); // 内容不动
-    expect(calls.setNodeMarkup).toHaveLength(2);
-    expect(calls.setNodeMarkup[0][2].align).toBe("left");
-    expect(calls.setNodeMarkup[1][2].align).toBe("right");
+  it("跨两段选区 → 两段各自生效", () => {
+    const first = para("专业技能");
+    const second = para("工作经历");
+    const docNode = docOf(first, second);
+    const { replaced, markups } = runAlign("right", docNode, 2, blockPos(docNode, 1) + 2);
+    expect(replaced).toHaveLength(0);
+    expect(markups.map((m) => m.pos).sort((a, b) => a - b)).toEqual([0, blockPos(docNode, 1)]);
+    expect(markups.every((m) => m.attrs.align === "right")).toBe(true);
   });
 
-  it("行 4 产物：toggle 合并回单段，清对齐，接缝补一个空格", () => {
-    const left = p("字节跳动 · 高级前端工程师", { align: "left" });
-    const right = p("2021.07 – 2024.12", { align: "right" });
-    const doc = docOf(left, right);
-    const { changed, calls } = runCommand("toggleAlignPair", doc, sel(doc, 3));
-
-    expect(changed).toBe(true);
-    const [from, to, merged] = calls.replaceWith[0];
-    expect(from).toBe(0);
-    expect(to).toBe(left.nodeSize + right.nodeSize);
-    expect(merged.attrs.align).toBeNull();
-    expect(merged.textContent).toBe("字节跳动 · 高级前端工程师 2021.07 – 2024.12");
+  it("嵌套块（引用内的段落）→ 不拆段，避免破坏容器结构", () => {
+    const inner = para(text);
+    const docNode = docOf(blockquote(inner));
+    // 引用起始 0，内部段落起始 1，其内容从 2 开始
+    const { replaced, markups } = runAlign("right", docNode, 2 + 3, 2 + 5);
+    expect(replaced).toHaveLength(0);
+    expect(markups).toHaveLength(1);
+    expect(markups[0].pos).toBe(1);
+    expect(markups[0].attrs.align).toBe("right");
   });
 
-  it("合并接缝：两列边缘已有空白时不再补空格（幂等）", () => {
-    const left = p("公司 ", { align: "left" });
-    const right = p(" 日期", { align: "right" });
-    const doc = docOf(left, right);
-    const { changed, calls } = runCommand("toggleAlignPair", doc, sel(doc, 3));
-
-    expect(changed).toBe(true);
-    const merged = calls.replaceWith[0][2];
-    // 原有空白接缝直接相连（不追加第二个空格）
-    expect(merged.textContent).toBe("公司  日期");
-  });
-
-  it("toggle 在普通段落上 = 拆分（行为与 setAlignPair 一致）", () => {
-    const node = p("AAAA BBBB");
-    const doc = docOf(node);
-    const r1 = runCommand("toggleAlignPair", doc, sel(doc, 2, 6));
-    const r2 = runCommand("setAlignPair", doc, sel(doc, 2, 6));
-    expect(r1.changed).toBe(true);
-    expect(r2.changed).toBe(true);
-    expect(r1.calls.replaceWith[0][2].map((n: any) => n.textContent)).toEqual(
-      r2.calls.replaceWith[0][2].map((n: any) => n.textContent)
-    );
-  });
-
-  it("整块选区/行首行尾光标：命令与按钮同为不可用", () => {
-    const node = p("ABCD");
-    const doc = docOf(node);
-    const size = node.content.size;
-
-    expect(runCommand("setAlignPair", doc, sel(doc, 1, size + 1)).changed).toBe(false); // 整块
-    expect(runCommand("setAlignPair", doc, sel(doc, 1)).changed).toBe(false); // 行首光标
-    expect(runCommand("setAlignPair", doc, sel(doc, size + 1)).changed).toBe(false); // 行尾光标
-  });
-
-  it("纯空白选区：修剪后退化为光标拆（[空白前 | 空白后]），不产生空列", () => {
-    // 契约补充规则的取舍：按钮可点即命令生效，纯空白选区按接缝拆两列
-    const spaced = p("AB  CD");
-    const docSpace = docOf(spaced);
-    const { changed, calls } = runCommand("setAlignPair", docSpace, sel(docSpace, 3, 5));
-    expect(changed).toBe(true);
-    const newNodes = calls.replaceWith[0][2];
-    expect(newNodes.map((n: any) => n.textContent)).toEqual(["AB", "CD"]);
-    expect(newNodes.map((n: any) => n.attrs.align)).toEqual(["left", "right"]);
-  });
-
-  it("拆分/合并不触碰 Fragment 之外的结构：标题保留 level", () => {
-    const node = h("标题左半右半");
-    const doc = docOf(node);
-    // 选中「右半」：doc 坐标 [5, 7)（文本偏移 4..6 加 contentStart 1）
-    const { changed, calls } = runCommand("setAlignPair", doc, sel(doc, 5, 7));
-    expect(changed).toBe(true);
-    const newNodes = calls.replaceWith[0][2];
-    expect(newNodes).toHaveLength(2);
-    expect(newNodes.every((n: any) => n.type.name === "heading")).toBe(true);
-    expect(newNodes.every((n: any) => n.attrs.level === 2)).toBe(true);
-    expect(newNodes.map((n: any) => n.attrs.align)).toEqual(["left", "right"]);
-    expect(newNodes.map((n: any) => n.textContent)).toEqual(["标题左半", "右半"]);
+  it("纯空白选区 → 回落块级语义（中间段为空，无可包裹内容）", () => {
+    const node = para(text);
+    const { replaced, markups } = runAlign("right", docOf(node), 3, 4); // 只有空格
+    expect(replaced).toHaveLength(0);
+    expect(markups).toHaveLength(1);
   });
 });
 
 // =====================================================================
-// 五、产物形态 = 手写 :::left / :::right（与预览合并管线的衔接）
+// 五、渲染一致性：孤立 :::right 不得被合并成同一行
 // =====================================================================
-describe("产物与手写语法同构：Fragment.cut 两列 = 配对行的左右列", () => {
-  it("拆分产物的左右列内容与对齐 = 手写 :::left / :::right 的块内容", () => {
-    const node = p("阿里巴巴 2022 - 2025");
-    const cut = splitBlockFragments(node, "阿里巴巴 ".length, node.content.size);
-    const plan = planPairLayout(!!cut.prefix, !!cut.middle, !!cut.suffix, null);
-    expect(plan).toEqual([
-      { part: "prefix", align: "left" },
-      { part: "middle", align: "right" },
-    ]);
-    // 手写语法的块内容就是这两段文本；预览 alignPairRow 会把
-    // 「align=left 块 + align=right 块」合并为同一行（editor-align-pair.test.ts 钉住）
-    expect(fragText(cut.prefix)).toBe("阿里巴巴");
-    expect(fragText(cut.middle)).toBe("2022 - 2025");
-    // cut 产物是真 Fragment（实例方法可用），可直接喂 node.type.create —— 命令层同款。
-    // 不用 Fragment.isFragment：@tiptap/core re-export 的 Fragment 缺静态方法（实测）
-    expect(typeof cut.middle?.textBetween).toBe("function");
-    expect(cut.middle?.size).toBe("2022 - 2025".length);
+
+describe("包裹产物在预览侧的形态：独立右对齐行（与编辑器两行一致）", () => {
+  it("孤立的 :::right 块不触发配对合并", () => {
+    const html = renderMarkdownToHtml("公司 职位\n\n:::right\n日期\n\n:::");
+    expect(html).toContain("md-align-right");
+    // 配对容器是「同一行左右分布」的标志；包裹语义下必须缺席
+    expect(html).not.toContain("md-pair-row");
+  });
+
+  it("手写配对仍然合并（既有版式能力不受本次改动影响）", () => {
+    const html = renderMarkdownToHtml(":::left\n公司 职位\n\n:::\n:::right\n日期\n\n:::");
+    expect(html).toContain("md-pair-row");
   });
 });

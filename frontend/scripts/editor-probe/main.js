@@ -144,16 +144,31 @@ window.__probe = async () => {
     editor.destroy();
   }
 
-  // 用例 3：只选中一行里的部分文本，点「居右」
+  // 用例 3：只选中一行里的部分文本，点「居右」→ 只把选中文字包裹成独立对齐块
   {
     const editor = await createEditor("北京大学 · 计算机科学与技术（2013.09 – 2017.06）");
     editor.commands.setTextSelection({ from: 2, to: 5 });
-    const selection = editor.state.selection;
-    editor.chain().focus().setAlign("right").run();
-    result.partialSelection = {
-      选中字符数: selection.to - selection.from,
-      "isActive({align:'right'})": editor.isActive({ align: "right" }),
-      序列化结果: md(editor),
+    const selected = editor.state.doc.textBetween(2, 5, "");
+    const ok = editor.chain().focus().setAlign("right").run();
+    const after = md(editor);
+    const html = renderMarkdownToHtml(after);
+    result.wrapSelection = {
+      选中文字: selected,
+      命令结果: ok,
+      段落数: editor.state.doc.childCount,
+      各段align: JSON.stringify(
+        Array.from({ length: editor.state.doc.childCount }, (_, i) =>
+          editor.state.doc.child(i).attrs.align ?? null
+        )
+      ),
+      各段文本: JSON.stringify(
+        Array.from({ length: editor.state.doc.childCount }, (_, i) =>
+          editor.state.doc.child(i).textContent
+        )
+      ),
+      序列化结果: after,
+      预览含mdAlignRight: html.includes("md-align-right"),
+      "预览含mdPairRow（应为 false）": html.includes("md-pair-row"),
     };
     editor.destroy();
   }
@@ -197,15 +212,16 @@ window.__probe = async () => {
     editor.destroy();
   }
 
-  // 用例 6：同行左右分列按钮 —— 部分选区（选中行尾日期）拆 [前缀 | 选中]
+  // 用例 6：包裹选区 —— 选中行尾日期，产出 [普通前缀段 | :::right 日期块]
   {
-    const editor = await createEditor("字节跳动 · 高级前端工程师 2021.07 – 2024.12");
-    const size = editor.state.doc.firstChild.content.size;
+    const text = "字节跳动 · 高级前端工程师 2021.07 – 2024.12";
     const dateFrom = "字节跳动 · 高级前端工程师 ".length + 1; // doc 坐标 = 文本偏移 + 1
-    editor.commands.setTextSelection({ from: dateFrom, to: size + 1 });
-    const ok = editor.chain().focus().setAlignPair().run();
+    const editor = await createEditor(text);
+    editor.commands.setTextSelection({ from: dateFrom, to: text.length + 1 });
+    const ok = editor.chain().focus().setAlign("right").run();
     const after = md(editor);
-    result.alignPairSplit = {
+    const html = renderMarkdownToHtml(after);
+    result.wrapRow = {
       命令结果: ok,
       段落数: editor.state.doc.childCount,
       各段align: JSON.stringify(
@@ -213,46 +229,88 @@ window.__probe = async () => {
           editor.state.doc.child(i).attrs.align ?? null
         )
       ),
+      各段文本: JSON.stringify(
+        Array.from({ length: editor.state.doc.childCount }, (_, i) =>
+          editor.state.doc.child(i).textContent
+        )
+      ),
       序列化结果: after,
-      预览含mdPairRow: renderMarkdownToHtml(after).includes("md-pair-row"),
+      "是否产出 :::right 块": /:::right/.test(after),
+      预览含mdAlignRight: html.includes("md-align-right"),
+      "预览含mdPairRow（应为 false）": html.includes("md-pair-row"),
     };
     editor.destroy();
   }
 
-  // 用例 6b：toggle 往返 —— 拆分后再点合并回单段，文本无损（接缝补一空格）
+  // 用例 6b：幂等 —— 对已居右的选中段再次点「居右」，不应再拆出新块
   {
-    const editor = await createEditor("字节跳动 · 高级前端工程师 2021.07 – 2024.12");
-    const size = editor.state.doc.firstChild.content.size;
+    const text = "字节跳动 · 高级前端工程师 2021.07 – 2024.12";
     const dateFrom = "字节跳动 · 高级前端工程师 ".length + 1;
-    editor.commands.setTextSelection({ from: dateFrom, to: size + 1 });
-    editor.chain().focus().toggleAlignPair().run();
-    const splitMd = md(editor);
-    // 光标落在左列内再点 = 取消配对
-    editor.commands.setTextSelection(2);
-    const merged = editor.chain().focus().toggleAlignPair().run();
-    result.alignPairToggle = {
-      拆分后: splitMd,
-      合并命令结果: merged,
-      合并后段落数: editor.state.doc.childCount,
-      合并后文本: editor.state.doc.textContent,
-      合并后align: editor.state.doc.firstChild.attrs.align ?? null,
+    const editor = await createEditor(text);
+    editor.commands.setTextSelection({ from: dateFrom, to: text.length + 1 });
+    editor.chain().focus().setAlign("right").run();
+    const firstMd = md(editor);
+    const firstCount = editor.state.doc.childCount;
+    let lastStart = 0;
+    for (let i = 0; i < firstCount - 1; i++) lastStart += editor.state.doc.child(i).nodeSize;
+    const lastNode = editor.state.doc.child(firstCount - 1);
+    // 选中最后一段的内部内容（已是独立右对齐段）再点「居右」
+    editor.commands.setTextSelection({ from: lastStart + 2, to: lastStart + lastNode.nodeSize - 1 });
+    const again = editor.chain().focus().setAlign("right").run();
+    result.wrapIdempotent = {
+      首次段落数: firstCount,
+      再次命令结果: again,
+      再次段落数: editor.state.doc.childCount,
+      // 拆分时边界空白被修剪（形成两块后无视觉影响），故全文比原文少一个接缝空格
+      当前全文: editor.state.doc.textContent,
+      首次序列化: firstMd,
+      再次序列化: md(editor),
     };
     editor.destroy();
   }
 
-  // 用例 6c：跨两段选区直接配对（内容不动，只落 align）
+  // 用例 6c：跨两段选区（无法包裹）→ 回落块级语义，两段各自设对齐
   {
     const editor = await createEditor("阿里巴巴\n\n2022 - 2025");
     const p1Size = editor.state.doc.child(0).nodeSize;
     editor.commands.setTextSelection({ from: 2, to: p1Size + 2 });
-    const ok = editor.chain().focus().setAlignPair().run();
-    result.alignPairTwoBlocks = {
+    const ok = editor.chain().focus().setAlign("right").run();
+    const after = md(editor);
+    result.crossBlockFallback = {
       命令结果: ok,
-      序列化结果: md(editor),
+      段落数: editor.state.doc.childCount,
       两段align: JSON.stringify([
         editor.state.doc.child(0).attrs.align,
         editor.state.doc.child(1).attrs.align,
       ]),
+      序列化结果: after,
+      "预览含mdPairRow（应为 false）": renderMarkdownToHtml(after).includes("md-pair-row"),
+    };
+    editor.destroy();
+  }
+
+  // 用例 6d：原块居中时的边界规则 —— 前缀/后缀继承居中，只有选中段变右对齐
+  {
+    const text = "公司 职位 日期";
+    const editor = await createEditor(":::center\n" + text + "\n:::");
+    editor.commands.setTextSelection({ from: 1 + 6, to: 1 + 8 }); // 选中「日期」
+    editor.chain().focus().setAlign("right").run();
+    result.wrapInheritCenter = {
+      段落数: editor.state.doc.childCount,
+      各段align: JSON.stringify(
+        Array.from({ length: editor.state.doc.childCount }, (_, i) =>
+          editor.state.doc.child(i).attrs.align ?? null
+        )
+      ),
+      各段文本: JSON.stringify(
+        Array.from({ length: editor.state.doc.childCount }, (_, i) =>
+          editor.state.doc.child(i).textContent
+        )
+      ),
+      序列化结果: md(editor),
+      // 原块居中时，前缀保持居中 + 右列构成「非 right + right」，
+      // 预览侧既有配对规则会合并为同一行 —— 边界规则 A 的已知残留取舍。
+      "预览含mdPairRow（原块居中时为 true）": renderMarkdownToHtml(md(editor)).includes("md-pair-row"),
     };
     editor.destroy();
   }

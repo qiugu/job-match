@@ -4,14 +4,16 @@ import { fileURLToPath } from "node:url";
 import { Align } from "@/components/editor/extensions/align";
 
 /**
- * 编辑态对齐行为回归测试（2026-09-11）。
+ * 编辑态对齐的**块级回落路径**回归测试（2026-09-11 建立，2026-10-29 更新）。
  *
- * 用户提问：「选中部分文本 → 点居右 → 整行居右（而不是选中文本居右），是否合理？」
- * 结论：**合理且符合标准**。`text-align` 是 CSS 的块级属性，语言层面不存在
- * 「行内某段文字单独对齐」；Word / Google Docs / Notion 同样把对齐作用于
- * 光标/选区所在的段落。因此「部分选区 → 整块生效」是本产品的**预期语义**，
- * 本文件把它钉成契约，避免后人误当 bug「修」成行内对齐（那会引入与预览
- * 管线（markdownVariants / MarkdownPreview 的 text-align 实现）不兼容的模型）。
+ * 语义演进：2026-09-11 曾把「部分选区 → 整块生效」钉为契约；2026-10-29 产品
+ * 决策改为「包裹选区」—— 单块内部分选区只把选中文字拆成独立对齐块
+ * （节点级契约见 editor-align-selection.test.ts）。本文件因此只钉**块级回落**：
+ * 整块选区 / 跨多块 / 光标 / 嵌套块这些「没有可包裹局部」的路径。
+ *
+ * 为什么这些路径仍是块级：`text-align` 是 CSS 的块级属性，不存在「行内局部
+ * 对齐」；对整块或跨块选区而言，「作用于命中块」是唯一合理的模型
+ * （Word / Google Docs 同款）。
  *
  * 同时钉住两个真实缺陷/易错点：
  * 1. 工具栏高亮判定：`isActive("align", { align })` 恒为 false（已修复）；
@@ -65,27 +67,28 @@ const runSetAlign = (
   selection: Record<string, unknown>
 ) => {
   const { state, tr, applied } = makeHarness(blocks, selection);
-  const commands = Align.config.addCommands.call({ options: alignOptions });
+  // 自定义 harness 只需 options；`as any` 绕过 Tiptap 对 this/EditorState 的严格类型
+  const commands = (Align.config.addCommands as any).call({ options: alignOptions });
   const changed = (
     align ? commands.setAlign(align) : commands.unsetAlign()
   )({ state, tr, dispatch: true });
   return { changed, applied };
 };
 
-describe("对齐是块级语义：选区只决定「作用于哪些块」", () => {
+describe("对齐的块级回落：选区只决定「作用于哪些块」", () => {
   const first: FakeBlock = { node: paragraph("专业技能"), pos: 0, size: 6 };
   const second: FakeBlock = { node: paragraph("工作经历"), pos: 6, size: 6 };
 
-  it("部分选中同一段内的文字 → 只把该段整块设为居右（不是行内对齐）", () => {
-    // 选区 [7, 9)：完全落在第二段内部
+  it("整块选区 → 整块生效、不拆块（没有可包裹的「局部」）", () => {
+    // 第二段 pos=6、size=6 ⇒ 内容区间 [7, 11)，此处选区恰好覆盖整块
     const { changed, applied } = runSetAlign("right", [first, second], {
       empty: false,
       from: 7,
-      to: 9,
+      to: 11,
     });
     expect(changed).toBe(true);
     expect(applied).toHaveLength(1);
-    expect(applied[0].pos).toBe(second.pos); // 整块，而不是选区
+    expect(applied[0].pos).toBe(second.pos); // 整块，而不是新拆的片段
     expect(applied[0].attrs.align).toBe("right");
     // 未选中的块保持原样
     expect(applied.some((a) => a.pos === first.pos)).toBe(false);
@@ -146,7 +149,7 @@ describe("对齐是块级语义：选区只决定「作用于哪些块」", () =
 
 describe("对齐属性的注册方式决定了高亮判定写法", () => {
   it("align 是 paragraph/heading 的全局属性，schema 里没有名为 align 的类型", () => {
-    const attributes = Align.config.addGlobalAttributes.call({ options: alignOptions });
+    const attributes = (Align.config.addGlobalAttributes as any).call({ options: alignOptions });
     expect(attributes).toHaveLength(1);
     expect(attributes[0].types).toEqual(["paragraph", "heading"]);
     expect(Object.keys(attributes[0].attributes)).toEqual(["align"]);
