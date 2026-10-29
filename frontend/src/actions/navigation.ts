@@ -8,6 +8,3 @@ export async function GoDashboardAction() {
 export async function GoResumesAction() {
   redirect("/app/dashboard/resumes");
 }
-export async function GoTemplatesAction() {
-  redirect("/app/dashboard/templates");
-}

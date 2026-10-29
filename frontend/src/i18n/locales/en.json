@@ -94,7 +94,7 @@
       "title": "Let AI Make Your Resume Hit the Job",
       "subtitle": "JDMatch uses large language models to automatically rewrite and optimize your resume against a target job description, producing a derived resume that better fits the role. Log in to start matching — matching and pitches consume account credits.",
       "cta": "Start Matching",
-      "secondary": "Browse Templates",
+      "secondary": "View my resumes",
       "imageAlt": "JDMatch resume editor: edit content on the left, live layout preview on the right"
     },
     "features": {
@@ -193,7 +193,6 @@
       "appName": "JDMatch",
       "resumes": "Resumes",
       "settings": "Settings",
-      "templates": "Templates",
       "ai": "AI Config",
       "jobmatch": "Job Match",
       "jobs": "My Applications",

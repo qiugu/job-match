@@ -22,7 +22,6 @@ import { Route as AppDashboardAnalyticsRouteImport } from './routes/app/dashboar
 import { Route as AppDashboardJobsRouteImport } from './routes/app/dashboard/jobs'
 import { Route as AppDashboardMatchRouteImport } from './routes/app/dashboard/match'
 import { Route as AppDashboardResumesRouteImport } from './routes/app/dashboard/resumes'
-import { Route as AppDashboardTemplatesRouteImport } from './routes/app/dashboard/templates'
 import { Route as AppPreviewTemplateIdRouteImport } from './routes/app/preview-template/$id'
 import { Route as AppWorkbenchIdRouteImport } from './routes/app/workbench/$id'
 
@@ -91,11 +90,6 @@ const AppDashboardResumesRoute = AppDashboardResumesRouteImport.update({
   path: '/resumes',
   getParentRoute: () => AppDashboardRoute,
 } as any)
-const AppDashboardTemplatesRoute = AppDashboardTemplatesRouteImport.update({
-  id: '/templates',
-  path: '/templates',
-  getParentRoute: () => AppDashboardRoute,
-} as any)
 const AppPreviewTemplateIdRoute = AppPreviewTemplateIdRouteImport.update({
   id: '/preview-template/$id',
   path: '/preview-template/$id',
@@ -120,7 +114,6 @@ export interface FileRoutesByFullPath {
   '/app/dashboard/jobs': typeof AppDashboardJobsRoute
   '/app/dashboard/match': typeof AppDashboardMatchRoute
   '/app/dashboard/resumes': typeof AppDashboardResumesRoute
-  '/app/dashboard/templates': typeof AppDashboardTemplatesRoute
   '/app/preview-template/$id': typeof AppPreviewTemplateIdRoute
   '/app/workbench/$id': typeof AppWorkbenchIdRoute
   '/app/dashboard/': typeof AppDashboardIndexRoute
@@ -136,7 +129,6 @@ export interface FileRoutesByTo {
   '/app/dashboard/jobs': typeof AppDashboardJobsRoute
   '/app/dashboard/match': typeof AppDashboardMatchRoute
   '/app/dashboard/resumes': typeof AppDashboardResumesRoute
-  '/app/dashboard/templates': typeof AppDashboardTemplatesRoute
   '/app/preview-template/$id': typeof AppPreviewTemplateIdRoute
   '/app/workbench/$id': typeof AppWorkbenchIdRoute
   '/app/dashboard': typeof AppDashboardIndexRoute
@@ -155,7 +147,6 @@ export interface FileRoutesById {
   '/app/dashboard/jobs': typeof AppDashboardJobsRoute
   '/app/dashboard/match': typeof AppDashboardMatchRoute
   '/app/dashboard/resumes': typeof AppDashboardResumesRoute
-  '/app/dashboard/templates': typeof AppDashboardTemplatesRoute
   '/app/preview-template/$id': typeof AppPreviewTemplateIdRoute
   '/app/workbench/$id': typeof AppWorkbenchIdRoute
   '/app/dashboard/': typeof AppDashboardIndexRoute
@@ -175,7 +166,6 @@ export interface FileRouteTypes {
     | '/app/dashboard/jobs'
     | '/app/dashboard/match'
     | '/app/dashboard/resumes'
-    | '/app/dashboard/templates'
     | '/app/preview-template/$id'
     | '/app/workbench/$id'
     | '/app/dashboard/'
@@ -191,7 +181,6 @@ export interface FileRouteTypes {
     | '/app/dashboard/jobs'
     | '/app/dashboard/match'
     | '/app/dashboard/resumes'
-    | '/app/dashboard/templates'
     | '/app/preview-template/$id'
     | '/app/workbench/$id'
     | '/app/dashboard'
@@ -209,7 +198,6 @@ export interface FileRouteTypes {
     | '/app/dashboard/jobs'
     | '/app/dashboard/match'
     | '/app/dashboard/resumes'
-    | '/app/dashboard/templates'
     | '/app/preview-template/$id'
     | '/app/workbench/$id'
     | '/app/dashboard/'
@@ -316,13 +304,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardResumesRouteImport
       parentRoute: typeof AppDashboardRoute
     }
-    '/app/dashboard/templates': {
-      id: '/app/dashboard/templates'
-      path: '/templates'
-      fullPath: '/app/dashboard/templates'
-      preLoaderRoute: typeof AppDashboardTemplatesRouteImport
-      parentRoute: typeof AppDashboardRoute
-    }
     '/app/preview-template/$id': {
       id: '/app/preview-template/$id'
       path: '/preview-template/$id'
@@ -346,7 +327,6 @@ interface AppDashboardRouteChildren {
   AppDashboardJobsRoute: typeof AppDashboardJobsRoute
   AppDashboardMatchRoute: typeof AppDashboardMatchRoute
   AppDashboardResumesRoute: typeof AppDashboardResumesRoute
-  AppDashboardTemplatesRoute: typeof AppDashboardTemplatesRoute
   AppDashboardIndexRoute: typeof AppDashboardIndexRoute
 }
 
@@ -356,7 +336,6 @@ const AppDashboardRouteChildren: AppDashboardRouteChildren = {
   AppDashboardJobsRoute: AppDashboardJobsRoute,
   AppDashboardMatchRoute: AppDashboardMatchRoute,
   AppDashboardResumesRoute: AppDashboardResumesRoute,
-  AppDashboardTemplatesRoute: AppDashboardTemplatesRoute,
   AppDashboardIndexRoute: AppDashboardIndexRoute,
 }
 

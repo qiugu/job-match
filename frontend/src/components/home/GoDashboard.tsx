@@ -7,14 +7,14 @@ export default function GoDashboard({
   type = "match",
 }: {
   children: React.ReactNode;
-  type?: "dashboard" | "templates" | "match";
+  type?: "dashboard" | "resumes" | "match";
 }) {
   const navigate = useNavigate();
 
   const routeMap = {
     dashboard: "/app/dashboard",
     match: "/app/dashboard/match",
-    templates: "/app/dashboard/templates"
+    resumes: "/app/dashboard/resumes",
   };
 
   return (

@@ -1,3 +1,13 @@
+/**
+ * 模板选择面板（模板画廊）。
+ *
+ * 现状：**未挂路由** —— 侧边栏「简历模板」入口已下线，模板选择统一收敛到
+ * 「创建简历」弹窗（CreateResumeModal 的 startFromTemplate 区），该页面不再
+ * 作为独立页面暴露。组件保留，供创建简历流程或后续入口复用。
+ *
+ * 若要重新暴露为页面：在 `src/routes/app/dashboard/templates.tsx` 建
+ * `createFileRoute("/app/dashboard/templates")` 并挂载本组件即可。
+ */
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "@/i18n/compat/client";
 import { motion, useReducedMotion } from "framer-motion";

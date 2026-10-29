@@ -42,7 +42,7 @@ export default function HeroSection() {
               </button>
             </GoDashboard>
 
-            <GoDashboard type="templates">
+            <GoDashboard type="resumes">
               <button
                 type="submit"
                 className="pp-btn pp-btn--ghost h-14 px-10 text-lg"
