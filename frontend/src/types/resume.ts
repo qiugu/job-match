@@ -217,7 +217,7 @@ export interface ResumeStore {
   resumes: ResumeData[];
   currentResumeId: string | null;
   currentResume: ResumeData | null;
-  addResume: (resume: Omit<ResumeData, "id">) => void;
+  addResume: (resume: ResumeData) => string;
   updateResume: (id: string, data: Partial<ResumeData>) => void;
   deleteResume: (id: string) => void;
   setCurrentResume: (id: string) => void;

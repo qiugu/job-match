@@ -22,6 +22,11 @@ describe("workbench floating dock actions", () => {
     expect(dock).toContain("SpellCheck2");
     expect(dock).toContain("data-dock-proofread");
     expect(dock).toContain("<GrammarCheckDrawer />");
+    // 翻译简历入口（PLAN_resume_translate.md）：与模板/导出/复制同属
+    // 「操作简历正文」一类，落在第一组；对话框由 Dock 托管（同宿主）。
+    expect(dock).toContain("Languages");
+    expect(dock).toContain("data-dock-translate");
+    expect(dock).toContain("<TranslateDialog");
     expect(dock).not.toContain("toggleEditPanel");
     expect(dock).not.toContain("autoOnePage");
     expect(dock).not.toContain("<Edit2");

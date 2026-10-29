@@ -1129,6 +1129,9 @@
       "success": "简历复制成功",
       "error": "简历复制失败"
     },
+    "translate": {
+      "tooltip": "翻译简历"
+    },
     "export": {
       "tooltip": "导出简历",
       "pdf": "导出PDF",
@@ -1177,6 +1180,25 @@
       "confirmText": "删除",
       "cancelText": "取消"
     }
+  },
+  "translateResume": {
+    "title": "翻译简历",
+    "description": "把简历内容翻译为指定语言的版本",
+    "language": "目标语言",
+    "mode": "落地方式",
+    "modeOverwrite": "覆盖当前简历",
+    "modeOverwriteDesc": "直接替换当前简历内容，可用「撤销」恢复",
+    "modeCreate": "新建简历",
+    "modeCreateDesc": "保留原简历，生成一份新的译文简历",
+    "newTitle": "新简历标题",
+    "newTitlePlaceholder": "例如：我的简历 · English",
+    "confirm": "开始翻译",
+    "cancel": "取消",
+    "translating": "正在翻译…",
+    "successOverwrite": "已覆盖为{language}版本",
+    "successCreate": "已创建{language}版本简历",
+    "error": "翻译失败，请重试",
+    "errorEmpty": "当前简历没有可翻译的内容"
   },
   "grammarCheck": {
     "title": "AI 语法检查",
@@ -1255,7 +1277,8 @@
       "alignLeft": "左对齐",
       "alignCenter": "居中对齐",
       "alignRight": "右对齐",
-      "alignNone": "取消对齐（默认）"
+      "alignNone": "取消对齐（默认）",
+      "alignPair": "同行左右分列（左列 | 右列）"
     },
     "typeset": {
       "title": "排版设置",

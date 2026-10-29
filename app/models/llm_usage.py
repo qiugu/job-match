@@ -42,6 +42,7 @@ ENDPOINT_COVER_LETTER = "cover_letter"
 ENDPOINT_AI_POLISH = "ai.polish"
 ENDPOINT_AI_GRAMMAR = "ai.grammar"
 ENDPOINT_AI_RESUME_IMPORT = "ai.resume_import"
+ENDPOINT_AI_TRANSLATE = "ai.translate"
 
 
 class LlmUsage(Base):

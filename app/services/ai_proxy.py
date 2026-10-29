@@ -1,4 +1,4 @@
-"""通用 AI 代理：面向前端的润色/语法检查/简历导入。
+"""通用 AI 代理：面向前端的润色/语法检查/简历导入/简历翻译。
 
 所有调用统一走 app.core.llm.get_llm()，即后端环境变量配置的单一大模型
 （LLM_API_KEY / LLM_BASE_URL / LLM_MODEL）。前端不再持有任何 api_key，
@@ -127,6 +127,29 @@ JSON 结构：
   "skills": [""]
 }"""
 
+# 目标语言白名单：与前端 TRANSLATE_LANGUAGES 对齐（本期只支持中英，产品决策 2026-10-28）。
+TRANSLATE_LANGUAGES = {
+    "zh": "简体中文",
+    "en": "English",
+}
+
+TRANSLATE_SYSTEM = """你是一个专业的简历翻译助手。用户会给你一个 JSON 对象：键（key）是字段路径，值（value）是待翻译的简历文本。请把每个值翻译成目标语言，并只输出一个 JSON 对象：键必须与输入完全一致（一个不多、一个不少），值为译文。
+
+目标语言：${language}
+
+翻译规则（必须全部遵守）：
+1. **只译文字，不译结构**：Markdown 标记（`#`/`##`/`###`/`-`/`*`/`**`/`:::left`/`:::center`/`:::right` 等）必须逐字符原样保留在译文中，只翻译标记之间的文字。列表条目保持为列表条目，加粗保持加粗，行数与顺序不变。
+2. **原样保留（绝不翻译）**：日期、数字、百分比、版本号、邮箱、电话、URL、代码标识符、产品技术名（React、Kubernetes 等）。
+3. **专名保留原文**：公司名、学校名、产品名、机构名保留原文，不意译、不改写。
+4. **人名**：保留原文；若目标语言是 English 且原文是中文人名，可按汉语拼音转写（如「张三」→「Zhang San」）。
+5. **字段语义**：如 `position`（职位）、`degree`（学位）等按目标语言职场惯例翻译（如「学士」→「Bachelor's」），不要逐字硬译。
+6. **禁止增删内容**：不新增信息、不删减信息、不合并或拆分条目、不解释、不总结。
+7. **空值处理**：输入值为空字符串时，输出该键的值也必须为空字符串。
+
+输出强约束：
+1. 只输出 JSON 对象本身，禁止 Markdown 代码块（```）包裹，禁止任何前言、说明或注释。
+2. JSON 的键集合必须与输入的键集合完全相同。"""
+
 
 def _require_configured() -> None:
     if not is_configured():
@@ -199,22 +222,73 @@ async def resume_import(content: Optional[str], images: Optional[List[str]], loc
     return parsed
 
 
+async def translate_fields(fields: dict, target_lang: str) -> dict:
+    """把「键值映射」形式的简历文本字段翻译为目标语言。
+
+    设计决策（PLAN_resume_translate.md §2.1）：不整包回传 ResumeData，只发送
+    可翻译文本字段（key 为稳定字段路径），LLM 只译值、原样回传 key；前端再按
+    key 合并。非文本配置（id/模板/排版设置/日期）从不离开客户端，LLM 物理上
+    无法破坏结构。
+
+    返回 {key: 译文}：只回传输入中出现过的 key（LLM 幻觉出的多余 key 丢弃）；
+    缺失的 key 由调用方（前端 merge）回退原文，部分成功仍可用。
+    """
+    _require_configured()
+    if not fields:
+        raise ValueError("fields 不能为空")
+    if target_lang not in TRANSLATE_LANGUAGES:
+        raise ValueError(f"不支持的目标语言: {target_lang}")
+
+    language = TRANSLATE_LANGUAGES[target_lang]
+    system = TRANSLATE_SYSTEM.replace("${language}", language)
+    user_payload = json.dumps(fields, ensure_ascii=False)
+    llm = get_llm(temperature=0)
+    resp = await llm.ainvoke(
+        [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_payload},
+        ],
+        response_format={"type": "json_object"},
+    )
+    raw = resp.content
+    if isinstance(raw, list):
+        raw = "".join(getattr(p, "text", "") for p in raw)
+    raw = raw or ""
+    parsed = _extract_json(raw)
+    if parsed is None:
+        raise RuntimeError("AI 未返回可解析的 JSON")
+
+    # 只保留输入中出现过的 key，且值必须是字符串；其余丢弃（调用方回退原文）。
+    result: dict = {}
+    for key, value in parsed.items():
+        if key in fields and isinstance(value, str):
+            result[key] = value
+    return result
+
+
 def _extract_json(text: str) -> Optional[dict]:
+    """从 LLM 输出中容错提取 JSON 对象。
+
+    只接受 dict（对象）——调用方（resume_import / translate_fields）均对结果
+    调 `.items()`，若放行 list/str/number 会抛 AttributeError 落到 500 分支。
+    因此三层解析（直接 loads / fenced 块 / 花括号块）成功后统一校验结果是
+    dict，非对象一律返回 None，让调用方走既有的清晰错误路径。
+    """
     text = (text or "").strip()
-    try:
-        return json.loads(text)
-    except Exception:
-        pass
+
+    candidates = [text]
     fenced = __import__("re").search(r"```(?:json)?\s*([\s\S]*?)```", text)
     if fenced:
-        try:
-            return json.loads(fenced.group(1).strip())
-        except Exception:
-            pass
+        candidates.append(fenced.group(1).strip())
     block = __import__("re").search(r"\{[\s\S]*\}", text)
     if block:
+        candidates.append(block.group(0))
+
+    for candidate in candidates:
         try:
-            return json.loads(block.group(0))
+            parsed = json.loads(candidate)
         except Exception:
-            pass
+            continue
+        if isinstance(parsed, dict):
+            return parsed
     return None

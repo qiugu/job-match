@@ -1,4 +1,4 @@
-"""前端 AI 能力代理路由：润色 / 语法检查 / 简历导入。
+"""前端 AI 能力代理路由：润色 / 语法检查 / 简历导入 / 简历翻译。
 
 前端不再持有 api_key，所有请求转发到这里，由后端使用环境变量中的
 LLM_API_KEY 调用大模型。接口契约与前端 src/routes/api/*.ts 对齐。
@@ -18,6 +18,7 @@ from app.models.llm_usage import (
     ENDPOINT_AI_GRAMMAR,
     ENDPOINT_AI_POLISH,
     ENDPOINT_AI_RESUME_IMPORT,
+    ENDPOINT_AI_TRANSLATE,
 )
 from app.models.user import User
 from app.services import ai_proxy
@@ -41,6 +42,21 @@ class ResumeImportRequest(BaseModel):
     content: Optional[str] = None
     images: Optional[List[str]] = Field(default_factory=list)
     locale: str = "zh"
+
+
+class TranslateRequest(BaseModel):
+    """简历文本字段翻译请求。
+
+    fields 为「字段路径 → 待译文本」映射（前端 lib/resumeTranslate.ts 提取），
+    只含可翻译文本；id/模板/排版/日期等非文本配置从不上传。
+    """
+
+    targetLang: str = "en"
+    fields: dict[str, str] = Field(default_factory=dict)
+
+
+# 单次请求的字段文本总长度上限（防滥用；256KB 足够覆盖超长简历 + markdown 正文）
+TRANSLATE_MAX_TOTAL_CHARS = 256 * 1024
 
 
 @router.post("/polish")
@@ -109,3 +125,32 @@ async def resume_import(
         logger.exception("简历导入调用失败: %s", e)
         return {"error": f"AI 解析失败：{e}"}
     return {"resume": parsed}
+
+
+@router.post("/translate")
+async def translate(req: TranslateRequest, user: User = Depends(get_current_user)):
+    """把简历文本字段映射翻译为目标语言，返回 { fields: {同 key: 译文} }。
+
+    契约（PLAN_resume_translate.md）：LLM 只译值、原样回传 key；响应中缺失的
+    key 由前端合并时回退原文（部分成功可用）。多余 key 在服务层已丢弃。
+
+    需要登录：每次调用都会消耗后端 LLM 额度（只记用量台账，不扣积分）。
+    """
+    if not req.fields:
+        return {"error": {"message": "fields 不能为空", "code": "BadRequest"}}
+    # 值类型已由 Pydantic（dict[str, str]）在 422 层校验，这里只做长度防护
+    total_chars = sum(len(v) for v in req.fields.values())
+    if total_chars > TRANSLATE_MAX_TOTAL_CHARS:
+        return {"error": {"message": "fields 总长度超限", "code": "BadRequest"}}
+    try:
+        async with track_llm(ENDPOINT_AI_TRANSLATE, user_id=user.id):
+            translated = await ai_proxy.translate_fields(req.fields, req.targetLang)
+    except ValueError as e:
+        return {"error": {"message": str(e), "code": "BadRequest"}}
+    except RuntimeError as e:
+        logger.warning("简历翻译失败（可预期）: %s", e)
+        return {"error": {"message": str(e), "code": "ConfigError"}}
+    except Exception as e:  # noqa: BLE001
+        logger.exception("简历翻译调用失败: %s", e)
+        return {"error": {"message": str(e)}}
+    return {"fields": translated}

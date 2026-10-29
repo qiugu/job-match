@@ -716,6 +716,9 @@
       "success": "Resume copied successfully",
       "error": "Failed to copy resume"
     },
+    "translate": {
+      "tooltip": "Translate Resume"
+    },
     "export": {
       "tooltip": "Export Resume",
       "pdf": "Export PDF",
@@ -1175,6 +1178,25 @@
       "confirmText": "Delete",
       "cancelText": "Cancel"
     }
+  },
+  "translateResume": {
+    "title": "Translate Resume",
+    "description": "Translate the resume content into another language version",
+    "language": "Target language",
+    "mode": "How to apply",
+    "modeOverwrite": "Overwrite current resume",
+    "modeOverwriteDesc": "Replace the current content; undo restores it",
+    "modeCreate": "Create a new resume",
+    "modeCreateDesc": "Keep the original and create a translated copy",
+    "newTitle": "New resume title",
+    "newTitlePlaceholder": "e.g. My Resume · English",
+    "confirm": "Translate",
+    "cancel": "Cancel",
+    "translating": "Translating…",
+    "successOverwrite": "Overwritten with the {language} version",
+    "successCreate": "Created the {language} resume",
+    "error": "Translation failed, please retry",
+    "errorEmpty": "No translatable content in this resume"
   },
   "grammarCheck": {
     "title": "AI Grammar Check",

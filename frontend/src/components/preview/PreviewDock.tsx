@@ -1,9 +1,10 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Home,
   Copy,
   Download,
   Eye,
+  Languages,
   PanelsLeftBottom,
   SpellCheck2,
 } from "lucide-react";
@@ -21,6 +22,7 @@ import { useResumeStore } from "@/store/useResumeStore";
 import { useGrammarCheck } from "@/hooks/useGrammarCheck";
 import { GrammarCheckDrawer } from "@/components/editor/grammar/GrammarCheckDrawer";
 import { FAQDialog } from "./FAQDialog";
+import { TranslateDialog } from "./TranslateDialog";
 import PdfExport from "@/components/shared/PdfExport";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +65,7 @@ const PreviewDock = ({
   const router = useRouter();
   const t = useTranslations("previewDock");
   const tGrammar = useTranslations("grammarCheck");
+  const [translateOpen, setTranslateOpen] = useState(false);
   // 校对入口回归 Dock 后，错误数角标也由 Dock 自己订阅：
   // 顶部工具行不再承担「校对状态」的展示职责。
   const { errors } = useGrammarCheck();
@@ -149,6 +152,25 @@ const PreviewDock = ({
             </TooltipTrigger>
             <TooltipContent side="left" sideOffset={10}>
               <p>{t("copyResume.tooltip")}</p>
+            </TooltipContent>
+          </Tooltip>
+
+          {/* 翻译简历：对简历正文做语言版本转换（覆盖 / 新建），
+              与模板/导出/复制同属「操作简历正文」一类，故同组排列。 */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                data-dock-translate
+                aria-label={t("translate.tooltip")}
+                className={DOCK_BUTTON_CLASS}
+                onClick={() => setTranslateOpen(true)}
+              >
+                <Languages className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left" sideOffset={10}>
+              <p>{t("translate.tooltip")}</p>
             </TooltipContent>
           </Tooltip>
 
@@ -246,6 +268,9 @@ const PreviewDock = ({
           统一由 Dock 作为「校对」这一能力的宿主：入口与抽屉同处一地，
           不再出现「按钮在顶部、抽屉在别处」的跨组件依赖。 */}
       <GrammarCheckDrawer />
+
+      {/* 翻译对话框同理由 Dock 托管：入口与面板同宿主，避免跨组件事件总线 */}
+      <TranslateDialog open={translateOpen} onOpenChange={setTranslateOpen} />
     </div>
   );
 };
