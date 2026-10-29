@@ -48,10 +48,21 @@
 
 ### 2.4 专名与人名约定（写入 LLM Prompt 硬约束）
 
-- 公司名、学校名、产品名等**专名保留原文**（可选括注译文不做，保持简历克制）；
-- 人名保留原文；中→英场景允许按拼音转写（如「张三」→「Zhang San」）；
-- 日期、数字、度量、邮箱、电话、URL 原样保留；
-- Markdown 结构（`#`/`##`/`-`/`**`/`:::left|center|right` 容器）逐字符保留，只译文字。
+> **修订（2026-10-29，见 `FIX_translate_proper_nouns.md`）**：原约定「公司名、学校名、产品名等专名保留原文」与字段清单互相撤销——字段层把 `education.*.school`、`projects.*.name` 列为可译，指令层却禁止翻译，LLM 优先服从显式禁令，英译中方向这两个字段 100% 原样返回（用户报「项目名称/学校名称未翻译」）。现将两类字段改为**必须本地化**。
+
+按字段分三档策略（与 `ai_proxy.TRANSLATE_SYSTEM` 规则 3～6 一一对应）：
+
+| 档位 | 字段 | 规则 |
+| --- | --- | --- |
+| **必须本地化** | `education.*.school`、`projects.*.name` | 目标语言存在通行名称时必须译出（`Fudan University` ↔ `复旦大学`）；项目名只译语义部分（`JDMatch Resume Matcher` → `JDMatch 简历匹配器`） |
+| **按职场惯例本地化** | `position`、`major`、`degree`、`role` | 不逐字硬译（「学士」→ `Bachelor's`、「项目负责人」→ `Project Lead`） |
+| **保留原文** | 公司名（`experience.*.company`）、人名、纯代号/缩写（`JDMatch`、`JD-Match`、`V2X`） | 不意译、不改写；人名中→英可按拼音转写（「张三」→ `Zhang San`） |
+
+另：日期、数字、度量、邮箱、电话、URL 原样保留；Markdown 结构（`#`/`##`/`-`/`**`/`:::left|center|right` 容器）逐字符保留，只译文字。
+
+**「保留原文」与「未翻译」在输出上不可区分**，因此服务层 `translate_fields` 增加了分组护栏 `_warn_if_group_unchanged`：某字段组（按路径首段分组）全部「译文 == 原文」且样本 ≥2 时记 warning（只记分组名与计数，不记正文）。新增可译字段时，必须同时确认其策略档位并更新上述表。
+
+**观测（2026-10-29 追加）**：上述统计已不止进日志——`summarize_translation()` 的结果写入 `llm_usage.detail`（含 `prompt_version`），并在 analytics 页「翻译可观测性」tab 展示字段分桶、未变化分组与单次明细，管理员在 admin 页可看跨用户视图。设计与验收见 `PLAN_ai_observability.md`。
 
 ### 2.5 积分策略
 
@@ -188,7 +199,8 @@ c. 风格：遵守 AGENTS.md（API `/api` 前缀、i18n 双写、注释密度与
 | 1 | 翻译范围 | ✅ 全部文本字段 + `markdownContent`（键值映射） |
 | 2 | 积分 | ✅ 不扣积分，只记 LLM 用量台账 |
 | 3 | 目标语言 | ✅ 仅简体中文 / English（用户裁决，2026-10-28） |
-| 4 | 专名/人名 | ✅ 专名保留原文；中→英人名可拼音 |
+| 4 | 专名/人名 | ✅ 学校名/项目名必须本地化；公司名/人名/纯代号保留原文；中→英人名可拼音（2026-10-29 修订） |
+| 5 | 静默失败可观测 | ✅ `_warn_if_group_unchanged`：字段组整组原样返回时记 warning（2026-10-29 新增） |
 
 ## 11. 实现落点（与计划的差异）
 
@@ -201,6 +213,6 @@ c. 风格：遵守 AGENTS.md（API `/api` 前缀、i18n 双写、注释密度与
 | 对话框 | `frontend/src/components/preview/TranslateDialog.tsx` |
 | 入口 | `frontend/src/components/preview/PreviewDock.tsx`（`data-dock-translate`，第一组「复制」之后） |
 | i18n | `frontend/src/i18n/locales/{zh,en}.json`（`previewDock.translate` + `translateResume`） |
-| 测试 | `tests/test_ai_translate.py`（11 例）、`frontend/tests/resume-translate-fields.test.ts`（8 例）、`preview-dock-actions.test.ts` 追加断言 |
+| 测试 | `tests/test_ai_translate.py`（16 例，含 prompt 策略与未变化护栏）、`frontend/tests/resume-translate-fields.test.ts`（8 例）、`preview-dock-actions.test.ts` 追加断言 |
 
 差异记录：无结构性差异；落地方式「新建」比计划多加了路由兜底（与 `handleCopyResume` 同款 rAF 强制跳转）。

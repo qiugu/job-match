@@ -12,13 +12,18 @@ LLM 请求，本表把它们汇总成一条记录（token 累加、耗时取整�
 
 写入策略与 app/services/quota.py 一致：**独立短事务**。台账写入失败的
 后果只是少一条统计，绝不能让业务请求失败，因此由 usage 服务吞掉异常。
+
+双重定位（2026-10-29 追加）：本表既是**成本台账**，也是**端点的诊断入口**。
+`prompt_version` 与 `detail` 两列让「这次调用到底做了什么」可被页面上读取，
+而不是沉在滚动日志里。`detail` 的内容边界由各端点自行约定，但必须遵守
+「只存路径/计数/枚举，不存用户正文」的红线。
 """
 from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Index, Integer, String
+from sqlalchemy import DateTime, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -75,6 +80,13 @@ class LlmUsage(Base):
     status: Mapped[str] = mapped_column(String(16), default=USAGE_STATUS_SUCCESS)
     # 失败时的异常类名，便于分类统计（超时 / 解析失败 / 厂商错误等）
     error_type: Mapped[str] = mapped_column(String(64), default="")
+    # 生效 prompt 的指纹（sha256 前 8 位）。策略写在 prompt 字符串里，只有记住
+    # 版本，才能把「行为变了」对齐到「指令变了」，否则排查只能靠猜。
+    prompt_version: Mapped[str] = mapped_column(String(16), default="")
+    # 端点自定义的结构化摘要（JSON 文本，写入前由 usage 服务截断到 8KB）。
+    # 如翻译的字段总数/译出数/未变化分组/未变化 key 列表。
+    # 红线：只允许存字段路径与计数，绝不存简历正文（与日志口径一致）。
+    detail: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=_now, index=True
     )

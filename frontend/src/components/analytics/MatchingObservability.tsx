@@ -17,7 +17,11 @@ import {
 } from "@/components/analytics/matching-scale";
 import { cn } from "@/lib/utils";
 
-function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
+/**
+ * KPI 卡。与 `TranslationObservability` 共用（故导出）：同页相邻的两块面板必须
+ * 用同一套卡片原语，否则字号/留白一有偏差就会被读成「两个不同的页面」。
+ */
+export function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="workbench-panel analytics-kpi analytics-panel p-5">
       <p className="xai-eyebrow text-[10px]">{label}</p>
@@ -29,7 +33,8 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
   );
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+/** 图表/列表容器卡（导出原因同 `Metric`）。 */
+export function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="workbench-panel analytics-panel p-5">
       <div className="flex items-center gap-2">
