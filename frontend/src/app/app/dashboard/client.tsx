@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import {
   IconChevronDown,
   IconDoc,
-  IconGrid,
   IconLogout,
   IconTarget,
 } from "@/components/shared/icons/XaiIcons";
@@ -81,11 +80,6 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
       title: t("sidebar.resumes"),
       url: "/app/dashboard/resumes",
       icon: IconDoc,
-    },
-    {
-      title: t("sidebar.templates"),
-      url: "/app/dashboard/templates",
-      icon: IconGrid,
     },
   ];
 

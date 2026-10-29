@@ -17,6 +17,11 @@ export function getApplicationStageMeta(status: JobStatus): {
   return stages[status];
 }
 
+/**
+ * 模板卡片的无障碍位置描述（如 "Template 2 of 4"）。
+ * 使用方：`app/dashboard/templates/page.tsx`（模板选择面板组件，当前未挂路由，
+ * 入口收敛在「创建简历」弹窗内；保留该组件供后续复用）。
+ */
 export function getTemplateCardLabel(index: number, total: number) {
   return `Template ${index + 1} of ${total}`;
 }

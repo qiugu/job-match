@@ -94,7 +94,7 @@
       "title": "用 AI 让简历精准命中岗位",
       "subtitle": "JDMatch 基于大模型，根据你的简历与目标 JD 自动重写与优化，产出更贴合岗位要求的衍生简历。登录后即可发起匹配，匹配与话术消耗账号积分。",
       "cta": "立即匹配",
-      "secondary": "浏览模板",
+      "secondary": "查看我的简历",
       "imageAlt": "JDMatch 简历编辑器界面：左侧编辑内容，右侧实时预览排版"
     },
     "features": {
@@ -194,7 +194,6 @@
       "appName": "JDMatch",
       "resumes": "我的简历",
       "settings": "通用设置",
-      "templates": "简历模板",
       "ai": "AI服务商",
       "jobmatch": "简历匹配",
       "jobs": "我的投递",
