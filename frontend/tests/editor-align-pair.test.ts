@@ -100,3 +100,18 @@ describe("源码契约：解析期必须拆分配对段落，不得再压平", (
     expect(validateAt).toBeLessThan(mutateAt);
   });
 });
+
+describe("按钮产物形态：「同行左右分列」拆分结果 = 块形式配对", () => {
+  it("拆分产物（:::left 块 + :::right 块，无空行）被预览合并为 md-pair-row 同一行", () => {
+    // 「选中日期 → 点同行左右分列」后经 wrapAlignSerializer 输出的形态，
+    // 与手写 :::left / :::right 逐字节同构（见 editor-align-selection.test.ts 的节点级断言）
+    const splitProduct =
+      ":::left\n字节跳动 · 高级前端工程师\n\n:::\n:::right\n2021.07 – 2024.12\n\n:::";
+    const html = renderMarkdownToHtml(splitProduct);
+    expect(html).toContain("md-pair-row");
+    expect(html).toContain("md-align-left");
+    expect(html).toContain("md-align-right");
+    // 左列在前、右列在后
+    expect(html.indexOf("字节跳动")).toBeLessThan(html.indexOf("2021.07"));
+  });
+});

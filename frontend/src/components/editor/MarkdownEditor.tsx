@@ -20,8 +20,9 @@ import {
   AlignCenter,
   AlignRight,
   Eraser,
+  Columns2,
 } from "lucide-react";
-import { Align } from "./extensions/align";
+import { Align, getPairAction } from "./extensions/align";
 import "@/styles/tiptap.scss";
 
 // tiptap-markdown 在 editor.storage.markdown 上暴露 getMarkdown()，
@@ -95,6 +96,9 @@ const EditorToolbar = ({ editor }: { editor: Editor }) => {
       const alignLeft = ed.isActive({ align: "left" });
       const alignCenter = ed.isActive({ align: "center" });
       const alignRight = ed.isActive({ align: "right" });
+      // 同行左右分列按钮：与命令层共用 getPairAction 判定，
+      // 「按钮可点」与「命令生效」保持一致（active=已处于配对行）
+      const pairAction = getPairAction(ed.state);
       return {
         paragraph:
           ed.isActive("paragraph") &&
@@ -113,6 +117,9 @@ const EditorToolbar = ({ editor }: { editor: Editor }) => {
         alignRight,
         // 无任何显式对齐 = 默认对齐（I7：让「清除对齐」也有明确的激活态）
         alignNone: !alignLeft && !alignCenter && !alignRight,
+        // 同行左右分列：已在配对行内 = 激活（再点=合并回单段）
+        alignPair: pairAction === "merge",
+        alignPairDisabled: pairAction === null,
       };
     },
   });
@@ -229,6 +236,17 @@ const EditorToolbar = ({ editor }: { editor: Editor }) => {
           onClick={() => editor.chain().focus().unsetAlign().run()}
         >
           <Eraser className="w-4 h-4" />
+        </ToolbarButton>
+        {/* 同行左右分列：把一行快速拆成 [左列 | 右列] 配对行（:::left + :::right），
+            预览/导出同一行左右分布；已在配对行内再点 = 合并回单段（toggle）。
+            编辑器内两列以上下两段呈现（Tiptap 无双列节点的已知折中）。 */}
+        <ToolbarButton
+          title={t("toolbar.alignPair")}
+          active={active.alignPair}
+          disabled={active.alignPairDisabled}
+          onClick={() => editor.chain().focus().toggleAlignPair().run()}
+        >
+          <Columns2 className="w-4 h-4" />
         </ToolbarButton>
       </ToolbarGroup>
     </div>

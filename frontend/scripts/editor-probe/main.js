@@ -5,6 +5,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { Markdown } from "tiptap-markdown";
 import { Align } from "@/components/editor/extensions/align";
 import { MARKDOWN_SAMPLE_ZH } from "@/config/markdownTemplates/samples";
+import { renderMarkdownToHtml } from "@/utils/markdownRender";
 // 真实编辑态样式（与 MarkdownEditor.tsx 共用），供截图模式使用
 import "@/styles/tiptap.scss";
 
@@ -192,6 +193,66 @@ window.__probe = async () => {
     result.adjacentBlocks = {
       序列化结果: md(editor),
       第二段attrs: JSON.stringify(editor.state.doc.child(1).attrs),
+    };
+    editor.destroy();
+  }
+
+  // 用例 6：同行左右分列按钮 —— 部分选区（选中行尾日期）拆 [前缀 | 选中]
+  {
+    const editor = await createEditor("字节跳动 · 高级前端工程师 2021.07 – 2024.12");
+    const size = editor.state.doc.firstChild.content.size;
+    const dateFrom = "字节跳动 · 高级前端工程师 ".length + 1; // doc 坐标 = 文本偏移 + 1
+    editor.commands.setTextSelection({ from: dateFrom, to: size + 1 });
+    const ok = editor.chain().focus().setAlignPair().run();
+    const after = md(editor);
+    result.alignPairSplit = {
+      命令结果: ok,
+      段落数: editor.state.doc.childCount,
+      各段align: JSON.stringify(
+        Array.from({ length: editor.state.doc.childCount }, (_, i) =>
+          editor.state.doc.child(i).attrs.align ?? null
+        )
+      ),
+      序列化结果: after,
+      预览含mdPairRow: renderMarkdownToHtml(after).includes("md-pair-row"),
+    };
+    editor.destroy();
+  }
+
+  // 用例 6b：toggle 往返 —— 拆分后再点合并回单段，文本无损（接缝补一空格）
+  {
+    const editor = await createEditor("字节跳动 · 高级前端工程师 2021.07 – 2024.12");
+    const size = editor.state.doc.firstChild.content.size;
+    const dateFrom = "字节跳动 · 高级前端工程师 ".length + 1;
+    editor.commands.setTextSelection({ from: dateFrom, to: size + 1 });
+    editor.chain().focus().toggleAlignPair().run();
+    const splitMd = md(editor);
+    // 光标落在左列内再点 = 取消配对
+    editor.commands.setTextSelection(2);
+    const merged = editor.chain().focus().toggleAlignPair().run();
+    result.alignPairToggle = {
+      拆分后: splitMd,
+      合并命令结果: merged,
+      合并后段落数: editor.state.doc.childCount,
+      合并后文本: editor.state.doc.textContent,
+      合并后align: editor.state.doc.firstChild.attrs.align ?? null,
+    };
+    editor.destroy();
+  }
+
+  // 用例 6c：跨两段选区直接配对（内容不动，只落 align）
+  {
+    const editor = await createEditor("阿里巴巴\n\n2022 - 2025");
+    const p1Size = editor.state.doc.child(0).nodeSize;
+    editor.commands.setTextSelection({ from: 2, to: p1Size + 2 });
+    const ok = editor.chain().focus().setAlignPair().run();
+    result.alignPairTwoBlocks = {
+      命令结果: ok,
+      序列化结果: md(editor),
+      两段align: JSON.stringify([
+        editor.state.doc.child(0).attrs.align,
+        editor.state.doc.child(1).attrs.align,
+      ]),
     };
     editor.destroy();
   }
