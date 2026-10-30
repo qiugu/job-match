@@ -2,19 +2,21 @@ import { useEffect, useState } from "react";
 import { Star } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-
-const REPO_URL = "https://github.com/JOYCEQL/magic-resume";
-const API_URL = "https://api.github.com/repos/JOYCEQL/magic-resume";
+import { GITHUB_API_REPO_URL, GITHUB_REPO_URL } from "@/config/constants";
 
 export function GitHubStars() {
   const [stars, setStars] = useState<number | null>(null);
   const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
-    fetch(API_URL)
+    fetch(GITHUB_API_REPO_URL)
       .then((res) => res.json())
       .then((data) => {
-        setStars(data.stargazers_count);
+        // 匿名 API 有速率限制，可能返回 { message } 而非仓库对象；
+        // 非数值时保持 stars = null，隐藏分隔线与数字，避免渲染出空槽/NaN。
+        if (typeof data?.stargazers_count === "number") {
+          setStars(data.stargazers_count);
+        }
       })
       .catch((error) => {
         console.error("Error fetching GitHub stars:", error);
@@ -23,7 +25,7 @@ export function GitHubStars() {
 
   return (
     <motion.a
-      href={REPO_URL}
+      href={GITHUB_REPO_URL}
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
