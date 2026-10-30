@@ -134,7 +134,8 @@
     "cta": {
       "title": "让下一份简历更懂岗位",
       "description": "登录 JDMatch，用 AI 把简历与 JD 对齐，提升每一次投递的命中率",
-      "button": "登录并开始匹配"
+      "button": "登录并开始匹配",
+      "tryButton": "免登录，先试试编辑器"
     },
     "footer": {
       "copyright": " 2025 JDMatch. 保留所有权利."
@@ -1340,6 +1341,52 @@
       "unsaved": "未保存",
       "collapsePanel": "收起排版设置",
       "expandPanel": "展开排版设置"
+    }
+  },
+  "templatesGallery": {
+    "badge": "简历模板",
+    "title": "选一套模板，直接开始写",
+    "subtitle": "无需注册即可在线编辑与实时预览；登录后可保存云端、使用 AI 匹配并免费导出 PDF。",
+    "templatePreviewAlt": "模板缩略图",
+    "templatePreviewMissing": "缩略图生成中",
+    "backToGallery": "返回模板列表"
+  },
+  "guest": {
+    "banner": {
+      "message": "游客模式 · 内容仅保存在本浏览器",
+      "loginButton": "登录保存到云端"
+    },
+    "gate": {
+      "title": "登录后可用",
+      "description": "登录 JDMatch 后即可使用该功能，内容将保存到你的账号。",
+      "pdf": {
+        "title": "登录后即可导出 PDF",
+        "description": "PDF 导出对登录用户免费、不消耗积分，登录后即可把这份简历导出为可打印的 PDF。"
+      },
+      "grammar": {
+        "title": "登录后即可 AI 校对",
+        "description": "AI 校对会检查简历正文中的拼写与语法问题并给出修改建议。"
+      },
+      "polish": {
+        "title": "登录后即可 AI 润色",
+        "description": "AI 润色会重写选中的内容，让表达更专业。"
+      },
+      "translate": {
+        "title": "登录后即可翻译简历",
+        "description": "可将简历正文转换为另一语言版本（覆盖或另存）。"
+      },
+      "loginButton": "登录 / 注册",
+      "registerHint": "没有账号？注册即送 50 积分（注册码可选）",
+      "later": "暂不，继续编辑"
+    },
+    "import": {
+      "title": "发现未保存的本地简历",
+      "description": "你在游客模式下编辑过「{title}」（最后保存于 {time}）。要把它导入到你的账号云端保存吗？",
+      "confirm": "导入到我的账号",
+      "skip": "暂不导入",
+      "busy": "正在导入…",
+      "success": "已导入到你的账号",
+      "error": "导入失败，本地草稿已保留，可稍后重试"
     }
   }
 }

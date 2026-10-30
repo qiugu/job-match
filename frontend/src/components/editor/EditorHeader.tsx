@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import PdfExport from "../shared/PdfExport";
 import ThemeToggle from "../shared/ThemeToggle";
 import { useResumeStore } from "@/store/useResumeStore";
+import { useGuestGate, useGuestMode } from "@/store/useGuestMode";
 import {
   Tooltip,
   TooltipContent,
@@ -78,6 +79,12 @@ export function EditorHeader() {
   const t = useTranslations();
   const undoLabel = t("richEditor.undo");
   const redoLabel = t("richEditor.redo");
+
+  // 游客态（/edit）：返回目标改为公开模板画廊（/app 控制台有登录墙），
+  // 导出按钮改为登录引导（服务端 PDF 渲染是登录墙内的免费能力）。
+  const isGuest = useGuestMode((state) => state.active);
+  const requestGate = useGuestGate((state) => state.request);
+  const backTarget = isGuest ? "/templates" : "/app/dashboard";
 
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null) => {
@@ -169,11 +176,11 @@ export function EditorHeader() {
     >
       <div className="flex items-center justify-between px-6 h-full pr-2">
         <div className="flex items-center space-x-3 scrollbar-hide">
-          {/* 返回工作台 */}
+          {/* 返回工作台 / 模板画廊（游客态） */}
           <button
             type="button"
             aria-label={t("common.title")}
-            onClick={() => router.push("/app/dashboard")}
+            onClick={() => router.push(backTarget)}
             className={cn(CTRL_ICON, "hidden md:inline-flex")}
           >
             <ArrowLeft className="h-4 w-4" />
@@ -184,7 +191,7 @@ export function EditorHeader() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => {
-              router.push("/app/dashboard");
+              router.push(backTarget);
             }}
           >
             <span className="text-[15px] font-medium">{t("common.title")}</span>
@@ -317,15 +324,27 @@ export function EditorHeader() {
             </Tooltip>
           </TooltipProvider>
           <div className="shrink-0">
-            <PdfExport>
+            {isGuest ? (
+              // 游客态：导出走登录引导（PLAN_guest_access 方案 A）
               <button
                 type="button"
                 className={CTRL_SECONDARY}
+                onClick={() => requestGate("pdf")}
               >
                 <Download className="h-4 w-4" />
                 {t("pdfExport.button.export")}
               </button>
-            </PdfExport>
+            ) : (
+              <PdfExport>
+                <button
+                  type="button"
+                  className={CTRL_SECONDARY}
+                >
+                  <Download className="h-4 w-4" />
+                  {t("pdfExport.button.export")}
+                </button>
+              </PdfExport>
+            )}
           </div>
         </div>
       </div>

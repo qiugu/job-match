@@ -34,6 +34,8 @@ import {
   restoreResumeSnapshot,
   clearHistoryGroup,
 } from "./resumeHistory";
+import { isGuestModeActive } from "./useGuestMode";
+import { writeGuestDraft } from "@/lib/guestDraft";
 
 interface ResumeStore {
   resumes: Record<string, ResumeData>;
@@ -102,11 +104,15 @@ interface ResumeStore {
   setThemeColor: (color: string) => void;
   setTemplate: (templateId: string) => void;
   addResume: (resume: ResumeData) => string;
+  /** 仅从内存移除简历（不触后端、不清 localStorage）：游客退出 /edit 时
+   *  清理草稿的内存副本，避免残留出现在登录后的云端简历列表里。 */
+  removeLocalResume: (resumeId: string) => void;
   addCertificate: (certificate: Certificate) => void;
   updateCertificate: (id: string, updates: Partial<Certificate>) => void;
   updateCertificatesBatch: (certificates: Certificate[]) => void;
   removeCertificate: (id: string) => void;
-  /** 将当前激活简历（含 markdown 内容）上传/更新到后端数据库，回写后端记录 id */
+  /** 将当前激活简历（含 markdown 内容）上传/更新到后端数据库，回写后端记录 id。
+   *  游客态（isGuestModeActive）下改为写入本地草稿，不发任何网络请求。 */
   saveActiveResumeToBackend: () => Promise<{ id: string; created: boolean }>;
   /** 将指定简历同步到后端：未落库 POST 创建并替换 id 为后端 id；已落库 PUT 更新 */
   syncResumeToBackend: (resumeId: string) => Promise<{ id: string; created: boolean }>;
@@ -262,6 +268,13 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
             [tempId]: [],
           },
         }));
+
+        // 游客态：不落库（红线：游客态禁止发出后端业务请求）。
+        // 草稿以内存临时 id 存活，首次手动保存/自动保存时由
+        // syncResumeToBackend 的游客分支写入 localStorage。
+        if (isGuestModeActive()) {
+          return tempId;
+        }
 
         // 新建即落库：直接 POST 后端拿到真实 id，使「我的简历」与「优化简历」
         // 下拉同源一致，不存在「内存草稿」概念。
@@ -473,23 +486,26 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
           };
         });
 
-        // 始终尝试删除后端记录（master_resumes）：
-        // 已落库记录正常删除；未落库纯内存草稿后端会返回 404，视为幂等成功静默忽略，
-        // 不会报错刷屏，也绝不会漏发请求。此前用 syncedIds 守卫会误判跳过真实删除，
-        // 导致「前端删除成功但后端没删、刷新又重现」的 bug。
-        (async () => {
-          try {
-            const { deleteMasterResume } = await import("@/lib/jobmatch");
-            await deleteMasterResume(resumeId);
-          } catch (error) {
-            const status = (error as { status?: number }).status;
-            if (status === 404) {
-              // 记录已在后端不存在，视为已删除，静默忽略
-              return;
+        // 游客态：仅清理内存与本地草稿，不请求后端。
+        if (!isGuestModeActive()) {
+          // 始终尝试删除后端记录（master_resumes）：
+          // 已落库记录正常删除；未落库纯内存草稿后端会返回 404，视为幂等成功静默忽略，
+          // 不会报错刷屏，也绝不会漏发请求。此前用 syncedIds 守卫会误判跳过真实删除，
+          // 导致「前端删除成功但后端没删、刷新又重现」的 bug。
+          (async () => {
+            try {
+              const { deleteMasterResume } = await import("@/lib/jobmatch");
+              await deleteMasterResume(resumeId);
+            } catch (error) {
+              const status = (error as { status?: number }).status;
+              if (status === 404) {
+                // 记录已在后端不存在，视为已删除，静默忽略
+                return;
+              }
+              console.error("Error deleting resume from backend:", error);
             }
-            console.error("Error deleting resume from backend:", error);
-          }
-        })();
+          })();
+        }
       },
 
       duplicateResume: (resumeId) => {
@@ -965,6 +981,30 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
         return resume.id;
       },
 
+      removeLocalResume: (resumeId) => {
+        clearHistoryGroup(resumeId);
+        set((state) => {
+          const { [resumeId]: _, ...rest } = state.resumes;
+          const { [resumeId]: __, ...historyRest } = state.history;
+          const { [resumeId]: ___, ...futureRest } = state.future;
+          const nextSynced = new Set(state.syncedIds);
+          nextSynced.delete(resumeId);
+          const nextSnapshots = { ...state.savedSnapshots };
+          delete nextSnapshots[resumeId];
+          return {
+            resumes: rest,
+            activeResumeId:
+              state.activeResumeId === resumeId ? null : state.activeResumeId,
+            activeResume:
+              state.activeResumeId === resumeId ? null : state.activeResume,
+            history: historyRest,
+            future: futureRest,
+            syncedIds: nextSynced,
+            savedSnapshots: nextSnapshots,
+          };
+        });
+      },
+
       saveActiveResumeToBackend: async () => {
         const { activeResumeId } = get();
         if (!activeResumeId) throw new Error("没有可保存的简历");
@@ -972,10 +1012,36 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
       },
 
       /** 将指定简历同步到后端：未落库的 POST 创建并替换 id 为后端 id；
-       *  已落库的 PUT 更新。返回后端记录 id 与是否新建。 */
+       *  已落库的 PUT 更新。返回后端记录 id 与是否新建。
+       *  游客态：写入 localStorage 草稿（写失败抛错，由调用方提示「改用
+       *  登录保存」），随后与云朵路径同样维护 syncedIds/savedSnapshots，
+       *  保证脏标记（I2 契约）在两种持久化模式下口径一致。 */
       syncResumeToBackend: async (resumeId: string) => {
         const resume = get().resumes[resumeId];
         if (!resume) throw new Error("简历不存在");
+
+        if (isGuestModeActive()) {
+          const updated: ResumeData = {
+            ...resume,
+            updatedAt: new Date().toISOString(),
+          };
+          const persisted = writeGuestDraft(updated);
+          if (!persisted) {
+            throw new Error("本地保存失败：浏览器存储不可用或已满");
+          }
+
+          set((state) => ({
+            resumes: { ...state.resumes, [resumeId]: updated },
+            activeResume:
+              state.activeResumeId === resumeId ? updated : state.activeResume,
+            syncedIds: new Set(state.syncedIds).add(resumeId),
+            savedSnapshots: {
+              ...state.savedSnapshots,
+              [resumeId]: JSON.stringify(updated),
+            },
+          }));
+          return { id: resumeId, created: false };
+        }
 
         const { createMasterResumeJson, updateMasterResume } = await import(
           "@/lib/jobmatch"
@@ -1035,8 +1101,10 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
 
       /** 从后端 master_resumes 拉取全部简历填充内存（刷新后/进入列表页时调用）。
        *  每条都拉取结构化详情，使「我的简历」页卡片预览与之前一致。
-       *  内存中未落库（临时 id）的简历保留不动，不被覆盖。 */
+       *  内存中未落库（临时 id）的简历保留不动，不被覆盖。
+       *  游客态不该调用此方法（防御性返回空列表，杜绝游客态网络请求）。 */
       loadResumesFromBackend: async () => {
+        if (isGuestModeActive()) return [];
         const { listMasterResumes, getMasterResume } = await import(
           "@/lib/jobmatch"
         );

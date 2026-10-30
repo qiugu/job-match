@@ -3,7 +3,7 @@
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://jdmatch.site/zh</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-10-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="zh" href="https://jdmatch.site/zh" />
@@ -12,9 +12,18 @@
   </url>
   <url>
     <loc>https://jdmatch.site/en</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-10-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://jdmatch.site/zh" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://jdmatch.site/en" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://jdmatch.site/zh" />
+  </url>
+  <url>
+    <loc>https://jdmatch.site/templates</loc>
+    <lastmod>2026-10-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="zh" href="https://jdmatch.site/zh" />
     <xhtml:link rel="alternate" hreflang="en" href="https://jdmatch.site/en" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://jdmatch.site/zh" />

@@ -17,6 +17,7 @@ import RichTextEditor from "../shared/rich-editor/RichEditor";
 import AIPolishDialog from "../shared/ai/AIPolishDialog";
 import { UnifiedDateInput } from "../ui/unified-date-input";
 import { UnifiedDateRangeInput } from "../ui/unified-date-range-input";
+import { useGuestGate, useGuestMode } from "@/store/useGuestMode";
 
 interface FieldProps {
   label?: string;
@@ -44,6 +45,9 @@ const Field = ({
   const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
   const [showPolishDialog, setShowPolishDialog] = useState(false);
   const t = useTranslations();
+  // 游客态：AI 润色是登录墙内能力（LLM 调用），点击改为登录引导
+  const isGuest = useGuestMode((state) => state.active);
+  const requestGate = useGuestGate((state) => state.request);
 
   const currentDate = useMemo(
     () => (value ? new Date(value) : undefined),
@@ -177,6 +181,10 @@ const Field = ({
             onChange={onChange}
             placeholder={placeholder}
             onPolish={() => {
+              if (isGuest) {
+                requestGate("polish");
+                return;
+              }
               setShowPolishDialog(true);
             }}
           />

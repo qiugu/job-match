@@ -12,10 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LocaleRouteImport } from './routes/$locale'
 import { Route as AppRouteRouteImport } from './routes/app/route'
+import { Route as EditRouteImport } from './routes/edit'
 import { Route as ImageProxyRouteImport } from './routes/image-proxy'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppDashboardRouteImport } from './routes/app/dashboard'
+import { Route as TemplatesIndexRouteImport } from './routes/templates.index'
+import { Route as TemplatesIdRouteImport } from './routes/templates.$id'
 import { Route as AppDashboardIndexRouteImport } from './routes/app/dashboard/index'
 import { Route as AppDashboardAdminRouteImport } from './routes/app/dashboard/admin'
 import { Route as AppDashboardAnalyticsRouteImport } from './routes/app/dashboard/analytics'
@@ -40,6 +43,11 @@ const AppRouteRoute = AppRouteRouteImport.update({
   path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EditRoute = EditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ImageProxyRoute = ImageProxyRouteImport.update({
   id: '/image-proxy',
   path: '/image-proxy',
@@ -59,6 +67,16 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => AppRouteRoute,
+} as any)
+const TemplatesIndexRoute = TemplatesIndexRouteImport.update({
+  id: '/templates/',
+  path: '/templates/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesIdRoute = TemplatesIdRouteImport.update({
+  id: '/templates/$id',
+  path: '/templates/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppDashboardIndexRoute = AppDashboardIndexRouteImport.update({
   id: '/',
@@ -105,10 +123,13 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
   '/$locale': typeof LocaleRoute
+  '/edit': typeof EditRoute
   '/image-proxy': typeof ImageProxyRoute
   '/login': typeof LoginRoute
   '/app/dashboard': typeof AppDashboardRouteWithChildren
+  '/templates/$id': typeof TemplatesIdRoute
   '/app/': typeof AppIndexRoute
+  '/templates/': typeof TemplatesIndexRoute
   '/app/dashboard/admin': typeof AppDashboardAdminRoute
   '/app/dashboard/analytics': typeof AppDashboardAnalyticsRoute
   '/app/dashboard/jobs': typeof AppDashboardJobsRoute
@@ -121,9 +142,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$locale': typeof LocaleRoute
+  '/edit': typeof EditRoute
   '/image-proxy': typeof ImageProxyRoute
   '/login': typeof LoginRoute
+  '/templates/$id': typeof TemplatesIdRoute
   '/app': typeof AppIndexRoute
+  '/templates': typeof TemplatesIndexRoute
   '/app/dashboard/admin': typeof AppDashboardAdminRoute
   '/app/dashboard/analytics': typeof AppDashboardAnalyticsRoute
   '/app/dashboard/jobs': typeof AppDashboardJobsRoute
@@ -138,10 +162,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
   '/$locale': typeof LocaleRoute
+  '/edit': typeof EditRoute
   '/image-proxy': typeof ImageProxyRoute
   '/login': typeof LoginRoute
   '/app/dashboard': typeof AppDashboardRouteWithChildren
+  '/templates/$id': typeof TemplatesIdRoute
   '/app/': typeof AppIndexRoute
+  '/templates/': typeof TemplatesIndexRoute
   '/app/dashboard/admin': typeof AppDashboardAdminRoute
   '/app/dashboard/analytics': typeof AppDashboardAnalyticsRoute
   '/app/dashboard/jobs': typeof AppDashboardJobsRoute
@@ -157,10 +184,13 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/$locale'
+    | '/edit'
     | '/image-proxy'
     | '/login'
     | '/app/dashboard'
+    | '/templates/$id'
     | '/app/'
+    | '/templates/'
     | '/app/dashboard/admin'
     | '/app/dashboard/analytics'
     | '/app/dashboard/jobs'
@@ -173,9 +203,12 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$locale'
+    | '/edit'
     | '/image-proxy'
     | '/login'
+    | '/templates/$id'
     | '/app'
+    | '/templates'
     | '/app/dashboard/admin'
     | '/app/dashboard/analytics'
     | '/app/dashboard/jobs'
@@ -189,10 +222,13 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/$locale'
+    | '/edit'
     | '/image-proxy'
     | '/login'
     | '/app/dashboard'
+    | '/templates/$id'
     | '/app/'
+    | '/templates/'
     | '/app/dashboard/admin'
     | '/app/dashboard/analytics'
     | '/app/dashboard/jobs'
@@ -207,8 +243,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRouteRoute: typeof AppRouteRouteWithChildren
   LocaleRoute: typeof LocaleRoute
+  EditRoute: typeof EditRoute
   ImageProxyRoute: typeof ImageProxyRoute
   LoginRoute: typeof LoginRoute
+  TemplatesIdRoute: typeof TemplatesIdRoute
+  TemplatesIndexRoute: typeof TemplatesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -232,6 +271,13 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/edit': {
+      id: '/edit'
+      path: '/edit'
+      fullPath: '/edit'
+      preLoaderRoute: typeof EditRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/image-proxy': {
@@ -261,6 +307,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRouteRoute
+    }
+    '/templates/': {
+      id: '/templates/'
+      path: '/templates'
+      fullPath: '/templates/'
+      preLoaderRoute: typeof TemplatesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates/$id': {
+      id: '/templates/$id'
+      path: '/templates/$id'
+      fullPath: '/templates/$id'
+      preLoaderRoute: typeof TemplatesIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/app/dashboard/': {
       id: '/app/dashboard/'
@@ -365,8 +425,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRouteRoute: AppRouteRouteWithChildren,
   LocaleRoute: LocaleRoute,
+  EditRoute: EditRoute,
   ImageProxyRoute: ImageProxyRoute,
   LoginRoute: LoginRoute,
+  TemplatesIdRoute: TemplatesIdRoute,
+  TemplatesIndexRoute: TemplatesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

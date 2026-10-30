@@ -14,7 +14,9 @@ import {
 } from "@/lib/templatePreview";
 
 const IframeTemplateViewer = () => {
-  const { id } = useParams({ from: "/app/preview-template/$id" });
+  // strict:false：组件同时服务 /app/preview-template/$id（旧路径）与
+  // /templates/$id（公开路由），不能绑定单一路由 id。
+  const { id } = useParams({ strict: false }) as { id: string };
   const searchParams =
     typeof window !== "undefined"
       ? new URLSearchParams(window.location.search)

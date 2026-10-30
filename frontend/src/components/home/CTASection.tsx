@@ -2,6 +2,7 @@ import { ArrowRight } from "lucide-react";
 import { useTranslations } from "@/i18n/compat/client";
 import AnimatedFeature from "./client/AnimatedFeature";
 import GoDashboard from "./GoDashboard";
+import GoTryEditor from "./GoTryEditor";
 
 export default function CTASection() {
   const t = useTranslations("home");
@@ -27,15 +28,27 @@ export default function CTASection() {
               {t("cta.description")}
             </p>
 
-            <GoDashboard>
-              <button
-                type="submit"
-                className="pp-btn h-16 px-12 text-xl bg-butter text-ink border-2 border-paper hover:bg-paper group"
-              >
-                {t("cta.button")}
-                <ArrowRight className="w-6 h-6 ml-2 transition-transform group-hover:translate-x-1.5" />
-              </button>
-            </GoDashboard>
+            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <GoDashboard>
+                <button
+                  type="submit"
+                  className="pp-btn h-16 px-12 text-xl bg-butter text-ink border-2 border-paper hover:bg-paper group"
+                >
+                  {t("cta.button")}
+                  <ArrowRight className="w-6 h-6 ml-2 transition-transform group-hover:translate-x-1.5" />
+                </button>
+              </GoDashboard>
+              {/* 游客试用入口（PLAN_guest_access）：编辑器对未登录全开放，
+                  这是「价值前置」的主转化路径之一 */}
+              <GoTryEditor>
+                <button
+                  type="button"
+                  className="h-14 px-8 text-lg font-medium text-paper/90 underline-offset-4 transition-colors hover:text-paper hover:underline"
+                >
+                  {t("cta.tryButton")}
+                </button>
+              </GoTryEditor>
+            </div>
 
           </div>
         </AnimatedFeature>

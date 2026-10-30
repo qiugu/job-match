@@ -137,7 +137,8 @@
     "cta": {
       "title": "Make Your Next Resume Understand the Role",
       "description": "Log in to JDMatch and use AI to align your resume with the JD, improving the hit rate of every application",
-      "button": "Log In & Start Matching"
+      "button": "Log In & Start Matching",
+      "tryButton": "Try the editor — no sign-up needed"
     },
     "faq": {
       "title": "Frequently Asked Questions",
@@ -683,8 +684,8 @@
     "chipArchived": "Archived",
     "jobSubGreeting": "Pitch generated",
     "jobSubResume": "Custom resume ready",
-    "jobSubApplied": "Applied \u00b7 awaiting HR feedback",
-    "jobSubClosed": "Closed \u00b7 kept in archive",
+    "jobSubApplied": "Applied · awaiting HR feedback",
+    "jobSubClosed": "Closed · kept in archive",
     "jobsEmpty": "No applications yet — one is created automatically whenever you generate a pitch or a tailored resume.",
     "jobsLoading": "Loading…",
     "jobStatusGreetingSent": "Greeting sent · awaiting reply",
@@ -1338,6 +1339,64 @@
       "unsaved": "Unsaved",
       "collapsePanel": "Collapse typeset panel",
       "expandPanel": "Expand typeset panel"
+    }
+  },
+  "templatesGallery": {
+    "badge": "Resume templates",
+    "title": "Pick a template, start writing right away",
+    "subtitle": "Edit and preview online without an account. Sign in to save to the cloud, use AI matching and export PDF for free.",
+    "templatePreviewAlt": "Template thumbnail",
+    "templatePreviewMissing": "Thumbnail pending",
+    "backToGallery": "Back to templates"
+  },
+  "guest": {
+    "banner": {
+      "message": "Guest mode · your work is saved in this browser only",
+      "loginButton": "Sign in to save to cloud"
+    },
+    "gate": {
+      "title": "Available after sign-in",
+      "description": "Sign in to JDMatch to use this feature and keep your work in your account.",
+      "pdf": {
+        "title": "登录后即可导出 PDF",
+        "description": [
+          "Export PDF after signing in",
+          "PDF export is free for signed-in users and costs no credits."
+        ]
+      },
+      "grammar": {
+        "title": "登录后即可 AI 校对",
+        "description": [
+          "AI proofreading after signing in",
+          "AI proofreading finds spelling and grammar issues in your resume and suggests fixes."
+        ]
+      },
+      "polish": {
+        "title": "登录后即可 AI 润色",
+        "description": [
+          "AI polishing after signing in",
+          "AI polishing rewrites the selected content with more professional wording."
+        ]
+      },
+      "translate": {
+        "title": "登录后即可翻译简历",
+        "description": [
+          "Translate resume after signing in",
+          "Convert your resume content into another language (overwrite or save as a copy)."
+        ]
+      },
+      "loginButton": "Sign in / Register",
+      "registerHint": "No account? Register to get 50 free credits (invite code optional)",
+      "later": "Not now, keep editing"
+    },
+    "import": {
+      "title": "Unsaved local resume found",
+      "description": "You edited \"{title}\" as a guest (last saved {time}). Import it into your account?",
+      "confirm": "Import to my account",
+      "skip": "Not now",
+      "busy": "Importing…",
+      "success": "Imported to your account",
+      "error": "Import failed. Your local draft is kept — try again later."
     }
   }
 }

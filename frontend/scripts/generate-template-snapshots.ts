@@ -45,7 +45,9 @@ const buildTemplateSnapshotUrl = (
   locale: TemplatePreviewLocale,
   templateId: string
 ) =>
-  `${SNAPSHOT_SERVER_URL}/app/preview-template/${templateId}?locale=${locale}&snapshot=1`;
+  // PLAN_guest_access P1：模板预览已迁出登录墙（/app/preview-template ->
+  // /templates），快照走公开路由，无需登录态。
+  `${SNAPSHOT_SERVER_URL}/templates/${templateId}?locale=${locale}&snapshot=1`;
 
 const waitForServer = async (timeoutMs = 30_000) => {
   const startedAt = Date.now();

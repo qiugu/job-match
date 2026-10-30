@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/tooltip";
 import TemplateSheet from "@/components/shared/TemplateSheet";
 import { useResumeStore } from "@/store/useResumeStore";
+import { useGuestGate, useGuestMode } from "@/store/useGuestMode";
 import { useGrammarCheck } from "@/hooks/useGrammarCheck";
 import { GrammarCheckDrawer } from "@/components/editor/grammar/GrammarCheckDrawer";
 import { FAQDialog } from "./FAQDialog";
@@ -72,6 +73,11 @@ const PreviewDock = ({
 
   const { duplicateResume, setActiveResume, activeResumeId } = useResumeStore();
 
+  // 游客态门控（PLAN_guest_access）：导出（服务端渲染）、翻译、AI 校对
+  // 都是登录墙内能力，点击改为弹登录引导；复制简历是纯本地操作，保持可用。
+  const isGuest = useGuestMode((state) => state.active);
+  const requestGate = useGuestGate((state) => state.request);
+
   /** 打开校对抽屉并触发一次 AI 校对（由抽屉自身监听该事件） */
   const openGrammarDrawer = useCallback(() => {
     document.dispatchEvent(new CustomEvent("open-grammar-drawer"));
@@ -81,9 +87,12 @@ const PreviewDock = ({
     if (!activeResumeId) return;
     try {
       const newId = duplicateResume(activeResumeId);
-      const targetPath = `/app/workbench/${newId}`;
       setActiveResume(newId);
       toast.success(t("copyResume.success"));
+      // 游客态留在 /edit 继续编辑副本（/app/workbench 有登录墙）；
+      // 登录态按原路径跳转。
+      if (isGuest) return;
+      const targetPath = `/app/workbench/${newId}`;
       router.push({ to: "/app/workbench/$id", params: { id: newId } });
 
       requestAnimationFrame(() => {
@@ -94,7 +103,7 @@ const PreviewDock = ({
     } catch {
       toast.error(t("copyResume.error"));
     }
-  }, [activeResumeId, duplicateResume, router, setActiveResume, t]);
+  }, [activeResumeId, duplicateResume, isGuest, router, setActiveResume, t]);
 
   return (
     <div className="fixed right-3 top-1/2 z-[50] hidden -translate-y-1/2 md:block">
@@ -122,17 +131,30 @@ const PreviewDock = ({
 
           {/* 导出 */}
           <Tooltip>
-            <PdfExport>
+            {isGuest ? (
               <TooltipTrigger asChild>
                 <button
                   type="button"
                   aria-label={t("export.tooltip")}
                   className={DOCK_BUTTON_CLASS}
+                  onClick={() => requestGate("pdf")}
                 >
                   <Download className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
-            </PdfExport>
+            ) : (
+              <PdfExport>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={t("export.tooltip")}
+                    className={DOCK_BUTTON_CLASS}
+                  >
+                    <Download className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+              </PdfExport>
+            )}
             <TooltipContent side="left" sideOffset={10}>
               <p>{t("export.tooltip")}</p>
             </TooltipContent>
@@ -164,7 +186,9 @@ const PreviewDock = ({
                 data-dock-translate
                 aria-label={t("translate.tooltip")}
                 className={DOCK_BUTTON_CLASS}
-                onClick={() => setTranslateOpen(true)}
+                onClick={() =>
+                  isGuest ? requestGate("translate") : setTranslateOpen(true)
+                }
               >
                 <Languages className="h-4 w-4" />
               </button>
@@ -185,7 +209,9 @@ const PreviewDock = ({
                 type="button"
                 data-dock-proofread
                 aria-label={tGrammar("proofread")}
-                onClick={openGrammarDrawer}
+                onClick={() =>
+                  isGuest ? requestGate("grammar") : openGrammarDrawer()
+                }
                 className={cn(DOCK_BUTTON_CLASS, "relative")}
               >
                 <SpellCheck2 className="h-4 w-4" />

@@ -16,16 +16,21 @@ export const Route = createFileRoute("/app")({
     meta: [{ name: "robots", content: "noindex,nofollow" }]
   }),
   beforeLoad: async ({ location }) => {
-    const { status, initialize } = useAuthStore.getState();
-    // 刷新页面时本地令牌还没向后端确认过身份：先确认，避免把已登录用户误踢出去
-    if (status === "unknown") {
-      await initialize();
-    }
-    if (useAuthStore.getState().status !== "authenticated") {
-      throw redirect({
-        to: "/login",
-        search: { redirect: location.href }
-      });
+    // 游客兼容豁免（PLAN_guest_access P1）：/app/preview-template/$id 是
+    // 旧模板预览路径的兼容跳板，只做 1:1 重定向到公开的 /templates/$id，
+    // 不要求登录——否则旧外链会在重定向前被登录墙截住。
+    if (!location.pathname.startsWith("/app/preview-template/")) {
+      const { status, initialize } = useAuthStore.getState();
+      // 刷新页面时本地令牌还没向后端确认过身份：先确认，避免把已登录用户误踢出去
+      if (status === "unknown") {
+        await initialize();
+      }
+      if (useAuthStore.getState().status !== "authenticated") {
+        throw redirect({
+          to: "/login",
+          search: { redirect: location.href }
+        });
+      }
     }
   },
   component: () => <Outlet />

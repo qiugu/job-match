@@ -28,10 +28,11 @@ function resolveSiteUrl(raw) {
 
 const SITE_URL = resolveSiteUrl(process.env.VITE_SITE_URL);
 
-/** 可索引入口：仅两个语言落地页，其余均为登录态页面。 */
+/** 可索引入口：语言落地页 + 公开模板画廊（PLAN_guest_access P1）。 */
 const ENTRIES = [
   { path: "/zh", priority: "1.0" },
-  { path: "/en", priority: "0.9" }
+  { path: "/en", priority: "0.9" },
+  { path: "/templates", priority: "0.8" }
 ];
 
 /** hreflang 互指：每个 URL 都要列出全部语言 + x-default。 */

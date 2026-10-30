@@ -20,6 +20,12 @@ import { useTranslations } from "@/i18n/compat/client";
 import { useRouter } from "@/lib/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
 import { trackGrowthEvent } from "@/lib/telemetry";
+import {
+  hasGuestDraft,
+  readGuestDraft,
+  type GuestDraftRecord,
+} from "@/lib/guestDraft";
+import { GuestDraftImportDialog } from "@/components/shared/guest/GuestDraftImportDialog";
 
 type Mode = "login" | "register";
 
@@ -47,6 +53,16 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
   // 注册态「两次密码不一致」的本地校验错误：前端先拦，不占用 store 的接口 error
   const [passwordMismatch, setPasswordMismatch] = useState(false);
   const [cooldownLeft, setCooldownLeft] = useState(0);
+
+  // 游客草稿承接（PLAN_guest_access P3）：登录/注册成功且检测到本地草稿时，
+  // 先弹导入确认，用户选择后再跳转。
+  const [pendingDraft, setPendingDraft] = useState<GuestDraftRecord | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const defaultTarget = () =>
+    mode === "register"
+      ? "/app/dashboard/match?onboarding=1"
+      : redirectTo || "/app/dashboard";
 
   // 冷却倒计时：归零时自动解除，用户无需刷新页面
   useEffect(() => {
@@ -90,11 +106,14 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
         void trackGrowthEvent("register_success", { path: "/login" });
         toast.success(t("registerSuccess"));
       }
-      router.push(
-        mode === "register"
-          ? "/app/dashboard/match?onboarding=1"
-          : redirectTo || "/app/dashboard"
-      );
+      // 登录成功后先承接游客草稿：有本地草稿则弹导入确认（拒绝则保留草稿），
+      // 无草稿按原计划跳转。register 现已开放（注册码可选），同样承接。
+      if (hasGuestDraft()) {
+        setPendingDraft(readGuestDraft());
+        setImportOpen(true);
+      } else {
+        router.push(defaultTarget());
+      }
     } catch (err) {
       // 失败一律弹 toast：表单内的红字容易被忽略，用户会以为「点了没反应」，
       // 限流（429）尤其如此——它往往需要等待，必须给出明确反馈。
@@ -273,6 +292,24 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
           <PublicSecurityFilingLink />
         </div>
       </section>
+
+      {/* 游客草稿导入确认（PLAN_guest_access P3）：
+          导入 → 建云端简历并清本地副本；跳过 → 保留草稿正常进入控制台 */}
+      <GuestDraftImportDialog
+        open={importOpen}
+        draft={pendingDraft}
+        onImported={(backendId) => {
+          setImportOpen(false);
+          router.push({
+            to: "/app/workbench/$id",
+            params: { id: backendId }
+          });
+        }}
+        onSkip={() => {
+          setImportOpen(false);
+          router.push(defaultTarget());
+        }}
+      />
     </div>
   );
 }
