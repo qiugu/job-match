@@ -1,6 +1,8 @@
-// 我的投递（Job Tracking）——「控制台 · Calm」样张版式：
-// 头部（标题 + 活跃 chip + 搜索 + 新建岗位卡）→ KPI 四卡（黄油 Loud 本周转化）
-// → 双栏（左：岗位卡列表；右：本周节奏柱图）。岗位详情移入右侧抽屉（Sheet）。
+// 我的投递（Job Tracking）——「控制台 · Calm」样张版式（执行态收敛版）：
+// 头部（标题 + 活跃 chip + 搜索 + 新建岗位卡）→ KPI 四卡（固定不随列表滚动，
+// 只保留执行层指标：待回复 / 待投递 / 本周已投递 / 连续投递天数）→ 岗位卡列表。
+// 复盘型指标（转化率、漏斗、每日趋势、分布）统一在「数据分析」页，两页不重复展示。
+// 岗位详情移入右侧抽屉（Sheet）。
 // 阶段由后端操作驱动（生成话术→待回复、生成定制简历→待投递），
 // 仅有的两个手动写入：投递成功（applied）/ 失败放弃（closed 归档）与重新开启。
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -75,9 +77,6 @@ const SUB_TEXT: Record<JobStatus, string> = {
   closed: "jobSubClosed",
 };
 
-const WEEKDAY_ZH = ["一", "二", "三", "四", "五", "六", "日"];
-const WEEKDAY_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
 function relTime(iso: string | null, loc: string): string {
   if (!iso) return "—";
   const then = new Date(iso).getTime();
@@ -148,9 +147,10 @@ export default function JobsPage() {
     void loadList();
   }, [loadList]);
 
-  // 本周节奏 / KPI 周增量：近 14 天逐日序列（覆盖本周 + 上周完整对照窗口）
+  // KPI 周增量与连续投递：近 30 天逐日序列（覆盖本周 + 上周完整对照窗口；
+  // 取 30 天是让 streak.current 的「窗口内连续」口径尽量接近真实连续天数）
   useEffect(() => {
-    getJobStats(14)
+    getJobStats(30)
       .then(setStats)
       .catch(() => setStats(null));
   }, []);
@@ -263,66 +263,35 @@ export default function JobsPage() {
     });
   }, [rows, query]);
 
+  // 执行层 KPI：待回复 / 待投递（存量计数）+ 本周已投递 / 连续天数（来自 stats）。
+  // 转化率、漏斗、趋势等复盘指标归「数据分析」页，这里刻意不重复展示。
   const kpi = useMemo(() => {
-    const total = rows.length;
     const awaitReply = rows.filter((r) => r.status === "greeting_sent").length;
     const readyToSend = rows.filter((r) => r.status === "resume_ready").length;
-    // 本周转化（黄油 Loud）：全程投递转化率 = 历史投递过的卡 / 总卡数（恒 ≤100%）；
-    // delta 为本周新增投递（事件数）折算的 pt。newThisWeek 供「累计投递 +N 本周」。
-    let newThisWeek: number | null = null;
-    let appliedEver: number | null = null;
-    let conv: number | null = null;
-    let convDelta: number | null = null;
-    if (stats && total > 0) {
-      appliedEver = stats.totals.applied_ever;
-      conv = Math.round((appliedEver / total) * 100);
+    let appliedThisWeek: number | null = null;
+    let appliedLastWeek: number | null = null;
+    let streak: { current: number; best: number } | null = null;
+    if (stats) {
+      streak = stats.streak;
       const byDate = new Map(stats.daily.map((p) => [p.date, p]));
       const now = new Date();
       const monday = new Date(now);
       monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-      let created = 0;
-      let applied = 0;
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(monday);
-        d.setDate(monday.getDate() + i);
-        const p = byDate.get(isoDay(d));
-        if (p) {
-          created += p.created;
-          applied += p.applied;
+      // offsetDays=0 → 本周一至周日；-7 → 上周（WoW 对照窗口）
+      const sumWeek = (offsetDays: number) => {
+        let applied = 0;
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(monday);
+          d.setDate(monday.getDate() + offsetDays + i);
+          applied += byDate.get(isoDay(d))?.applied ?? 0;
         }
-      }
-      newThisWeek = created;
-      convDelta = Math.round((applied / total) * 100);
+        return applied;
+      };
+      appliedThisWeek = sumWeek(0);
+      appliedLastWeek = sumWeek(-7);
     }
-    return { total, awaitReply, readyToSend, newThisWeek, conv, convDelta };
+    return { awaitReply, readyToSend, appliedThisWeek, appliedLastWeek, streak };
   }, [rows, stats]);
-
-  const rhythm = useMemo(() => {
-    if (!stats) return null;
-    const byDate = new Map(stats.daily.map((p) => [p.date, p]));
-    const now = new Date();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-    const applied: number[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      applied.push(byDate.get(isoDay(d))?.applied ?? 0);
-    }
-    const lastWeek = [...Array(7)].map((_, i) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() - 7 + i);
-      return byDate.get(isoDay(d))?.applied ?? 0;
-    });
-    const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
-    const sumCur = sum(applied);
-    const sumPrev = sum(lastWeek);
-    const maxV = Math.max(...applied, 0);
-    const peakIdx = applied.indexOf(Math.max(...applied));
-    const wow =
-      sumPrev > 0 ? Math.round(((sumCur - sumPrev) / sumPrev) * 100) : null;
-    return { applied, sumCur, sumPrev, maxV, peakIdx, wow };
-  }, [stats]);
 
   const detailTitle = detail
     ? `${detail.company ? `${detail.company} · ` : ""}${detail.title || t("jobUntitled")}`
@@ -361,120 +330,58 @@ export default function JobsPage() {
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-8 pt-5 sm:px-7">
-        {/* KPI 四卡（样张 .kpis；黄油 Loud = 本周转化） */}
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-          <Kpi
-            label={t("kpiTotalCards")}
-            value={String(kpi.total)}
-            delta={kpi.newThisWeek != null && kpi.newThisWeek > 0 ? `+${kpi.newThisWeek} ${t("kpiThisWeekTag")}` : null}
-            deltaUp
-          />
-          <Kpi label={t("kpiAwaitReply")} value={String(kpi.awaitReply)} delta="—" />
-          <Kpi label={t("kpiReadyToSend")} value={String(kpi.readyToSend)} delta="—" />
-          <Kpi
-            hl
-            label={t("kpiWeeklyConv")}
-            value={kpi.conv != null ? `${kpi.conv}%` : "—"}
-            delta={kpi.convDelta != null && kpi.convDelta !== 0 ? `${kpi.convDelta > 0 ? "+" : "−"}${Math.abs(kpi.convDelta)}pt` : null}
-            deltaUp={(kpi.convDelta ?? 0) > 0}
-          />
-        </div>
+      {/* KPI 四卡（固定在滚动区之外，不随列表滚动；黄油 Loud = 本周已投递） */}
+      <div className="grid shrink-0 grid-cols-2 gap-3 px-5 pt-4 sm:px-7 xl:grid-cols-4">
+        <Kpi label={t("kpiAwaitReply")} value={String(kpi.awaitReply)} delta="—" />
+        <Kpi label={t("kpiReadyToSend")} value={String(kpi.readyToSend)} delta="—" />
+        <Kpi
+          hl
+          label={t("kpiAppliedThisWeek")}
+          value={kpi.appliedThisWeek != null ? String(kpi.appliedThisWeek) : "—"}
+          delta={
+            kpi.appliedThisWeek != null && kpi.appliedLastWeek != null
+              ? `${t("kpiLastWeek")} ${kpi.appliedLastWeek}`
+              : null
+          }
+        />
+        <Kpi
+          label={t("kpiStreak")}
+          value={kpi.streak ? String(kpi.streak.current) : "—"}
+          unit={kpi.streak ? t("kpiUnitDays") : undefined}
+          delta={kpi.streak ? `${t("kpiStreakBest")} ${kpi.streak.best} ${t("kpiUnitDays")}` : null}
+        />
+      </div>
 
-        <div className="grid items-start gap-4 lg:grid-cols-[1.55fr_1fr]">
-          {/* 左：进行中（岗位卡列表，含已归档混排） */}
-          <section className="workbench-panel overflow-hidden">
-            <div className="flex items-center gap-2.5 border-b border-xai-hairline px-4 py-3">
-              <b className="text-[13px] font-semibold text-xai-text">{t("sectionOngoing")}</b>
-              <span className="eb-zh ml-auto">{t("sortByRecent")}</span>
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-8 pt-4 sm:px-7">
+        {/* 岗位卡列表（含已归档混排）——复盘型指标已上移数据分析页，列表独占全宽 */}
+        <section className="workbench-panel overflow-hidden">
+          <div className="flex items-center gap-2.5 border-b border-xai-hairline px-4 py-3">
+            <b className="text-[13px] font-semibold text-xai-text">{t("sectionOngoing")}</b>
+            <span className="eb-zh ml-auto">{t("sortByRecent")}</span>
+          </div>
+          {loading ? (
+            <div className="flex items-center gap-2 p-5 text-[13px] text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              {t("jobsLoading")}
             </div>
-            {loading ? (
-              <div className="flex items-center gap-2 p-5 text-[13px] text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                {t("jobsLoading")}
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="p-5 text-center text-[13px] leading-relaxed text-muted-foreground">
-                {rows.length === 0 ? t("jobsEmpty") : t("jobsNoMatch")}
-              </div>
-            ) : (
-              <div>
-                {filtered.map((job) => (
-                  <JobRow
-                    key={job.id}
-                    job={job}
-                    isZh={isZh}
-                    onSelect={() => void selectJob(job.id)}
-                    t={t}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* 右：本周节奏（样张 .bars） */}
-          <section className="workbench-panel overflow-hidden">
-            <div className="flex items-center gap-2.5 border-b border-xai-hairline px-4 py-3">
-              <b className="text-[13px] font-semibold text-xai-text">{t("weeklyRhythm")}</b>
-              <span className="eb-zh ml-auto">{t("weeklyLegend")}</span>
+          ) : filtered.length === 0 ? (
+            <div className="p-5 text-center text-[13px] leading-relaxed text-muted-foreground">
+              {rows.length === 0 ? t("jobsEmpty") : t("jobsNoMatch")}
             </div>
-            {rhythm ? (
-              <>
-                <div className="flex h-[118px] items-end gap-2 px-4 pb-1.5 pt-4">
-                  {rhythm.applied.map((v, i) => {
-                    const weekend = i >= 5;
-                    const dim = weekend || v === 0;
-                    const pct = v > 0 && rhythm.maxV > 0 ? Math.max(12, Math.round((v / rhythm.maxV) * 100)) : 0;
-                    return (
-                      <div key={i} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
-                        <i
-                          className={cn(
-                            "block w-full rounded-t-[3px]",
-                            dim ? "bg-xai-surface-2" : "bg-cobalt"
-                          )}
-                          style={{
-                            height: v > 0 ? `${pct}%` : "2px",
-                            boxShadow: dim ? undefined : "inset 0 0 0 1.5px var(--ink)",
-                          }}
-                        />
-                        <em className="font-mono text-[9px] not-italic text-xai-mute">
-                          {isZh ? WEEKDAY_ZH[i] : WEEKDAY_EN[i]}
-                        </em>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="flex items-center justify-between px-4 pb-3.5 pt-1 text-[10.5px] text-xai-mute">
-                  <span>
-                    {rhythm.sumCur > 0 && rhythm.peakIdx >= 0
-                      ? t("rhythmPeak", {
-                          day: isZh ? `周${WEEKDAY_ZH[rhythm.peakIdx]}` : WEEKDAY_EN[rhythm.peakIdx],
-                          n: rhythm.applied[rhythm.peakIdx],
-                        })
-                      : "—"}
-                  </span>
-                  {rhythm.wow != null && rhythm.wow !== 0 ? (
-                    <span
-                      className={cn(
-                        "font-semibold",
-                        rhythm.wow > 0 ? "text-green-ink" : "text-danger"
-                      )}
-                    >
-                      {rhythm.wow > 0 ? "↑" : "↓"} {Math.abs(rhythm.wow)}%
-                    </span>
-                  ) : (
-                    <span>—</span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="flex h-[160px] items-center justify-center text-[12px] text-xai-mute">
-                <Loader2 className="mr-2 size-3.5 animate-spin" />
-                {t("jobsLoading")}
-              </div>
-            )}
-          </section>
-        </div>
+          ) : (
+            <div>
+              {filtered.map((job) => (
+                <JobRow
+                  key={job.id}
+                  job={job}
+                  isZh={isZh}
+                  onSelect={() => void selectJob(job.id)}
+                  t={t}
+                />
+              ))}
+            </div>
+          )}
+        </section>
       </div>
 
       {/* 岗位详情抽屉（样张为仪表盘版式，操作流收进 Drawer） */}
@@ -596,16 +503,18 @@ export default function JobsPage() {
   );
 }
 
-/** KPI 卡（样张 .kpi；hl = 黄油 Loud 本周转化） */
+/** KPI 卡（样张 .kpi；hl = 黄油 Loud 本周已投递） */
 function Kpi({
   label,
   value,
+  unit,
   delta,
   deltaUp = false,
   hl = false,
 }: {
   label: string;
   value: string;
+  unit?: string;
   delta?: string | null;
   deltaUp?: boolean;
   hl?: boolean;
@@ -624,6 +533,9 @@ function Kpi({
         <b className="text-[26px] font-bold leading-none tracking-[-0.03em] tabular-nums text-xai-text">
           {value}
         </b>
+        {unit ? (
+          <span className="text-[11px] text-xai-mute">{unit}</span>
+        ) : null}
         {delta ? (
           <span
             className={cn(

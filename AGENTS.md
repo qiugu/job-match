@@ -118,6 +118,7 @@ docker compose ps / logs -f / down
 | `PDF_EXPORT_TIMEOUT_SECONDS`                          | 单次渲染超时秒数（默认 30）                                                                                 |
 | `PDF_EXPORT_MAX_CONCURRENCY`                          | 渲染并发上限（默认 2，受内存约束）                                                                          |
 | `PDF_EXPORT_RATE_LIMIT_PER_HOUR`                      | 单用户每小时导出次数上限（默认 20）                                                                         |
+| `JOB_RETENTION_DAYS`                                  | 已归档（closed）岗位卡保留天数，超期自动清理（子资产转「未归类」、事件随卡删），0=禁用（默认 180）；统计区间上限与之对齐 |
 | `BACKEND_HOST` / `BACKEND_PORT`                       | 监听地址/端口                                                                                               |
 
 ## 数据契约

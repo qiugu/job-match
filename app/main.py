@@ -1,6 +1,7 @@
 """FastAPI 应用入口：CORS、路由挂载、数据库初始化、请求日志与异常兜底。"""
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 from typing import Any
@@ -20,6 +21,23 @@ from app.services.pdf_export import shutdown_renderer
 logger = get_logger("main")
 
 
+async def _retention_cleanup_loop() -> None:
+    """投递数据保留策略后台循环：启动清一次，之后每 24 小时一次。
+
+    失败只记日志不退出循环——保留策略允许渐进清理，下一轮继续。
+    """
+    from app.services.job_cleanup import run_retention_cleanup
+
+    while True:
+        try:
+            removed = await run_retention_cleanup()
+            if removed:
+                logger.info("投递数据保留策略：共清理过期归档卡 %d 张", removed)
+        except Exception:
+            logger.exception("投递数据保留策略执行失败（本轮跳过）")
+        await asyncio.sleep(24 * 3600)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("应用启动：初始化数据库")
@@ -27,7 +45,10 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     # 配置了 AUTH_BOOTSTRAP_USERNAME/PASSWORD 时创建初始账号并接管历史数据
     await bootstrap_auth()
     logger.info("数据库初始化完成")
+    # 投递数据保留策略（JOB_RETENTION_DAYS，默认 180 天）：后台任务而非阻塞启动
+    retention_task = asyncio.create_task(_retention_cleanup_loop())
     yield
+    retention_task.cancel()
     # 关闭服务端 PDF 渲染的共享 Chromium 单例（若已启动）
     await shutdown_renderer()
     logger.info("应用关闭")
