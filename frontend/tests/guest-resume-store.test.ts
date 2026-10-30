@@ -173,3 +173,116 @@ describe("游客态 store 分支（零后端请求红线）", () => {
     expect(storage._map.get(GUEST_KEY)).toBeTruthy();
   });
 });
+
+describe("游客防抖自动落盘与脏标记（PLAN §4.1/§4.2 丢稿缺口修复）", () => {
+  it("updateResume：游客态 600ms 防抖后自动写 localStorage 草稿", async () => {
+    const storage = makeStorage();
+    vi.stubGlobal("window", { localStorage: storage });
+    useGuestMode.getState().enter("stub");
+
+    const localId = generateUUID();
+    const data = {
+      ...blankResumeState,
+      id: localId,
+      title: "before",
+    } as unknown as ResumeData;
+    useResumeStore.setState((state) => ({
+      resumes: { ...state.resumes, [localId]: data },
+      activeResumeId: localId,
+      activeResume: data,
+    }));
+
+    vi.useFakeTimers();
+    try {
+      useResumeStore.getState().updateResume(localId, { title: "after" });
+
+      // 防抖窗口内尚未落盘
+      expect(storage._map.get(GUEST_KEY)).toBeFalsy();
+
+      await vi.advanceTimersByTimeAsync(600);
+
+      // 窗口结束自动落盘，内容为最新编辑
+      const raw = storage._map.get(GUEST_KEY);
+      expect(raw).toBeTruthy();
+      expect(JSON.parse(raw!).resume.title).toBe("after");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("updateResume：云端模式不触发自动保存（保持手动保存语义）", async () => {
+    const storage = makeStorage();
+    vi.stubGlobal("window", { localStorage: storage });
+    // 不 enter：云端模式
+    useGuestMode.getState().exit();
+
+    const localId = generateUUID();
+    const data = {
+      ...blankResumeState,
+      id: localId,
+    } as unknown as ResumeData;
+    useResumeStore.setState((state) => ({
+      resumes: { ...state.resumes, [localId]: data },
+      activeResumeId: localId,
+      activeResume: data,
+    }));
+
+    vi.useFakeTimers();
+    try {
+      useResumeStore.getState().updateResume(localId, { title: "cloud-edit" });
+      await vi.advanceTimersByTimeAsync(2000);
+
+      // 无 localStorage 写入、无后端请求（jobmatch mock 全程零调用）
+      expect(storage._map.get(GUEST_KEY)).toBeFalsy();
+      expect(mockedCreate).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("hasUnsavedChanges：内存 ≠ 保存基准即脏，落盘后回到干净（I2 口径）", async () => {
+    const storage = makeStorage();
+    vi.stubGlobal("window", { localStorage: storage });
+    useGuestMode.getState().enter("stub");
+
+    const localId = generateUUID();
+    const data = {
+      ...blankResumeState,
+      id: localId,
+    } as unknown as ResumeData;
+    useResumeStore.setState((state) => ({
+      resumes: { ...state.resumes, [localId]: data },
+      activeResumeId: localId,
+      activeResume: data,
+      // 刚保存过：有干净基准
+      syncedIds: new Set<string>([localId]),
+      savedSnapshots: { [localId]: JSON.stringify(data) },
+    }));
+
+    // 干净
+    expect(useResumeStore.getState().hasUnsavedChanges()).toBe(false);
+
+    // 编辑后变脏（含防抖窗口内）
+    useResumeStore.getState().updateResume(localId, { title: "dirty" });
+    expect(useResumeStore.getState().hasUnsavedChanges()).toBe(true);
+
+    // 落盘后回到干净
+    await useResumeStore.getState().syncResumeToBackend(localId);
+    expect(useResumeStore.getState().hasUnsavedChanges()).toBe(false);
+  });
+
+  it("hasUnsavedChanges：无活跃简历或从未保存过时的边界", () => {
+    // 无活跃简历 → 不脏（不提示）
+    expect(useResumeStore.getState().hasUnsavedChanges()).toBe(false);
+
+    // 有内存简历但从未保存（无 snapshot）→ 脏
+    const localId = generateUUID();
+    const data = { ...blankResumeState, id: localId } as unknown as ResumeData;
+    useResumeStore.setState((state) => ({
+      resumes: { ...state.resumes, [localId]: data },
+      activeResumeId: localId,
+      activeResume: data,
+    }));
+    expect(useResumeStore.getState().hasUnsavedChanges()).toBe(true);
+  });
+});

@@ -118,6 +118,9 @@ interface ResumeStore {
   syncResumeToBackend: (resumeId: string) => Promise<{ id: string; created: boolean }>;
   /** 从后端 master_resumes 拉取全部简历填充内存（刷新后/进入列表页时调用） */
   loadResumesFromBackend: () => Promise<MasterResumeSummary[]>;
+  /** 脏标记（I2 契约）：活跃简历的内存内容与最近一次保存基准（savedSnapshots）
+   *  不一致即存在「未保存变更」。游客态 beforeunload 提示（PLAN §4.1）用它判定。 */
+  hasUnsavedChanges: () => boolean;
 }
 
 type PersistedResumeStore = Pick<ResumeStore, "resumes" | "activeResumeId">;
@@ -128,6 +131,23 @@ type PersistedResumeStore = Pick<ResumeStore, "resumes" | "activeResumeId">;
  * 拖动滑块时不会每次 onChange 都发请求。
  */
 let globalSettingsSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * 防抖自动保存（600ms）：内容编辑（游客态）与排版设置/主题色共用同一 timer，
+ * 连续变更只落盘一次（互相 clearTimeout 重置窗口）。reason 仅用于错误日志。
+ */
+function scheduleAutosave(
+  get: () => ResumeStore,
+  reason: string
+) {
+  if (globalSettingsSaveTimer) clearTimeout(globalSettingsSaveTimer);
+  globalSettingsSaveTimer = setTimeout(() => {
+    globalSettingsSaveTimer = null;
+    get()
+      .saveActiveResumeToBackend()
+      .catch((err) => console.error(`${reason}:`, err));
+  }, 600);
+}
 
 const createDefaultCustomItem = (): CustomItem => ({
   id: generateUUID(),
@@ -348,6 +368,14 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
               : state.future,
           };
         });
+
+        // 游客态防抖自动落盘（PLAN §4.2「保存动作 = 写 localStorage」）：
+        // 内容编辑高频触发，600ms 合并一次写入，防止刷新/关页丢稿。
+        // 云端模式保持手动保存语义不在此触发（排版设置/主题色的自动保存
+        // 是 I1 特例，维持原行为；与本处共用同一防抖 timer）。
+        if (isGuestModeActive() && get().resumes[resumeId]) {
+          scheduleAutosave(get, "游客草稿自动保存失败");
+        }
       },
 
       // 从文件更新，直接更新resumes
@@ -1138,6 +1166,17 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
         });
 
         return summaries;
+      },
+
+      /** 脏标记（I2 契约）：活跃简历内存快照 ≠ 最近一次保存基准 即有未保存变更。
+       *  游客态 beforeunload 提示（PLAN §4.1）用它判定；防抖窗口内（保存尚未
+       *  落盘）返回 true，落盘后 savedSnapshots 刷新即回到 false。 */
+      hasUnsavedChanges: () => {
+        const { activeResumeId, resumes, savedSnapshots } = get();
+        if (!activeResumeId) return false;
+        const resume = resumes[activeResumeId];
+        if (!resume) return false;
+        return savedSnapshots[activeResumeId] !== JSON.stringify(resume);
       },
     })
 );

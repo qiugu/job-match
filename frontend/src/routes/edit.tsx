@@ -19,7 +19,7 @@ import { GuestLoginDialog } from "@/components/shared/guest/GuestLoginDialog";
 import { readGuestDraft } from "@/lib/guestDraft";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useResumeStore } from "@/store/useResumeStore";
-import { useGuestMode } from "@/store/useGuestMode";
+import { isGuestModeActive, useGuestMode } from "@/store/useGuestMode";
 
 export const Route = createFileRoute("/edit")({
   ssr: false,
@@ -94,6 +94,21 @@ function GuestEditorRoute() {
       guest.exit();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 刷新/关闭前提示未保存变更（PLAN §4.1，仅游客态）：脏标记走 I2 契约
+  // （hasUnsavedChanges = 内存快照 ≠ 保存基准）。防抖窗口内（600ms 未落盘）
+  // 同样视为未保存，提示后用户可留页等自动落盘或放弃尾部编辑。
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isGuestModeActive()) return;
+      if (!useResumeStore.getState().hasUnsavedChanges()) return;
+      e.preventDefault();
+      // 现代浏览器忽略自定义文案，returnValue 仅为触发原生确认弹窗
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, []);
 
   // 草稿恢复/新建完成前不渲染工作台：activeResume 未就绪时面板会拿空数据

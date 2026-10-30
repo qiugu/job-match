@@ -1358,32 +1358,20 @@
       "title": "Available after sign-in",
       "description": "Sign in to JDMatch to use this feature and keep your work in your account.",
       "pdf": {
-        "title": "登录后即可导出 PDF",
-        "description": [
-          "Export PDF after signing in",
-          "PDF export is free for signed-in users and costs no credits."
-        ]
+        "title": "Export PDF after signing in",
+        "description": "PDF export is free for signed-in users and costs no credits. Sign in to export this resume as a printable PDF."
       },
       "grammar": {
-        "title": "登录后即可 AI 校对",
-        "description": [
-          "AI proofreading after signing in",
-          "AI proofreading finds spelling and grammar issues in your resume and suggests fixes."
-        ]
+        "title": "AI proofreading after signing in",
+        "description": "AI proofreading finds spelling and grammar issues in your resume and suggests fixes."
       },
       "polish": {
-        "title": "登录后即可 AI 润色",
-        "description": [
-          "AI polishing after signing in",
-          "AI polishing rewrites the selected content with more professional wording."
-        ]
+        "title": "AI polishing after signing in",
+        "description": "AI polishing rewrites the selected content with more professional wording."
       },
       "translate": {
-        "title": "登录后即可翻译简历",
-        "description": [
-          "Translate resume after signing in",
-          "Convert your resume content into another language (overwrite or save as a copy)."
-        ]
+        "title": "Translate resume after signing in",
+        "description": "Convert your resume content into another language (overwrite or save as a copy)."
       },
       "loginButton": "Sign in / Register",
       "registerHint": "No account? Register to get 50 free credits (invite code optional)",

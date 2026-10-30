@@ -9,6 +9,10 @@ export const Route = createFileRoute('/app/preview-template/$id')({
     throw redirect({
       to: "/templates/$id",
       params: { id: params.id },
+      // 1:1 透传查询参数（?locale=&snapshot=1 等）。不传 search 时
+      // router-core 会把目标 search 清空（applyNext `!dest.search → {}`），
+      // search: true 表示保留当前 search（已用 buildLocation 实测验证）。
+      search: true,
     })
   },
 })
