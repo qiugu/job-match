@@ -36,8 +36,11 @@ from app.models.job import (
 from app.models.job_event import EVENT_SOURCE_BACKFILL, JobStatusEvent
 
 # ---- 参数白名单 ----
-# 允许的统计区间（天）。非白名单值 clamp 到最近的合法值，上限 365 防滥用。
-ALLOWED_DAYS: tuple[int, ...] = (7, 14, 30, 90, 180, 365)
+# 允许的统计区间（天）。非白名单值 clamp 到最近的合法值。
+# 上限 180 = 归档岗位保留期（JOB_RETENTION_DAYS，默认 180 天）：更早的状态事件
+# 已随过期归档卡清理，长于保留期的区间会缺数，故刻意不提供。调整保留期时必须
+# 同步此处与前端 lib/jobmatch.ts::ANALYTICS_DAYS。
+ALLOWED_DAYS: tuple[int, ...] = (7, 14, 30, 90, 180)
 # 时区偏移（分钟）：UTC-12 ~ UTC+14
 MIN_TZ_OFFSET = -720
 MAX_TZ_OFFSET = 840

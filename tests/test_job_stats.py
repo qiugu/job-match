@@ -239,8 +239,9 @@ def test_clamp_days_whitelist_and_nearest():
         assert clamp_days(d) == d
     assert clamp_days(60) == 90  # 距 30 与 90 等距 → 取较大者
     assert clamp_days(8) == 7
-    assert clamp_days(1000) == 365
-    assert clamp_days(3650) == 365
+    # 上限 180 = 归档保留期（JOB_RETENTION_DAYS）：更早事件已清理，不提供更长区间
+    assert clamp_days(1000) == 180
+    assert clamp_days(3650) == 180
     assert clamp_days(0) == 7
     assert clamp_days(-5) == 7
 
@@ -480,7 +481,7 @@ async def test_days_clamped_via_api(client):
     token = await _login(client, "statz3", "SZ3")
     h = auth_headers(token)
 
-    assert (await client.get("/api/jobs/stats?days=1000", headers=h)).json()["range"]["days"] == 365
+    assert (await client.get("/api/jobs/stats?days=1000", headers=h)).json()["range"]["days"] == 180
     assert (await client.get("/api/jobs/stats?days=60", headers=h)).json()["range"]["days"] == 90
     assert (await client.get("/api/jobs/stats?days=0", headers=h)).json()["range"]["days"] == 7
     assert (await client.get("/api/jobs/stats?days=30&tz_offset=9999", headers=h)).json()[

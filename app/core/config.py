@@ -90,6 +90,13 @@ class Settings(BaseSettings):
     # 每日发放窗口的时区偏移（小时）：「每天 0 点重置」按该时区计算，默认 UTC+8（北京时间）
     registration_reset_utc_offset: int = 8
 
+    # ---------- 投递数据保留策略 ----------
+    # 已归档（closed）岗位卡的保留天数：超过该窗口自动清理（子资产 job_id 置空
+    # 转「未归类」，话术/匹配结果不删除；状态事件随卡删除）。0 表示禁用自动清理。
+    # 统计区间上限（app/services/job_stats.py::ALLOWED_DAYS 最大值）必须 ≤ 该值：
+    # 更早的事件已不存在，长区间图表会缺数。
+    job_retention_days: int = 180
+
     # ---------- 简历 PDF 上传（导入侧护栏，S4） ----------
     # 上传 PDF 的体积硬上限（字节）：超过直接返回 413，不在整体读入内存后再判断。
     # 对照：PDF 导出侧另有 pdf_export_max_* 六项上限，导入侧此前缺失。

@@ -91,14 +91,13 @@ function ChartPanel({
   );
 }
 
-/** 区间选择白名单的展示文案键（与 ANALYTICS_DAYS 顺序无关，按值映射）。 */
+/** 区间选择白名单的展示文案键（与 ANALYTICS_DAYS 顺序无关，按值映射；上限 180 = 归档保留期） */
 const RANGE_LABEL_KEY: Record<number, string> = {
   7: "analyticsRange7",
   14: "analyticsRange14",
   30: "analyticsRange30",
   90: "analyticsRange90",
   180: "analyticsRange180",
-  365: "analyticsRange365",
 };
 
 /** 环形图顺序：阶段推进顺序 + 终态分支，与后端 status_distribution 键集一致。 */

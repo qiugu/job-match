@@ -552,8 +552,12 @@ export interface JobStats {
   streak: JobStreak;
 }
 
-/** 统计区间白名单，与后端 `app/services/job_stats.py::ALLOWED_DAYS` 保持一致 */
-export const ANALYTICS_DAYS = [7, 14, 30, 90, 180, 365] as const;
+/**
+ * 统计区间白名单，与后端 `app/services/job_stats.py::ALLOWED_DAYS` 保持一致。
+ * 上限 180 = 归档岗位保留期（JOB_RETENTION_DAYS）：更早的事件已随过期归档卡
+ * 清理，长于保留期的区间会缺数，故刻意不提供。
+ */
+export const ANALYTICS_DAYS = [7, 14, 30, 90, 180] as const;
 export type AnalyticsDays = (typeof ANALYTICS_DAYS)[number];
 
 /**
