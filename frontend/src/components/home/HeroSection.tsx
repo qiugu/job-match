@@ -2,6 +2,7 @@ import { useTranslations } from "@/i18n/compat/client";
 import { Sparkles, ArrowRight, Play } from "lucide-react";
 import AnimatedFeature from "./client/AnimatedFeature";
 import GoDashboard from "./GoDashboard";
+import GoTryEditor from "./GoTryEditor";
 import Image from "@/lib/image";
 
 export default function HeroSection() {
@@ -32,7 +33,9 @@ export default function HeroSection() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
-            <GoDashboard>
+            {/* 主 CTA = 游客编辑器（PLAN §2「价值前置」）：未登录直接进 /edit，
+                已登录由 /edit 守卫重定向回控制台，登录态行为不变 */}
+            <GoTryEditor>
               <button
                 type="submit"
                 className="pp-btn group h-14 px-10 text-lg"
@@ -40,7 +43,7 @@ export default function HeroSection() {
                 {t("hero.cta")}
                 <ArrowRight className="w-5 h-5 ml-1 transition-transform group-hover:translate-x-1" />
               </button>
-            </GoDashboard>
+            </GoTryEditor>
 
             <GoDashboard type="resumes">
               <button

@@ -39,13 +39,16 @@ export default function CTASection() {
                 </button>
               </GoDashboard>
               {/* 游客试用入口（PLAN_guest_access）：编辑器对未登录全开放，
-                  这是「价值前置」的主转化路径之一 */}
+                  这是「价值前置」的主转化路径之一。
+                  ⚠ 必须是 type="submit"：GoTryEditor 靠 <form onSubmit> 跳转，
+                  此前误写成 type="button" 导致按钮完全无法点击（2026-10-31 修复）。 */}
               <GoTryEditor>
                 <button
-                  type="button"
-                  className="h-14 px-8 text-lg font-medium text-paper/90 underline-offset-4 transition-colors hover:text-paper hover:underline"
+                  type="submit"
+                  className="pp-btn group h-16 px-12 text-xl bg-transparent text-paper border-paper/70 hover:bg-paper hover:text-ink hover:border-paper"
                 >
                   {t("cta.tryButton")}
+                  <ArrowRight className="w-6 h-6 ml-2 transition-transform group-hover:translate-x-1.5" />
                 </button>
               </GoTryEditor>
             </div>
