@@ -54,7 +54,7 @@ interface ResumeStore {
    */
   savedSnapshots: Record<string, string>;
 
-  createResume: (templateId: string | null, isBlank?: boolean) => Promise<string>;
+  createResume: (templateId: string | null, isBlank?: boolean, asGuest?: boolean) => Promise<string>;
   deleteResume: (resume: ResumeData) => void;
   duplicateResume: (resumeId: string) => string;
   updateResume: (
@@ -237,7 +237,7 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
   syncedIds: new Set<string>(),
   savedSnapshots: {},
 
-      createResume: async (templateId = null, isBlank = false) => {
+      createResume: async (templateId = null, isBlank = false, asGuest = false) => {
         const locale =
           typeof document !== "undefined"
             ? document.cookie
@@ -292,7 +292,10 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
         // 游客态：不落库（红线：游客态禁止发出后端业务请求）。
         // 草稿以内存临时 id 存活，首次手动保存/自动保存时由
         // syncResumeToBackend 的游客分支写入 localStorage。
-        if (isGuestModeActive()) {
+        // 注意：/edit 在调用本函数之后才 enter() 游客模式，因此这里必须同时
+        // 接受显式 asGuest 参数——仅依赖 isGuestModeActive() 会在进入游客模式
+        // 前误判为登录态，落到下方 POST 云端分支触发 401 全页跳转（见 97c6314 前）。
+        if (isGuestModeActive() || asGuest) {
           return tempId;
         }
 

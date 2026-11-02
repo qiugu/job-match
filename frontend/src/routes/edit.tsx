@@ -76,7 +76,9 @@ function GuestEditorRoute() {
         useGuestMode.getState().enter(localId);
       } else {
         // 无草稿：新建（游客分支跳过落库）。createResume 返回临时 id。
-        const localId = await store.createResume(template ?? null, false);
+        // 显式传 asGuest=true：本函数内部在 enter() 之前执行，仅依赖
+        // isGuestModeActive() 会误判为登录态而触发云端 POST 401。
+        const localId = await store.createResume(template ?? null, false, true);
         useGuestMode.getState().enter(localId);
       }
       setReady(true);

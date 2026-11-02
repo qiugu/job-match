@@ -82,6 +82,21 @@ describe("游客态 store 分支（零后端请求红线）", () => {
     expect(useResumeStore.getState().syncedIds.has(id)).toBe(false);
   });
 
+  it("createResume：enter() 之前以 asGuest=true 调用也必须跳过云端（防 401 跳转回归）", async () => {
+    // 复现 97c6314 前的 bug：/edit 在 enter() 之前调用 createResume，
+    // 若仅依赖 isGuestModeActive() 会误判为登录态并 POST 云端 → 401 → 全页跳 /login。
+    // 修复后显式 asGuest 参数必须让后端分支跳过。
+    useGuestMode.getState().exit(); // 确保游客模式尚未激活
+
+    const id = await useResumeStore.getState().createResume(null, false, true);
+
+    expect(id).toBeTruthy();
+    expect(mockedCreate).not.toHaveBeenCalled();
+    expect(useResumeStore.getState().resumes[id]).toBeDefined();
+    // 新建即视为未保存：syncedIds 不含临时 id
+    expect(useResumeStore.getState().syncedIds.has(id)).toBe(false);
+  });
+
   it("syncResumeToBackend：写本地草稿并维护脏基准，不触后端、id 不替换", async () => {
     const storage = makeStorage();
     vi.stubGlobal("window", { localStorage: storage });
