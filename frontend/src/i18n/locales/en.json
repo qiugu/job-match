@@ -57,7 +57,8 @@
     "showPassword": "Show password",
     "hidePassword": "Hide password",
     "cancel": "Cancel",
-    "close": "Close"
+    "close": "Close",
+    "backToHome": "Back to home"
   },
   "common": {
     "title": "JDMatch",

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { formatCountdown } from "@/utils/countdown";
@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/i18n/compat/client";
 import { useRouter } from "@/lib/navigation";
+import { getPreferredLocale } from "@/i18n/runtime";
+import Link from "@/lib/link";
 import { useAuthStore } from "@/store/useAuthStore";
 import { trackGrowthEvent } from "@/lib/telemetry";
 import {
@@ -178,6 +180,16 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
       {/* ── 右栏：表单卡 + 备案悬挂位，同轴纵向堆叠居中──────────────
           右栏必须是 flex-col：行向布局会把备案号挤成卡片的兄弟节点甩到最右 */}
       <section className="relative flex flex-1 flex-col items-center justify-center px-4 py-12">
+        {/* 返回落地页：登录页此前没有任何回首页入口，浏览器后退会回到 /edit 形成
+            循环。链接指向 /$locale（落地页路由），携带当前 locale 避免跳错语言。 */}
+        <Link
+          href={`/${getPreferredLocale(window.location.pathname)}`}
+          className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-3 transition-colors hover:text-ink"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {t("backToHome")}
+        </Link>
+
         <Card className="relative w-full max-w-[380px] border-2 border-ink bg-ppcard shadow-punch">
           <CardHeader className="space-y-3 text-center">
             <div className="mx-auto flex items-center gap-2 lg:hidden">

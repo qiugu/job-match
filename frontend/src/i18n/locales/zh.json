@@ -57,7 +57,8 @@
     "showPassword": "显示密码",
     "hidePassword": "隐藏密码",
     "cancel": "取消",
-    "close": "关闭"
+    "close": "关闭",
+    "backToHome": "返回首页"
   },
   "common": {
     "title": "JDMatch",
