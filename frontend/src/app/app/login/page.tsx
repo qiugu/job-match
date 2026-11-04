@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { formatCountdown } from "@/utils/countdown";
@@ -138,22 +138,26 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
     >
       {/* ── 左栏：品牌海报（Loud 档唯一的重装饰面）──────────────── */}
       <section
-        aria-hidden
         className="relative hidden flex-1 flex-col justify-between overflow-hidden border-r-2 border-ink bg-paper-2 p-12 lg:flex"
       >
-        <div className="pp-dotgrid" />
+        <div className="pp-dotgrid" aria-hidden />
         {/* 撞色块：橘 + 薄荷，面积受控 */}
-        <div className="pointer-events-none absolute -right-10 top-16 h-40 w-40 rotate-12 border-2 border-ink bg-tangerine" />
-        <div className="pointer-events-none absolute right-24 bottom-40 h-16 w-16 rounded-full border-2 border-ink bg-mint" />
+        <div aria-hidden className="pointer-events-none absolute -right-10 top-16 h-40 w-40 rotate-12 border-2 border-ink bg-tangerine" />
+        <div aria-hidden className="pointer-events-none absolute right-24 bottom-40 h-16 w-16 rounded-full border-2 border-ink bg-mint" />
 
-        <div className="relative flex items-center gap-3">
+        {/* 标识即回首页入口：点击返回落地页，携带当前 locale 避免跳错语言 */}
+        <Link
+          href={`/${getPreferredLocale(window.location.pathname)}`}
+          className="relative flex items-center gap-3"
+          aria-label={t("backToHome")}
+        >
           <Logo size={44} />
           <span className="font-display text-xl font-extrabold tracking-tight text-ink">
             JDMatch
           </span>
-        </div>
+        </Link>
 
-        <div className="relative max-w-lg">
+        <div className="relative max-w-lg" aria-hidden>
           <h1 className="font-display text-[42px] font-extrabold leading-[1.08] tracking-tight text-ink">
             {t("pitchTitle")}
           </h1>
@@ -174,30 +178,24 @@ export default function LoginPage({ redirectTo }: LoginPageProps) {
           </ul>
         </div>
 
-        <span className="pp-sticker relative w-fit -rotate-3">PDF 导出免费</span>
+        <span className="pp-sticker relative w-fit -rotate-3" aria-hidden>PDF 导出免费</span>
       </section>
 
       {/* ── 右栏：表单卡 + 备案悬挂位，同轴纵向堆叠居中──────────────
           右栏必须是 flex-col：行向布局会把备案号挤成卡片的兄弟节点甩到最右 */}
       <section className="relative flex flex-1 flex-col items-center justify-center px-4 py-12">
-        {/* 返回落地页：登录页此前没有任何回首页入口，浏览器后退会回到 /edit 形成
-            循环。链接指向 /$locale（落地页路由），携带当前 locale 避免跳错语言。 */}
-        <Link
-          href={`/${getPreferredLocale(window.location.pathname)}`}
-          className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-3 transition-colors hover:text-ink"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t("backToHome")}
-        </Link>
-
         <Card className="relative w-full max-w-[380px] border-2 border-ink bg-ppcard shadow-punch">
           <CardHeader className="space-y-3 text-center">
-            <div className="mx-auto flex items-center gap-2 lg:hidden">
+            <Link
+              href={`/${getPreferredLocale(window.location.pathname)}`}
+              className="mx-auto flex items-center gap-2 lg:hidden"
+              aria-label={t("backToHome")}
+            >
               <Logo size={36} />
               <span className="font-display text-lg font-extrabold tracking-tight text-ink">
                 JDMatch
               </span>
-            </div>
+            </Link>
             <CardTitle className="font-display text-2xl font-extrabold text-ink">
               {mode === "login" ? t("title") : t("registerTitle")}
             </CardTitle>
