@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -68,6 +67,9 @@ import {
 } from "@/lib/jobmatch";
 import { getQuickStartStep } from "@/lib/quick-start";
 import TaskModePicker, { type TaskMode } from "@/components/match/TaskModePicker";
+import JdImageUploader from "@/components/match/JdImageUploader";
+import SectionLabel from "@/components/match/SectionLabel";
+import type { JdImageItem } from "@/lib/jdImages";
 import {
   initialMatchTaskState,
   isTaskSubmissionLocked,
@@ -199,6 +201,7 @@ export default function JobMatchPage() {
   const [masters, setMasters] = useState<MasterResumeSummary[]>([]);
   const [selected, setSelected] = useState<ResumeSource | null>(null);
   const [jdText, setJdText] = useState<string>("");
+  const [jdImages, setJdImages] = useState<JdImageItem[]>([]);
   const [uploading, setUploading] = useState<boolean>(false);
   const [taskState, dispatchTask] = useReducer(
     matchTaskReducer<MatchResult>,
@@ -401,12 +404,14 @@ export default function JobMatchPage() {
     scene: CoverLetterScene,
     requestId: number,
     derivedResumeId?: string,
-    jdOverride?: string
+    jdOverride?: string,
+    imagesOverride?: string[]
   ): Promise<{ id: string } | { error: string }> => {
     try {
       const letter = await createCoverLetter({
         resume_text: baseText,
         jd_text: jdOverride ?? jdText,
+        jd_images: imagesOverride ?? jdImages.map((image) => image.dataUrl),
         scene,
         derived_resume_id: derivedResumeId,
       });
@@ -430,7 +435,8 @@ export default function JobMatchPage() {
   const handlePitchOnly = async (
     baseText: string,
     requestId: number,
-    jdOverride?: string
+    jdOverride?: string,
+    imagesOverride?: string[]
   ) => {
     startPhaseTimer("pitch");
     try {
@@ -439,7 +445,8 @@ export default function JobMatchPage() {
         pitchScene,
         requestId,
         undefined,
-        jdOverride
+        jdOverride,
+        imagesOverride
       );
       if (!isActiveRequest(requestId)) return;
       stopPhaseTimer("pitch");
@@ -466,6 +473,10 @@ export default function JobMatchPage() {
   const handleCreate = async (jdOverride?: string, modeOverride?: TaskMode) => {
     const mode = modeOverride ?? taskMode;
     const effJd = jdOverride ?? jdText;
+    // 只有「显式传入 JD 覆盖值」才是外部回填（岗位页恢复上下文），不带本次截图；
+    // 用 truthy 判断会误伤「当前 JD 文本 + 当前截图」的内部调用（见 handleGenerateResumeFromPitch）。
+    const effImages =
+      jdOverride !== undefined ? [] : jdImages.map((image) => image.dataUrl);
     if (!selected) {
       toast.warning(t("selectResumeFirst"));
       return;
@@ -475,7 +486,7 @@ export default function JobMatchPage() {
       toast.warning(t("emptyResumeText"));
       return;
     }
-    if (!effJd.trim()) return;
+    if (!effJd.trim() && effImages.length === 0) return;
     // React 状态更新前也同步加锁，拦住同一事件循环内的双击重复扣费。
     if (taskPendingRef.current) return;
 
@@ -490,7 +501,7 @@ export default function JobMatchPage() {
 
     // 仅话术：不触发匹配，直接生成（话术与匹配是平级入口）
     if (mode === "pitch") {
-      await handlePitchOnly(baseText, requestId, effJd);
+      await handlePitchOnly(baseText, requestId, effJd, effImages);
       return;
     }
 
@@ -500,6 +511,7 @@ export default function JobMatchPage() {
         resumeText: baseText,
         jdText: effJd,
         title: selected.title,
+        jdImages: effImages,
       };
       const data = await createMatch(payload);
       if (!isActiveRequest(requestId)) return;
@@ -535,7 +547,8 @@ export default function JobMatchPage() {
           pitchScene,
           requestId,
           data.id,
-          effJd
+          effJd,
+          effImages
         );
         if (!isActiveRequest(requestId)) return;
         stopPhaseTimer("pitch");
@@ -589,7 +602,9 @@ export default function JobMatchPage() {
   // 仅话术结果区的「生成定制简历」衔接：切到匹配任务，用同一 JD 立即发起匹配。
   const handleGenerateResumeFromPitch = () => {
     setTaskMode("match");
-    handleCreate(jdText, "match");
+    // 传 undefined 而非 jdText：沿用 effJd 默认值即可，同时保留本次上传的 JD 截图。
+    // 若传 jdText 会被 handleCreate 当作外部 JD 回填，误清空截图。
+    handleCreate(undefined, "match");
   };
 
   // 从「我的投递」页跳转携带的意图：?job=<id>&mode=match&run=1 时，
@@ -804,7 +819,7 @@ export default function JobMatchPage() {
             </div>
 
             <ScrollArea className="flex-1">
-              <div className="space-y-6 px-5 py-4">
+              <div className="space-y-5 px-5 py-4">
                 {/* 任务类型：JD 简历匹配 / JD 话术匹配 / 两者都要（平级入口） */}
                 <TaskModePicker
                   value={taskMode}
@@ -814,9 +829,7 @@ export default function JobMatchPage() {
 
                 {/* 选择要优化的简历 */}
                 <div className="space-y-2">
-                  <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    {t("masterResume")}
-                  </Label>
+                  <SectionLabel no="02">{t("masterResume")}</SectionLabel>
                   {hasAnyResume ? (
                     <div className="flex items-center gap-2">
                       <Select
@@ -887,27 +900,31 @@ export default function JobMatchPage() {
                 </div>
 
                 {/* 岗位描述 */}
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    {t("jd")}
-                  </Label>
-                  <Textarea
-                    ref={jdTextareaRef}
-                    value={jdText}
-                    onChange={(e) => setJdText(e.target.value)}
-                    onBlur={handleDetectDuplicate}
-                    placeholder={t("jdPlaceholder")}
+                <div className="space-y-3">
+                  <SectionLabel no="03">{t("jd")}</SectionLabel>
+                  {/* 聊天框式 Composer：文本框与截图附件共用一个容器，
+                      Ctrl/⌘+V 粘贴的截图直接落成输入区顶部的附件 chip。 */}
+                  <JdImageUploader
+                    images={jdImages}
+                    onChange={setJdImages}
                     disabled={loading}
-                    className="min-h-[160px] resize-y border-border bg-muted/40 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20"
-                  />
+                  >
+                    <Textarea
+                      ref={jdTextareaRef}
+                      value={jdText}
+                      onChange={(e) => setJdText(e.target.value)}
+                      onBlur={handleDetectDuplicate}
+                      placeholder={t("jdPlaceholder")}
+                      disabled={loading}
+                      className="min-h-[120px] w-full resize-y rounded-none border-0 bg-transparent px-3 py-3 text-sm text-ink shadow-none placeholder:text-ink-3 focus-visible:border-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-100"
+                    />
+                  </JdImageUploader>
                 </div>
 
                 {/* 话术场景：只要任务涉及话术就出现（仅话术 / 两者都要） */}
                 {taskMode !== "match" && (
                   <div className="space-y-2">
-                    <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      {t("pitchScene")}
-                    </Label>
+                    <SectionLabel no="04">{t("pitchScene")}</SectionLabel>
                     <div className="grid grid-cols-3 gap-2">
                       {(
                         [
@@ -935,30 +952,38 @@ export default function JobMatchPage() {
                   </div>
                 )}
 
-                {/* 开始匹配 */}
-                <button
-                  type="button"
-                  onClick={() => handleCreate()}
-                  disabled={loading || !selected || !jdText.trim()}
-                  className="group flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground font-semibold transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : taskMode === "pitch" ? (
-                    <Mail className="h-4 w-4" />
-                  ) : (
-                    <Crosshair className="h-4 w-4 transition-transform group-hover:rotate-90" />
-                  )}
-                  {loading
-                    ? pitchPending
-                      ? t("generatingPitch")
-                      : t("matching")
-                    : taskMode === "pitch"
-                      ? t("startPitch")
-                      : taskMode === "both"
-                        ? t("startBoth")
-                        : t("startMatch")}
-                </button>
+                {/* 开始匹配：.pp-btn 提供钴蓝实心 + 按下下沉；--punch 显式补回
+                    4px 硬偏移阴影（工作台 calm 密度会把 --shadow-card 抹成 none）。
+                    禁用态由 CSS 原语处理，避免单纯 opacity-50 丢失可辨识度。 */}
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleCreate()}
+                    disabled={
+                      loading ||
+                      !selected ||
+                      (!jdText.trim() && jdImages.length === 0)
+                    }
+                    className="pp-btn pp-btn--punch group w-full text-sm"
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : taskMode === "pitch" ? (
+                      <Mail className="h-4 w-4" />
+                    ) : (
+                      <Crosshair className="h-4 w-4 transition-transform group-hover:rotate-90" />
+                    )}
+                    {loading
+                      ? pitchPending
+                        ? t("generatingPitch")
+                        : t("matching")
+                      : taskMode === "pitch"
+                        ? t("startPitch")
+                        : taskMode === "both"
+                          ? t("startBoth")
+                          : t("startMatch")}
+                  </button>
+                </div>
 
               </div>
             </ScrollArea>

@@ -4,6 +4,7 @@
 // 仅话术模式不会触发简历优化链路，直接生成话术。
 import { Check, Crosshair, Mail, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
+import SectionLabel from "@/components/match/SectionLabel";
 import { useTranslations } from "@/i18n/compat/client";
 
 export type TaskMode = "match" | "pitch" | "both";
@@ -53,9 +54,7 @@ export default function TaskModePicker({
 
   return (
     <div className="space-y-2">
-      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {t("taskMode")}
-      </label>
+      <SectionLabel no="01">{t("taskMode")}</SectionLabel>
       <div
         role="radiogroup"
         aria-label={t("taskMode")}
@@ -115,7 +114,8 @@ export default function TaskModePicker({
                 <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
                   {t(opt.descKey)}
                 </span>
-                <span className="mt-1.5 inline-flex items-center rounded-full border border-border bg-background px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                {/* 中文小标签走 .eb-zh：禁 mono / uppercase / 字距，避免拉散汉字 */}
+                <span className="eb-zh mt-1.5 inline-flex items-center rounded-md border border-line-strong bg-paper px-2 py-0.5 text-ink-3">
                   {t(opt.costKey)}
                 </span>
               </span>

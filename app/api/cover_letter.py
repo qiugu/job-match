@@ -32,6 +32,7 @@ from app.models.llm_usage import ENDPOINT_COVER_LETTER
 from app.models.user import UNLIMITED_CREDITS, User
 from app.schemas.agent import CoverLetterRequest, CoverLetterResult
 from app.services.agent import run_cover_letter
+from app.services.jd_images import JDImageError, resolve_jd_text
 from app.services.job import attach_or_create_job, promote_for_action
 from app.services.quota import consume_credits, refund_credits
 from app.services.usage import track_llm
@@ -141,7 +142,15 @@ async def create_cover_letter(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if not req.resume_text.strip() or not req.jd_text.strip():
+    # JD 截图 → 文本：先识别再校验，允许「只传截图、不填文本」的纯图片 JD。
+    try:
+        jd_text = await resolve_jd_text(req.jd_text, req.jd_images)
+    except JDImageError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    if not req.resume_text.strip() or not jd_text.strip():
         raise HTTPException(status_code=400, detail="简历文本与岗位描述均不能为空")
 
     # 归属校验：若关联衍生简历，必须是本人记录（不存在 / 他人记录统一 404）
@@ -150,7 +159,7 @@ async def create_cover_letter(
         if dr is None or dr.user_id != user.id:
             raise HTTPException(status_code=404, detail="关联的衍生简历不存在")
 
-    content = await _generate_text(user, req.jd_text, req.resume_text, req.scene)
+    content = await _generate_text(user, jd_text, req.resume_text, req.scene)
     user_id = user.id
     should_refund = not user.unlimited_credits
     result_committed = False
@@ -158,14 +167,14 @@ async def create_cover_letter(
         # attach 会 flush 候选卡以原子处理并发，因此必须在 LLM/独立预扣事务结束后执行，
         # 避免生成期间占用 SQLite 写锁。
         job = await attach_or_create_job(
-            db, user_id, req.jd_text, initial_status=JOB_STATUS_DEFAULT
+            db, user_id, jd_text, initial_status=JOB_STATUS_DEFAULT
         )
         cover = CoverLetter(
             user_id=user_id,
             derived_resume_id=req.derived_resume_id,
             job_id=job.id,
             resume_text=req.resume_text,
-            jd_text=req.jd_text,
+            jd_text=jd_text,
             scene=req.scene,
             content=content,
             model=settings.llm_model,

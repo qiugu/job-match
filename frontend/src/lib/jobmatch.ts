@@ -217,6 +217,8 @@ export interface CreateMatchPayload {
   resumeText: string;
   jdText: string;
   title?: string;
+  /** JD 截图 data URL（最多 4 张）；后端先转写为文本再并入 jdText */
+  jdImages?: string[];
 }
 
 // ---------- 话术（JD 话术，与匹配解耦的独立资源） ----------
@@ -250,6 +252,8 @@ export interface CoverLetter {
 export interface CreateCoverLetterPayload {
   resume_text: string;
   jd_text: string;
+  /** JD 截图 data URL（最多 4 张）；后端先转写为文本再并入 jd_text */
+  jd_images?: string[];
   scene?: CoverLetterScene;
   /** 关联衍生简历（匹配结果）id，可选；传入时须为本人的记录 */
   derived_resume_id?: string;

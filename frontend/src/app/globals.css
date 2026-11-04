@@ -449,7 +449,9 @@
     border: var(--edge-w) solid var(--ink);
     border-radius: 10px;
     background: var(--cobalt);
-    color: #ffffff;
+    /* 纸色随主题翻色：浅色近白、深色近墨。深色下钴蓝提亮为 #7C86FF，
+       硬编码白字仅约 3:1 不达 WCAG AA；用令牌后两侧均达标。 */
+    color: var(--paper);
     font-family: var(--font-body);
     font-size: 14.5px;
     font-weight: 600;
@@ -474,6 +476,21 @@
     box-shadow: none;
     cursor: not-allowed;
     transform: none;
+  }
+
+  /* 主 CTA 的 Punch 保底：工作台 [data-density=calm] 会把 --shadow-card
+     覆写成 none（控制台细线档的设计意图），但主操作必须保留硬偏移阴影，
+     否则按钮与次级控件在形态上无法区分。这里显式写死偏移，只作用于带
+     --punch 的按钮，不改动全局密度规则；三种状态逐条声明，避免特异性
+     覆盖导致 hover / active 的位移与阴影不同步。 */
+  .pp-btn.pp-btn--punch:not(:disabled) {
+    box-shadow: 4px 4px 0 var(--shadow-color);
+  }
+  .pp-btn.pp-btn--punch:not(:disabled):hover {
+    box-shadow: 6px 6px 0 var(--shadow-color);
+  }
+  .pp-btn.pp-btn--punch:not(:disabled):active {
+    box-shadow: none;
   }
 
   /* 次操作：墨边白底 */
@@ -586,7 +603,8 @@
   border: var(--edge-w) solid var(--ink);
   border-radius: 9999px;
   background: var(--cobalt);
-  color: #ffffff;
+  /* 与 .pp-btn 同理：深色下钴蓝提亮，白字不达 AA，改用随主题翻色的纸色令牌。 */
+  color: var(--paper);
   font-size: 13px;
   font-weight: 600;
   box-shadow: var(--shadow-chip);
@@ -872,5 +890,27 @@ html.js .rv-guard[data-shown="true"] {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* JD Composer 附件 chip 入场：截图贴进来时轻微上浮 + 缩放，
+   让「粘贴」这个高光动作有即时反馈；不做常驻装饰动效。
+   放在未分层区，避免 @layer components 的按需输出把 keyframes 一起裁掉。 */
+@keyframes jdChipIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.jd-chip-in {
+  animation: jdChipIn 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .jd-chip-in {
+    animation: none;
   }
 }

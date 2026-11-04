@@ -9,6 +9,9 @@ import tsconfigPaths from "vite-tsconfig-paths";
 // server.headers 覆盖不到 TanStack SSR 的 HTML 响应（静态资源能覆盖），
 // 故用中间件对全部响应强制 no-store，dev 模式没有缓存需求。
 function devNoStore(): Plugin {
+  // 每次进程启动生成唯一标识。排查「页面怎么改都没变」时，直接看响应头
+  // 就能确认浏览器拿到的是当前实例，还是旧 tab / 旧端口实例的缓存副本。
+  const buildId = Date.now().toString(36);
   return {
     name: "dev-no-store",
     configureServer(server) {
@@ -17,6 +20,11 @@ function devNoStore(): Plugin {
         res.writeHead = ((...args: Parameters<typeof writeHead>) => {
           res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
           res.setHeader("Pragma", "no-cache");
+          // Expires / Surrogate-Control 兜住中间代理与启发式缓存；长命 tab
+          // 的 HMR 断链仍可能重放旧模块图，因此硬刷新或新开 tab 依然是必要的。
+          res.setHeader("Expires", "0");
+          res.setHeader("Surrogate-Control", "no-store");
+          res.setHeader("X-Dev-Build", buildId);
           return writeHead(...args);
         }) as typeof res.writeHead;
         next();
@@ -33,6 +41,9 @@ export default defineConfig({
   },
   server: {
     port: 3005,
+    // 端口被占用时直接报错，而不是静默换到 3006/3007。后者会让浏览器继续
+    // 打开旧实例，制造「页面怎么改都没变」的假象（本项目已多次踩坑）。
+    strictPort: true,
     // Vite dev 默认不给 HTML 入口发 Cache-Control，浏览器会做启发式缓存：
     // 用户反复看到「页面没变」实际是浏览器磁盘缓存里的旧 HTML/模块。
     // 强制 no-store，任何刷新都重新校验。
