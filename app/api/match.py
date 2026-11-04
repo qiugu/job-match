@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +22,7 @@ from app.models.master_resume import MasterResume
 from app.models.user import UNLIMITED_CREDITS, User
 from app.schemas.resume import ResumeData
 from app.services.agent import run_match
+from app.services.jd_images import JDImageError, resolve_jd_text
 from app.services.job import attach_or_create_job, promote_for_action
 from app.services.match_metrics import match_request
 from app.services.match_observability import (
@@ -110,6 +111,8 @@ class MatchRequest(BaseModel):
     resumeText: str
     jdText: str
     title: str = ""
+    # JD 截图：先在服务端转写为文本并并入 jdText，再进入既有纯文本链路。
+    jdImages: list[str] = Field(default_factory=list)
 
 
 @router.post("", summary="创建匹配简历（触发 Agent 优化）")
@@ -120,6 +123,15 @@ async def create_match(
 ):
     if not req.resumeText.strip():
         raise HTTPException(status_code=400, detail="简历文本不能为空")
+
+    # JD 截图 → 文本：在任何扣费 / LLM 匹配调用之前完成校验与识别。
+    # 无图片时 resolve_jd_text 原样返回，旧行为完全不变。
+    try:
+        jd_text = await resolve_jd_text(req.jdText, req.jdImages)
+    except JDImageError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
     # 匹配会消耗积分：调用前原子预扣，失败则归还。
     # 管理员与无限制账号（credits < 0）不参与扣减。
@@ -149,7 +161,7 @@ async def create_match(
                 ):
                     keywords, resume_md, analysis = await run_match(
                         master_text=req.resumeText,
-                        jd_text=req.jdText,
+                        jd_text=jd_text,
                     )
 
         did = uuid.uuid4().hex
@@ -160,14 +172,14 @@ async def create_match(
 
         # 自动挂载岗位卡：归一化 JD 查重，命中复用旧卡，未命中建新卡。
         job = await attach_or_create_job(
-            db, user_id, req.jdText, initial_status=JOB_STATUS_RESUME_READY
+            db, user_id, jd_text, initial_status=JOB_STATUS_RESUME_READY
         )
         derived = DerivedResume(
             id=did,
             user_id=user_id,
             job_id=job.id,
             title=title,
-            jd_text=req.jdText,
+            jd_text=jd_text,
             markdown_content=resume_md,
             keywords=json.dumps(keywords),
             analysis_json=json.dumps(analysis) if analysis is not None else None,

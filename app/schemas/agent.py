@@ -40,6 +40,8 @@ class MatchAnalysisBundle(BaseModel):
 class CoverLetterRequest(BaseModel):
     resume_text: str = Field(description="简历文本")
     jd_text: str = Field(description="岗位描述")
+    # JD 截图 data URL 列表：由 jd_images.resolve_jd_text 预处理成文本后并入 jd_text。
+    jd_images: list[str] = Field(default_factory=list, description="JD 截图 data URL（最多 4 张）")
     scene: str = Field(default="greeting", description="场景：greeting/followup/interview")
     derived_resume_id: Optional[str] = Field(default=None, description="关联衍生简历 id（可选）")
 
