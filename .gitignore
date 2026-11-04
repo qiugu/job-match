@@ -84,6 +84,9 @@ __pycache__/
 frontend/.probe-*/
 frontend/.build-verify*/
 
+# 本地视觉诊断截图（Playwright / 探针临时出图，跑完即弃，勿提交）
+.wb-*.png
+
 # pytest basetemp（本机禁止写系统临时目录，统一落在工作区内）
 .pytest-tmp/
 
