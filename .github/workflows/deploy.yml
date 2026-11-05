@@ -341,6 +341,19 @@ jobs:
           docker compose --project-directory "$REMOTE_PATH" stop backend 2>/dev/null || true
           docker compose --project-directory "$REMOTE_PATH" run --rm backend python -m alembic upgrade head
           echo "    迁移完成"
+
+          echo "  [4.4] 回填统一可观测性历史数据（幂等，可重复执行）"
+          # 此时 backend 已 stop，回填写 SQLite 不会与业务进程并发。
+          # 镜像内已含 scripts/；再用宿主 scripts/ 只读挂载兜底，兼容 no_build
+          # 跳过构建时复用旧镜像的场景。脚本自带 sys.path 引导，无需 PYTHONPATH。
+          if [[ -f "$REMOTE_PATH/scripts/backfill_traces.py" ]]; then
+            docker compose --project-directory "$REMOTE_PATH" run --rm -T \
+              -v "$REMOTE_PATH/scripts:/app/scripts:ro" \
+              backend python scripts/backfill_traces.py
+          else
+            echo "    ⚠ 未找到 scripts/backfill_traces.py，跳过回填（旧部署目录？）" >&2
+          fi
+          echo "    回填完成"
           EOF
 
       # ---------- 第 4.5 步：注入 TLS 证书（路径 B：证书经 Secrets 管理，而非 git） ----------

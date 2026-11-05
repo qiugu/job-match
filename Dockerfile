@@ -85,6 +85,9 @@ RUN --mount=type=cache,target=/var/cache/apt,id=apt,sharing=locked \
 COPY app ./app
 COPY run.py alembic.ini ./
 COPY migrations ./migrations
+# 运维脚本（如统一可观测性历史数据回填）也要进镜像，否则容器内
+# `docker compose exec -T backend python scripts/backfill_traces.py` 找不到文件。
+COPY scripts ./scripts
 
 # 通过 uv 的虚拟环境运行
 ENV PATH="/app/.venv/bin:$PATH"
