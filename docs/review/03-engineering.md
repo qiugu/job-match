@@ -73,16 +73,21 @@ def _head() -> str:
 
 ### E2 · 无 CI 质量门禁（P1）
 
-> **状态：已修复（P1）**。新增 `.github/workflows/ci.yml`：后端 `uv run pytest` + 前端 `pnpm test`（vitest）为硬门禁；`pnpm lint` 与 `pnpm typecheck` 首期 `continue-on-error: true` 收集存量（lint 基线 234 problems、typecheck 25 errors，均非本次引入）。
+> **状态：已回退（2026-11-04），门禁待重建**。曾按本节建议新增 `.github/workflows/ci.yml`
+> （后端 `uv run pytest` + 前端 `pnpm test` 为硬门禁；`pnpm lint` / `pnpm typecheck` 以
+> `continue-on-error: true` 收集存量），但接入后连续三次运行全红（复盘见
+> `docs/FIX_deploy_rsync_stale_file.md` 第 8 节），未产生有效门禁信号，已删除。
+> 当前仓库只保留 `deploy.yml` 一个 workflow，质量信号回退为本地执行。
 
-**证据** `ls .github/workflows/` → 只有 `deploy.yml`。该文件内不含 `lint` / `typecheck` / `pytest` / `vitest`
-的任何调用（`Grep` 命中为 0，仅命中了 `.pytest_cache` 的排除项）。
+**证据（评审时点）** `ls .github/workflows/` → 只有 `deploy.yml`。该文件内不含 `lint` / `typecheck` / `pytest` / `vitest`
+的任何调用（`Grep` 命中为 0，仅命中了 `.pytest_cache` 的排除项）。删除 `ci.yml` 后该状态再次成立。
 
 **影响** 这是 E1 的同源问题：所有质量信号都依赖「人主动去跑」。结合 A4（无 `lint` 脚本）、
 A2（类型检查范围不全），实际状态是：**主分支可以让红测试、类型错误、lint 违规长期共存而无感知**。
 
-**建议** 新增 `.github/workflows/ci.yml`，最小三步：`uv run pytest` / `pnpm test` / `pnpm typecheck`。
-先以 `continue-on-error: true` 上线一周收集存量问题，再转硬门禁 —— 否则第一天就会因 E1 而全红。
+**建议（已作废，仅留作决策记录）** 原建议为单独新增 `.github/workflows/ci.yml`，最小三步
+`uv run pytest` / `pnpm test` / `pnpm typecheck`。该方案已实施并回退：按「仓库只保留一个 workflow」
+的约定，**不再新增第二个 workflow 文件**；若日后重建门禁，应并入 `deploy.yml` 的前置 job。
 
 ---
 
@@ -175,8 +180,11 @@ compose 的 healthcheck（`docker-compose.yml` 有配），单独 `docker run` �
 # E1：测试基线全绿
 .venv/bin/python -m pytest -q --basetemp=.pytest-tmp        # 期望 0 failed
 
-# E2：CI 存在且含三步
-rg -n "pytest|vitest|tsc --noEmit" .github/workflows/       # 期望各 >= 1
+# E2：CI 门禁（已回退）—— 唯一 workflow 为 deploy.yml，不含质量检查步骤
+ls .github/workflows/                                          # 期望仅 deploy.yml
+# 质量信号改为本地执行：
+#   .venv/bin/python -m pytest -q --basetemp=.pytest-tmp
+#   cd frontend && pnpm test
 
 # E3：镜像非 root
 grep -c "^USER " Dockerfile                                  # 期望 1（当前 0）

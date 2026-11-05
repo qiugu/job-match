@@ -6,6 +6,7 @@ LLM_API_KEY 调用大模型。接口契约与前端 src/routes/api/*.ts 对齐�
 from __future__ import annotations
 
 import json
+import time
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -23,6 +24,7 @@ from app.models.llm_usage import (
 )
 from app.models.user import User
 from app.services import ai_proxy, ai_stats
+from app.services.trace_observability import finish_trace, record_span, start_trace, trace_context
 from app.services.usage import track_llm
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -70,16 +72,28 @@ async def polish(req: PolishRequest, user: User = Depends(get_current_user)):
         return StreamingResponse(iter([b""]), media_type="text/plain")
 
     async def event_stream():
+        trace_id = await start_trace(user.id, ENDPOINT_AI_POLISH)
+        started = time.perf_counter()
         try:
             # 用量台账（Plan.md R1）：流式接口的 token 取决于厂商是否在流末回传 usage，
             # 缺失时 token 记 0，但调用次数与耗时仍会留痕（够 R2 按次限流用）。
-            async with track_llm(ENDPOINT_AI_POLISH, user_id=user.id):
-                async for chunk in ai_proxy.stream_polish(req.content, req.customInstructions):
-                    yield chunk
+            with trace_context(trace_id):
+                async with track_llm(ENDPOINT_AI_POLISH, user_id=user.id):
+                    async for chunk in ai_proxy.stream_polish(req.content, req.customInstructions):
+                        yield chunk
+            await record_span(
+                trace_id,
+                step_key="polish",
+                status="success",
+                latency_ms=round((time.perf_counter() - started) * 1000),
+            )
+            await finish_trace(trace_id, status="success")
         except RuntimeError as e:
+            await finish_trace(trace_id, status="error", error=e)
             logger.warning("润色失败（可预期）: %s", e)
             yield f"[错误] {e}"
         except Exception as e:  # noqa: BLE001
+            await finish_trace(trace_id, status="error", error=e)
             logger.exception("润色流式调用失败: %s", e)
             yield f"[错误] {e}"
 
@@ -94,13 +108,25 @@ async def grammar(req: GrammarRequest, user: User = Depends(get_current_user)):
     """
     if not req.content or not req.content.strip():
         return {"choices": [{"message": {"content": json.dumps({"errors": []}, ensure_ascii=False)}}]}
+    trace_id = await start_trace(user.id, ENDPOINT_AI_GRAMMAR)
+    started = time.perf_counter()
     try:
-        async with track_llm(ENDPOINT_AI_GRAMMAR, user_id=user.id):
-            text = await ai_proxy.grammar_check(req.content)
+        with trace_context(trace_id):
+            async with track_llm(ENDPOINT_AI_GRAMMAR, user_id=user.id):
+                text = await ai_proxy.grammar_check(req.content)
+        await record_span(
+            trace_id,
+            step_key="grammar",
+            status="success",
+            latency_ms=round((time.perf_counter() - started) * 1000),
+        )
+        await finish_trace(trace_id, status="success")
     except RuntimeError as e:
+        await finish_trace(trace_id, status="error", error=e)
         logger.warning("语法检查失败（可预期）: %s", e)
         return {"error": {"message": str(e), "code": "ConfigError"}}
     except Exception as e:  # noqa: BLE001
+        await finish_trace(trace_id, status="error", error=e)
         logger.exception("语法检查调用失败: %s", e)
         return {"error": {"message": str(e)}}
     return {"choices": [{"message": {"content": text}}]}
@@ -116,13 +142,25 @@ async def resume_import(
     """
     if not req.content and not req.images:
         return {"error": "Missing resume content or images"}
+    trace_id = await start_trace(user.id, ENDPOINT_AI_RESUME_IMPORT)
+    started = time.perf_counter()
     try:
-        async with track_llm(ENDPOINT_AI_RESUME_IMPORT, user_id=user.id):
-            parsed = await ai_proxy.resume_import(req.content, req.images, req.locale)
+        with trace_context(trace_id):
+            async with track_llm(ENDPOINT_AI_RESUME_IMPORT, user_id=user.id):
+                parsed = await ai_proxy.resume_import(req.content, req.images, req.locale)
+        await record_span(
+            trace_id,
+            step_key="resume_import",
+            status="success",
+            latency_ms=round((time.perf_counter() - started) * 1000),
+        )
+        await finish_trace(trace_id, status="success")
     except RuntimeError as e:
+        await finish_trace(trace_id, status="error", error=e)
         logger.warning("简历导入失败（可预期）: %s", e)
         return {"error": str(e)}
     except Exception as e:  # noqa: BLE001
+        await finish_trace(trace_id, status="error", error=e)
         logger.exception("简历导入调用失败: %s", e)
         return {"error": f"AI 解析失败：{e}"}
     return {"resume": parsed}
@@ -145,23 +183,49 @@ async def translate(req: TranslateRequest, user: User = Depends(get_current_user
         return {"error": {"message": "fields 总长度超限", "code": "BadRequest"}}
     # 统计在调用之后才知道，所以先备一个可变容器，由台账在 finally 统一落库
     stats: dict = {}
+    # 统一执行链台账（PLAN_unified_observability）：翻译是一次单步 trace + 一个 span
+    trace_id = await start_trace(user.id, ENDPOINT_AI_TRANSLATE)
+    started = time.perf_counter()
     try:
-        async with track_llm(
-            ENDPOINT_AI_TRANSLATE,
-            user_id=user.id,
+        with trace_context(trace_id):
+            async with track_llm(
+                ENDPOINT_AI_TRANSLATE,
+                user_id=user.id,
+                prompt_version=ai_proxy.TRANSLATE_PROMPT_VERSION,
+                detail_ref=stats,
+            ):
+                translated = await ai_proxy.translate_fields(req.fields, req.targetLang)
+                stats.update(
+                    ai_proxy.summarize_translation(req.fields, translated, req.targetLang)
+                )
+        await record_span(
+            trace_id,
+            step_key="translate",
+            status="success",
+            latency_ms=round((time.perf_counter() - started) * 1000),
+        )
+        await finish_trace(
+            trace_id,
+            status="success",
             prompt_version=ai_proxy.TRANSLATE_PROMPT_VERSION,
-            detail_ref=stats,
-        ):
-            translated = await ai_proxy.translate_fields(req.fields, req.targetLang)
-            stats.update(
-                ai_proxy.summarize_translation(req.fields, translated, req.targetLang)
-            )
+            detail=stats,
+        )
     except ValueError as e:
+        await finish_trace(trace_id, status="error", error=e)
         return {"error": {"message": str(e), "code": "BadRequest"}}
     except RuntimeError as e:
+        await record_span(
+            trace_id,
+            step_key="translate",
+            status="error",
+            latency_ms=round((time.perf_counter() - started) * 1000),
+            error_type=type(e).__name__,
+        )
+        await finish_trace(trace_id, status="error", error=e)
         logger.warning("简历翻译失败（可预期）: %s", e)
         return {"error": {"message": str(e), "code": "ConfigError"}}
     except Exception as e:  # noqa: BLE001
+        await finish_trace(trace_id, status="error", error=e)
         logger.exception("简历翻译调用失败: %s", e)
         return {"error": {"message": str(e)}}
     return {"fields": translated}

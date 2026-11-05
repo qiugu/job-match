@@ -820,3 +820,118 @@ export async function getAdminAiObservability(
   if (endpoint) params.set("endpoint", endpoint);
   return request(`/api/admin/ai/observability?${params.toString()}`);
 }
+
+// ---------- 统一可观测性（traces/spans） ----------
+// 口径与后端 app/services/observability_stats.py 对齐：从 traces/spans 聚合出
+// 成功率 + 节点执行状态（P50/P95/重试/错误归因）+ 成本用量三类信号。
+
+export type ObservabilityStatus = "running" | "success" | "error";
+
+export interface ObservabilityOverview {
+  total: number;
+  success: number;
+  error: number;
+  running: number;
+  success_rate: number;
+  avg_latency_ms: number | null;
+  p95_latency_ms: number | null;
+  total_tokens: number;
+  span_count: number;
+}
+
+export interface ObservabilityNode {
+  step_key: string;
+  calls: number;
+  success: number;
+  error: number;
+  attempts_total: number;
+  total_tokens: number;
+  success_rate: number;
+  avg_latency_ms: number | null;
+  p50_latency_ms: number | null;
+  p95_latency_ms: number | null;
+  avg_attempt: number | null;
+  error_types: Array<[string, number]>;
+}
+
+export interface ObservabilityEndpoint {
+  endpoint: string;
+  calls: number;
+  success: number;
+  error: number;
+  total_tokens: number;
+  success_rate: number;
+  avg_latency_ms: number | null;
+}
+
+export interface ObservabilityTraceSummary {
+  id: string;
+  endpoint: string;
+  user_id: string;
+  status: ObservabilityStatus;
+  error_type: string | null;
+  model: string;
+  latency_ms: number;
+  prompt_version: string | null;
+  context_id: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  detail_available: boolean;
+  detail: Record<string, unknown> | null;
+}
+
+export interface Observability {
+  range: JobStatsRange;
+  scope: "self" | "global";
+  overview: ObservabilityOverview;
+  nodes: ObservabilityNode[];
+  endpoints: ObservabilityEndpoint[];
+  cost: {
+    total_tokens: number;
+    prompt_tokens: number;
+    completion_tokens: number;
+    by_node: Array<{ step_key: string; total_tokens: number }>;
+  };
+  daily: TranslationDailyPoint[];
+  recent_traces: ObservabilityTraceSummary[];
+}
+
+export interface TraceDetail {
+  trace: ObservabilityTraceSummary;
+  spans: Array<{
+    id: string;
+    step_key: string;
+    status: string;
+    attempt: number;
+    latency_ms: number;
+    started_at: string | null;
+    completed_at: string | null;
+    total_tokens: number;
+    model: string;
+    error_type: string | null;
+  }>;
+}
+
+export async function getObservability(
+  days: AnalyticsDays | number = 30,
+  tzOffset?: number,
+  endpoint?: string
+): Promise<Observability> {
+  const params = observabilityParams(days, tzOffset);
+  if (endpoint) params.set("endpoint", endpoint);
+  return request(`/api/observability?${params.toString()}`);
+}
+
+export async function getTraceDetail(traceId: string): Promise<TraceDetail> {
+  return request(`/api/observability/traces/${traceId}`);
+}
+
+export async function getAdminObservability(
+  days: AnalyticsDays | number = 30,
+  tzOffset?: number,
+  endpoint?: string
+): Promise<Observability> {
+  const params = observabilityParams(days, tzOffset);
+  if (endpoint) params.set("endpoint", endpoint);
+  return request(`/api/observability/admin?${params.toString()}`);
+}

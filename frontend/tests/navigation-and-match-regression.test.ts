@@ -7,14 +7,14 @@ function source(path: string) {
 }
 
 describe("dashboard regression guard", () => {
-  it("keeps delivery and matching observability under one analytics route", () => {
+  it("keeps delivery and unified observability under one analytics route", () => {
     const sidebar = source("src/app/app/dashboard/client.tsx");
     const analytics = source("src/app/app/dashboard/analytics/page.tsx");
 
     expect(sidebar).toContain('url: "/app/dashboard/analytics"');
     expect(analytics).toContain('"delivery"');
-    expect(analytics).toContain('"matching"');
-    expect(analytics).toContain("<MatchingObservability");
+    expect(analytics).toContain('"observability"');
+    expect(analytics).toContain("<ObservabilityView");
   });
 
   it("labels the account balance as credits", () => {
