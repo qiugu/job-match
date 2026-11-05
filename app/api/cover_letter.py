@@ -13,6 +13,7 @@
 """
 from __future__ import annotations
 
+import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -35,6 +36,7 @@ from app.services.agent import run_cover_letter
 from app.services.jd_images import JDImageError, resolve_jd_text
 from app.services.job import attach_or_create_job, promote_for_action
 from app.services.quota import consume_credits, refund_credits
+from app.services.trace_observability import finish_trace, record_span, start_trace, trace_context
 from app.services.usage import track_llm
 
 logger = get_logger("cover_letter")
@@ -117,19 +119,32 @@ async def _generate_text(
                 ),
             )
         reserved = True
+    trace_id = await start_trace(user.id, ENDPOINT_COVER_LETTER)
+    started = time.perf_counter()
     try:
         # 用量台账（Plan.md R1）：生成与重新生成共用此函数，故埋点放这里一次覆盖
-        async with track_llm(ENDPOINT_COVER_LETTER, user_id=user.id):
-            return await run_cover_letter(
-                jd_text=jd_text, resume_text=resume_text, scene=scene
-            )
+        with trace_context(trace_id):
+            async with track_llm(ENDPOINT_COVER_LETTER, user_id=user.id):
+                result = await run_cover_letter(
+                    jd_text=jd_text, resume_text=resume_text, scene=scene
+                )
+        await record_span(
+            trace_id,
+            step_key="cover_letter",
+            status="success",
+            latency_ms=round((time.perf_counter() - started) * 1000),
+        )
+        await finish_trace(trace_id, status="success")
+        return result
     except RuntimeError as e:
+        await finish_trace(trace_id, status="error", error=e)
         # LLM 未配置 / 超时 / 调用失败等可预期错误 → 503
         if reserved:
             await refund_credits(user.id, settings.cover_letter_cost)
         logger.warning("话术生成失败（503）: %s", e)
         raise HTTPException(status_code=503, detail=str(e))
     except Exception:
+        await finish_trace(trace_id, status="error")
         # 未预期异常：归还积分后按原样抛出（全局兜底转 500）
         if reserved:
             await refund_credits(user.id, settings.cover_letter_cost)

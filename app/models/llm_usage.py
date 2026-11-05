@@ -48,6 +48,8 @@ ENDPOINT_AI_POLISH = "ai.polish"
 ENDPOINT_AI_GRAMMAR = "ai.grammar"
 ENDPOINT_AI_RESUME_IMPORT = "ai.resume_import"
 ENDPOINT_AI_TRANSLATE = "ai.translate"
+# JD 截图 → 文本的 OCR 前置（匹配链路的一部分，但独立观测：图片数/字符数/有无文字）
+ENDPOINT_JD_IMAGE_OCR = "jd.image_ocr"
 
 
 class LlmUsage(Base):

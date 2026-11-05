@@ -15,8 +15,7 @@ import {
   type JobStatus,
 } from "@/lib/jobmatch";
 import { EChart } from "@/components/analytics/EChart";
-import { MatchingObservability } from "@/components/analytics/MatchingObservability";
-import { TranslationObservability } from "@/components/analytics/TranslationObservability";
+import { ObservabilityView } from "@/components/analytics/ObservabilityView";
 import {
   buildDailyTrendOption,
   buildFunnelOption,
@@ -35,10 +34,9 @@ import {
 
 /** KPI 数字卡：等宽大数字 + 眉题 + 补充口径说明。 */
 /** tab → i18n key（新增 tab 时与下方渲染数组同步维护，两处即全部改动点） */
-const TAB_LABEL_KEYS: Record<"delivery" | "matching" | "ai", string> = {
+const TAB_LABEL_KEYS: Record<"delivery" | "observability", string> = {
   delivery: "analyticsTabDelivery",
-  matching: "analyticsTabMatching",
-  ai: "analyticsTabAi",
+  observability: "analyticsTabObservability",
 };
 
 function KpiCard({
@@ -119,17 +117,19 @@ export default function AnalyticsPage() {
   const [error, setError] = useState(false);
   /** 每次成功加载后 +1，驱动图表重绘（数据引用可能不变，但内容已更新） */
   const [revision, setRevision] = useState(0);
-  const [tab, setTab] = useState<"delivery" | "matching" | "ai">("delivery");
+  const [tab, setTab] = useState<"delivery" | "observability">("delivery");
   const requestId = useRef(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const initial = new URLSearchParams(window.location.search).get("tab");
     // 只接受已知 tab，避免手改 URL 后进入「无内容」的空白页
-    if (initial === "matching" || initial === "ai") setTab(initial);
+    if (initial === "observability") setTab(initial);
+    // 兼容旧 URL：matching / ai 统一落到 observability
+    else if (initial === "matching" || initial === "ai") setTab("observability");
   }, []);
 
-  const changeTab = (next: "delivery" | "matching" | "ai") => {
+  const changeTab = (next: "delivery" | "observability") => {
     setTab(next);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
@@ -226,7 +226,7 @@ export default function AnalyticsPage() {
         </div>
         <div className="flex max-w-full shrink-0 items-center gap-3 overflow-x-auto pb-0.5">
           <div className="flex shrink-0 items-center gap-1 rounded-full border border-border bg-card p-1" role="tablist" aria-label={t("analyticsTabsLabel")}>
-            {(["delivery", "matching", "ai"] as const).map((key) => (
+            {(["delivery", "observability"] as const).map((key) => (
               <button
                 key={key}
                 type="button"
@@ -247,10 +247,8 @@ export default function AnalyticsPage() {
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-5 sm:px-6 lg:px-8">
-        {tab === "matching" ? (
-          <MatchingObservability days={days} />
-        ) : tab === "ai" ? (
-          <TranslationObservability days={days} />
+        {tab === "observability" ? (
+          <ObservabilityView days={days} />
         ) : loading && !stats ? (
           <div className="flex h-full items-center justify-center gap-2 text-[13px] text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />

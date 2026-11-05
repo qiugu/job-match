@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import uuid
 from datetime import datetime, timezone
 
@@ -17,7 +18,7 @@ from app.core.database import get_db
 from app.core.logging import get_logger
 from app.models.derived_resume import DerivedResume
 from app.models.job import Job, JOB_STATUS_RESUME_READY
-from app.models.llm_usage import ENDPOINT_MATCH
+from app.models.llm_usage import ENDPOINT_JD_IMAGE_OCR, ENDPOINT_MATCH
 from app.models.master_resume import MasterResume
 from app.models.user import UNLIMITED_CREDITS, User
 from app.schemas.resume import ResumeData
@@ -25,13 +26,14 @@ from app.services.agent import run_match
 from app.services.jd_images import JDImageError, resolve_jd_text
 from app.services.job import attach_or_create_job, promote_for_action
 from app.services.match_metrics import match_request
-from app.services.match_observability import (
-    finish_match_run,
-    match_run_context,
-    start_match_run,
-)
 from app.services.match_stats import compute_match_observability, get_match_run_detail
 from app.services.quota import consume_credits, refund_credits
+from app.services.trace_observability import (
+    finish_trace,
+    record_span,
+    start_trace,
+    trace_context,
+)
 from app.services.usage import track_llm
 
 logger = get_logger("match")
@@ -126,12 +128,42 @@ async def create_match(
 
     # JD 截图 → 文本：在任何扣费 / LLM 匹配调用之前完成校验与识别。
     # 无图片时 resolve_jd_text 原样返回，旧行为完全不变。
-    try:
-        jd_text = await resolve_jd_text(req.jdText, req.jdImages)
-    except JDImageError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    # 有图片时：为「JD 图片识别」建立一条独立 trace + 单个 span（仅记录图片数、
+    # 识别字符数、耗时、有无文字，不判定「提取是否正确」——正确性由人工对照识别
+    # 结果回查，见 docs/PLAN_unified_observability.md §十）。
+    jd_image_trace_id: str | None = None
+    if req.jdImages:
+        jd_image_trace_id = await start_trace(
+            user.id, ENDPOINT_JD_IMAGE_OCR, context_id=None
+        )
+        jd_img_started = time.perf_counter()
+        try:
+            jd_text = await resolve_jd_text(req.jdText, req.jdImages)
+            await record_span(
+                jd_image_trace_id,
+                step_key="jd_image_extract",
+                status="success",
+                latency_ms=round((time.perf_counter() - jd_img_started) * 1000),
+            )
+            await finish_trace(
+                jd_image_trace_id,
+                status="success",
+                detail={
+                    "images": len(req.jdImages),
+                    "recognized_chars": max(0, len(jd_text) - len(req.jdText)),
+                    "has_text": bool(jd_text.strip()),
+                },
+            )
+        except JDImageError as e:
+            if jd_image_trace_id:
+                await finish_trace(jd_image_trace_id, status="error", error=e)
+            raise HTTPException(status_code=400, detail=str(e))
+        except RuntimeError as e:
+            if jd_image_trace_id:
+                await finish_trace(jd_image_trace_id, status="error", error=e)
+            raise HTTPException(status_code=503, detail=str(e))
+    else:
+        jd_text = req.jdText
 
     # 匹配会消耗积分：调用前原子预扣，失败则归还。
     # 管理员与无限制账号（credits < 0）不参与扣减。
@@ -150,11 +182,12 @@ async def create_match(
         reserved = True
 
     result_committed = False
-    match_run_id = await start_match_run(user_id)
+    match_run_id = await start_trace(user_id, ENDPOINT_MATCH)
     try:
-        with match_run_context(match_run_id):
+        with trace_context(match_run_id):
             # 用量台账（Plan.md R1）：整段匹配工作流的 token 与耗时留痕；
             # 内部多节点 LLM 调用会被汇总成一条记录，失败同样记 status=error。
+            # 执行链台账（PLAN_unified_observability）：节点 span 由 agent 内 record_span 落库。
             with match_request(uuid.uuid4().hex):
                 async with track_llm(
                     ENDPOINT_MATCH, user_id=user_id, match_run_id=match_run_id
@@ -189,12 +222,10 @@ async def create_match(
         await db.commit()
         result_committed = True
         await db.refresh(derived)
-        await finish_match_run(
+        await finish_trace(
             match_run_id,
             status="success",
-            job_id=job.id,
-            derived_resume_id=derived.id,
-            analysis=analysis,
+            context_id=job.id,
         )
     except RuntimeError as e:
         # LLM 或提交前持久化失败都没有可用产出：先释放主会话事务/SQLite 写锁，
@@ -203,7 +234,7 @@ async def create_match(
             await db.rollback()
             if reserved:
                 await refund_credits(user_id, settings.resume_match_cost)
-            await finish_match_run(match_run_id, status="error", error=e)
+            await finish_trace(match_run_id, status="error", error=e)
         logger.warning("创建匹配失败（503） | error_type=%s", type(e).__name__)
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
@@ -211,7 +242,7 @@ async def create_match(
             await db.rollback()
             if reserved:
                 await refund_credits(user_id, settings.resume_match_cost)
-            await finish_match_run(match_run_id, status="error", error=e)
+            await finish_trace(match_run_id, status="error", error=e)
         raise
 
     remaining = await _remaining_credits(db, user)

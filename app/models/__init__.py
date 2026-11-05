@@ -11,6 +11,8 @@ from app.models.match_run import MatchRun
 from app.models.match_run_step import MatchRunStep
 from app.models.site_visit import SiteVisit
 from app.models.growth_event import GrowthEvent
+from app.models.trace import Trace
+from app.models.span import Span
 
 __all__ = [
     "User",
@@ -25,4 +27,6 @@ __all__ = [
     "MatchRunStep",
     "SiteVisit",
     "GrowthEvent",
+    "Trace",
+    "Span",
 ]

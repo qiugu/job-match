@@ -185,3 +185,53 @@ GET /api/derived-resumes/observability/runs/{run_id}
   只表示当前历史数据的相关性，不代表因果关系。
 - `matched`、`weak`、`missing`、`unsupported` 来自匹配结果中的要求项，旧字段拼写
   `unspported` 在观测层统一归入 `unsupported`。
+
+---
+
+## 9. 统一可观测性（Unified Observability）
+
+> 2026-11-05 起，原「匹配可观测性」与「翻译可观测性」合并为**单一可观测性页**
+> （analytics 页第二个 Tab「可观测性」），数据模型对齐 OpenTelemetry Trace/Span
+> 语义，详见 `docs/PLAN_unified_observability.md`。
+
+### 9.1 数据模型
+
+- `traces`：一次业务调用（匹配 / 翻译 / 润色 / 语法 / 导入 / 话术 / JD 图片识别），
+  记录顶层状态、耗时、模型、prompt 版本、错误与端点级摘要（`detail`）。
+- `spans`：trace 内的中间节点（`jd_extract` / `resume_match` / `keyword_optimize` /
+  `translate` / `jd_image_extract` …），记录节点状态、耗时、重试、token 与错误类型。
+- `llm_usage` 保留为**成本台账**，与执行链台账解耦。
+
+### 9.2 接口
+
+```text
+GET /api/observability?days=30&tz_offset=480&endpoint=match   # 用户侧统一视图
+GET /api/observability/traces/{trace_id}                       # 单次调用 span 时间线
+GET /api/observability/admin?days=30                           # 管理员跨用户视图
+```
+
+`endpoint` 白名单：`match` / `cover_letter` / `ai.translate` / `ai.polish` /
+`ai.grammar` / `ai.resume_import` / `jd.image_ocr`。
+
+### 9.3 指标维度
+
+可观测性不止成功率，覆盖四维：
+
+1. **成功率**：总调用、成功、失败、运行中、成功率、平均/P95 耗时。
+2. **节点执行状态**（核心）：每个 `step_key` 的成功率、P50/P95 耗时、平均重试次数、
+   错误类型分布。
+3. **能力维度分布**：按 endpoint 的调用量、成功率、平均耗时、token。
+4. **成本与用量**：总/输入/输出 token，按节点归因。
+
+### 9.4 JD 图片提取可观测
+
+图片上传到 JD 输入框时，识别过程（OCR）作为独立 trace（endpoint=`jd.image_ocr`，
+step=`jd_image_extract`），记录图片数、识别字符数、耗时、有无文字。**仅记录、
+不判定**——「提取是否正确」由人工对照识别结果回查（不引入自动化正确性评分）。
+
+### 9.5 隐私与口径
+
+- `detail` 只存字段路径/计数/枚举，绝不存简历正文或 JD 原文。
+- 旧端点 `/api/derived-resumes/observability` 与 `/api/ai/translate/observability`
+  保留（deprecated），但新数据一律走 `/api/observability`。
+- 节点耗时分位 P50/P95 与投递统计的 P95 同口径。

@@ -46,7 +46,8 @@ from app.schemas.agent import (
     MatchResult,
 )
 from app.services.match_metrics import MatchStageError, match_request, match_stage
-from app.services.match_observability import get_match_run_id, record_match_step
+from app.services.trace_observability import get_trace_id, record_span
+from app.services.usage import get_run_usage_callback
 
 logger = get_logger("agent")
 _match_deadline: ContextVar[float | None] = ContextVar(
@@ -137,14 +138,16 @@ async def _invoke_match_stage(
         "keyword_optimize": settings.match_optimize_timeout_seconds,
     }[stage_name]
     for attempt in (1, 2):
-        run_id = get_match_run_id()
+        run_id = get_trace_id()
         stage_started = _monotonic() if run_id is not None else 0.0
         stage_status = "success"
         stage_error_type = ""
+        stage_scope = None
         try:
             with match_stage(
                 stage_name, attempt=attempt, input_chars=len(prompt)
             ) as stage:
+                stage_scope = stage
                 remaining = deadline - _monotonic()
                 if remaining <= 0:
                     raise TimeoutError("match deadline exhausted")
@@ -178,13 +181,29 @@ async def _invoke_match_stage(
                 await asyncio.sleep(retry_after)
         finally:
             if run_id is not None:
-                await record_match_step(
-                    run_id,
+                # 统一执行链台账（PLAN_unified_observability）：每个匹配节点落一条
+                # span，记录节点状态/耗时/重试，并从 usage 回调补齐该节点的 token。
+                usage_callback = get_run_usage_callback()
+                usage = (
+                    usage_callback.usage_for(stage_scope.run_id)
+                    if usage_callback is not None and stage_scope is not None
+                    else None
+                )
+                await record_span(
+                    get_trace_id() or "",
                     step_key=stage_name,
                     status=stage_status,
                     latency_ms=round((_monotonic() - stage_started) * 1000),
                     attempt=attempt,
                     error_type=stage_error_type,
+                    prompt_tokens=usage.input_tokens if usage and usage.input_tokens else 0,
+                    completion_tokens=usage.output_tokens if usage and usage.output_tokens else 0,
+                    total_tokens=(
+                        (usage.input_tokens or 0) + (usage.output_tokens or 0)
+                        if usage
+                        else 0
+                    ),
+                    model=usage.model if usage and usage.model else "",
                 )
     raise AssertionError("unreachable")
 

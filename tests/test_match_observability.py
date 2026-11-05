@@ -10,6 +10,7 @@ from sqlalchemy import select
 import app.core.database as database_module
 from app.models.llm_usage import LlmUsage
 from app.models.match_run import MatchRun
+from app.models.trace import Trace
 
 
 async def _register(client, username: str, code: str) -> str:
@@ -88,22 +89,20 @@ async def test_create_match_persists_successful_observability_run(client, monkey
     assert response.status_code == 200, response.text
 
     async with database_module.AsyncSessionLocal() as db:
-        run = (await db.execute(select(MatchRun))).scalars().one()
+        run = (await db.execute(select(Trace))).scalars().one()
         usage = (await db.execute(select(LlmUsage))).scalars().one()
 
     assert run.status == "success"
-    assert run.derived_resume_id == response.json()["id"]
-    assert run.job_id == response.json()["jobId"]
+    assert run.context_id == response.json()["jobId"]
     assert usage.match_run_id == run.id
 
     stats = await client.get(
-        "/api/derived-resumes/observability?days=30&tz_offset=480",
+        "/api/observability?days=30&tz_offset=480",
         headers=auth_headers(token),
     )
     assert stats.status_code == 200, stats.text
     assert stats.json()["overview"]["total"] == 1
     assert stats.json()["overview"]["success"] == 1
-    assert stats.json()["quality"]["matched"] == 1
 
 
 @pytest.mark.asyncio
@@ -119,7 +118,7 @@ async def test_failed_match_keeps_error_run_and_usage_link(client, monkeypatch):
     assert response.status_code == 503, response.text
 
     async with database_module.AsyncSessionLocal() as db:
-        run = (await db.execute(select(MatchRun))).scalars().one()
+        run = (await db.execute(select(Trace))).scalars().one()
         usage = (await db.execute(select(LlmUsage))).scalars().one()
 
     assert run.status == "error"
