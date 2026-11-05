@@ -18,16 +18,8 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
-
-# 生产容器内以 `python scripts/backfill_traces.py` 直接执行时，sys.path[0] 是
-# /app/scripts，而 app/ 包位于 /app/app；且 Dockerfile 用 uv sync
-# --no-install-project，本项目不会被装进 venv。显式把仓库根加进 sys.path，
-# 让本地 .venv 与生产容器两种运行方式都能 import app.*。
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlalchemy import select
 
@@ -59,12 +51,10 @@ def _new_id() -> str:
 async def _backfill_match_runs() -> None:
     async with AsyncSessionLocal() as db:
         runs = (await db.execute(select(MatchRun))).scalars().all()
-        inserted = 0
         for run in runs:
             # 幂等：trace_id 复用 match_run_id，已存在则跳过
             if await db.get(Trace, run.id):
                 continue
-            inserted += 1
             db.add(
                 Trace(
                     id=run.id,
@@ -84,17 +74,15 @@ async def _backfill_match_runs() -> None:
                 )
             )
         await db.commit()
-        print(f"回填 match_runs → traces：{inserted} 条")
+        print(f"回填 match_runs → traces：{len(runs)} 条")
 
 
 async def _backfill_match_steps() -> None:
     async with AsyncSessionLocal() as db:
         steps = (await db.execute(select(MatchRunStep))).scalars().all()
-        inserted = 0
         for step in steps:
             if await db.get(Span, step.id):
                 continue
-            inserted += 1
             db.add(
                 Span(
                     id=step.id,
@@ -114,7 +102,7 @@ async def _backfill_match_steps() -> None:
                 )
             )
         await db.commit()
-        print(f"回填 match_run_steps → spans：{inserted} 条")
+        print(f"回填 match_run_steps → spans：{len(steps)} 条")
 
 
 async def _backfill_llm_usage_singles() -> None:

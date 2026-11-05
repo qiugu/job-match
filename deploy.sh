@@ -289,18 +289,6 @@ echo "  [4.3] 停止后端写入，再执行数据库迁移 (alembic upgrade hea
 # 不使用 || true 吞错，确保迁移失败能暴露。
 "${DC[@]}" --project-directory "$REMOTE_PATH" run --rm backend python -m alembic upgrade head
 echo "    迁移完成"
-
-echo "  [4.4] 回填统一可观测性历史数据（幂等，可重复执行）"
-# 与 .github/workflows/deploy.yml 的 [4.4] 保持一致；此时 backend 已 stop。
-# 宿主 scripts/ 只读挂载兜底，兼容复用旧镜像；脚本自带 sys.path 引导。
-if [[ -f "$REMOTE_PATH/scripts/backfill_traces.py" ]]; then
-  "${DC[@]}" --project-directory "$REMOTE_PATH" run --rm -T \
-    -v "$REMOTE_PATH/scripts:/app/scripts:ro" \
-    backend python scripts/backfill_traces.py
-else
-  echo "    ⚠ 未找到 scripts/backfill_traces.py，跳过回填（旧部署目录？）" >&2
-fi
-echo "    回填完成"
 EOF
 echo
 
