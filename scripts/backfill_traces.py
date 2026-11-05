@@ -37,6 +37,7 @@ _ENDPOINT_STEP_KEY = {
     "ai.grammar": "grammar",
     "ai.resume_import": "resume_import",
     "cover_letter": "cover_letter",
+    "match": "resume_match",
 }
 
 
@@ -51,10 +52,12 @@ def _new_id() -> str:
 async def _backfill_match_runs() -> None:
     async with AsyncSessionLocal() as db:
         runs = (await db.execute(select(MatchRun))).scalars().all()
+        inserted = 0
         for run in runs:
             # 幂等：trace_id 复用 match_run_id，已存在则跳过
             if await db.get(Trace, run.id):
                 continue
+            inserted += 1
             db.add(
                 Trace(
                     id=run.id,
@@ -74,15 +77,17 @@ async def _backfill_match_runs() -> None:
                 )
             )
         await db.commit()
-        print(f"回填 match_runs → traces：{len(runs)} 条")
+        print(f"回填 match_runs → traces：新增 {inserted} 条")
 
 
 async def _backfill_match_steps() -> None:
     async with AsyncSessionLocal() as db:
         steps = (await db.execute(select(MatchRunStep))).scalars().all()
+        inserted = 0
         for step in steps:
             if await db.get(Span, step.id):
                 continue
+            inserted += 1
             db.add(
                 Span(
                     id=step.id,
@@ -102,50 +107,52 @@ async def _backfill_match_steps() -> None:
                 )
             )
         await db.commit()
-        print(f"回填 match_run_steps → spans：{len(steps)} 条")
+        print(f"回填 match_run_steps → spans：新增 {inserted} 条")
 
 
 async def _backfill_llm_usage_singles() -> None:
-    """非 match 端点、且无 match_run_id 归属的 llm_usage → trace + 单 span。"""
+    """llm_usage → 统一模型，含 match 端点的历史成本。
+
+    旧实现只处理「endpoint != 'match' 且无 match_run_id」的记录，导致
+    match 端点的 llm_usage（约占历史 token 的大头）永远进不了 traces/spans：
+    旧「匹配可观测性」的用量在新页面里全部丢失。这里统一处理：
+
+    - 无 match_run_id（或对应 trace 不存在）：生成独立 trace + span；
+    - 有 match_run_id 且 trace 已存在：只补一个 span 到该 trace 上，
+      不重复建 trace（匹配调用次数仍以 match_runs 为准）。
+    """
     async with AsyncSessionLocal() as db:
-        rows = (
-            await db.execute(
-                select(LlmUsage).where(
-                    LlmUsage.endpoint != "match",
-                    (LlmUsage.match_run_id.is_(None)) | (LlmUsage.match_run_id == ""),
-                )
-            )
-        ).scalars().all()
-        count = 0
+        rows = (await db.execute(select(LlmUsage))).scalars().all()
+        new_traces = 0
+        new_spans = 0
         for row in rows:
-            trace_id = _new_id()
-            step_key = _ENDPOINT_STEP_KEY.get(row.endpoint, row.endpoint or "unknown")
-            # llm_usage.id 唯一，用它做幂等键：生成本次回填的 trace 时，把
-            # trace 的 context_id 记为 llm_usage.id 的固定前缀，便于二次运行跳过。
-            # 更简单可靠的做法：用一个独立的幂等标记——这里用「detail 前缀」不可行，
-            # 因此改为：检查是否已存在「由本次回填生成」的 span（step_key 含端点、
-            # 且 created 时间在本次运行内）。为稳妥，直接以 llm_usage.id 作为 span_id。
+            # llm_usage.id 唯一，直接作为 span_id 保证幂等：重复执行不产生重复行。
             span_id = row.id
             if await db.get(Span, span_id):
                 continue
-            db.add(
-                Trace(
-                    id=trace_id,
-                    user_id=row.user_id,
-                    endpoint=row.endpoint,
-                    status=row.status,
-                    started_at=row.created_at or _now(),
-                    completed_at=row.created_at,
-                    latency_ms=row.latency_ms,
-                    model=row.model,
-                    prompt_version=row.prompt_version,
-                    error_type=row.error_type,
-                    error_message="",
-                    context_id=None,
-                    detail=row.detail,
-                    created_at=row.created_at or _now(),
+            step_key = _ENDPOINT_STEP_KEY.get(row.endpoint, row.endpoint or "unknown")
+            parent = await db.get(Trace, row.match_run_id) if row.match_run_id else None
+            trace_id = parent.id if parent is not None else _new_id()
+            if parent is None:
+                db.add(
+                    Trace(
+                        id=trace_id,
+                        user_id=row.user_id,
+                        endpoint=row.endpoint,
+                        status=row.status,
+                        started_at=row.created_at or _now(),
+                        completed_at=row.created_at,
+                        latency_ms=row.latency_ms,
+                        model=row.model,
+                        prompt_version=row.prompt_version,
+                        error_type=row.error_type,
+                        error_message="",
+                        context_id=None,
+                        detail=row.detail,
+                        created_at=row.created_at or _now(),
+                    )
                 )
-            )
+                new_traces += 1
             db.add(
                 Span(
                     id=span_id,
@@ -164,10 +171,9 @@ async def _backfill_llm_usage_singles() -> None:
                     error_type=row.error_type,
                 )
             )
-            count += 1
+            new_spans += 1
         await db.commit()
-        print(f"回填 llm_usage(非 match) → trace+span：{count} 条")
-
+        print(f"回填 llm_usage → 新增 trace：{new_traces} 条，新增 span：{new_spans} 条")
 
 async def main() -> None:
     await _backfill_match_runs()
