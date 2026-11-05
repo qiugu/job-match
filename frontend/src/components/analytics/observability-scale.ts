@@ -84,3 +84,32 @@ export function traceSummaryText(
 ): string {
   return `${endpointLabel(trace.endpoint, t)} · ${trace.started_at?.slice(5, 16).replace("T", " ") || "—"}`;
 }
+
+/** 可观测性内容区的渲染状态。
+ *
+ * 组件据此切换「内容区」，而能力维度切换条始终常驻——筛选到无数据的维度时
+ * 不能把切换条一起卸载，否则用户无法切回「全部」。
+ *
+ * - total === null 表示当前还没有拿到本轮筛选的数据（请求中 / 尚未加载）。
+ * - error 只在没有可用数据时升级为错误态；请求失败不会用上一维度的数据冒充当前结果。
+ * - filtered 区分「全站无数据」与「当前维度无数据」，后者要额外提供返回入口。
+ */
+export type ObservabilityViewState =
+  | "loading"
+  | "error"
+  | "empty-all"
+  | "empty-filtered"
+  | "ready";
+
+export function observabilityViewState(args: {
+  loading: boolean;
+  error: boolean;
+  total: number | null;
+  filtered: boolean;
+}): ObservabilityViewState {
+  const { loading, error, total, filtered } = args;
+  if (error && total === null) return "error";
+  if (loading || total === null) return "loading";
+  if (total === 0) return filtered ? "empty-filtered" : "empty-all";
+  return "ready";
+}

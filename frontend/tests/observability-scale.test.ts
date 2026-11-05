@@ -9,6 +9,7 @@ import {
   nodeLabel,
   nodeSuccessRate,
   observabilityDailyMax,
+  observabilityViewState,
   traceSummaryText,
 } from "@/components/analytics/observability-scale";
 
@@ -112,5 +113,70 @@ describe("observability scale helpers", () => {
     );
     expect(text).toContain("match");
     expect(text).toContain("11-05");
+  });
+});
+
+describe("observabilityViewState", () => {
+  it("stays in loading until the CURRENT filter has data", () => {
+    // 切维度时组件会清空旧数据，不能把上一个维度的结果冒充当前结果。
+    expect(
+      observabilityViewState({
+        loading: true,
+        error: false,
+        total: null,
+        filtered: true,
+      })
+    ).toBe("loading");
+    expect(
+      observabilityViewState({
+        loading: false,
+        error: false,
+        total: null,
+        filtered: false,
+      })
+    ).toBe("loading");
+  });
+
+  it("surfaces request failure as retryable error, not as empty data", () => {
+    expect(
+      observabilityViewState({
+        loading: false,
+        error: true,
+        total: null,
+        filtered: true,
+      })
+    ).toBe("error");
+  });
+
+  it("distinguishes an empty filter from an entirely empty site", () => {
+    // 回归：筛选到无数据维度时必须走 empty-filtered，
+    // 该状态仍渲染常驻切换条并提供「查看全部」出口。
+    expect(
+      observabilityViewState({
+        loading: false,
+        error: false,
+        total: 0,
+        filtered: true,
+      })
+    ).toBe("empty-filtered");
+    expect(
+      observabilityViewState({
+        loading: false,
+        error: false,
+        total: 0,
+        filtered: false,
+      })
+    ).toBe("empty-all");
+  });
+
+  it("reports ready only when the current filter has calls", () => {
+    expect(
+      observabilityViewState({
+        loading: false,
+        error: false,
+        total: 3,
+        filtered: true,
+      })
+    ).toBe("ready");
   });
 });

@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
   ChevronRight,
   Loader2,
+  RefreshCw,
   XCircle,
 } from "lucide-react";
 import { useLocale, useTranslations } from "@/i18n/compat/client";
@@ -26,6 +27,7 @@ import {
   errorTypeDistribution,
   nodeLabel,
   observabilityDailyMax,
+  observabilityViewState,
 } from "@/components/analytics/observability-scale";
 import { cn } from "@/lib/utils";
 
@@ -149,15 +151,20 @@ export function ObservabilityView({ days }: { days: AnalyticsDays }) {
   const [data, setData] = useState<Observability | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<TraceDetail | null>(null);
+  const detailReq = useRef(0);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError(false);
+    // 切换维度/区间时清空上一轮数据，避免把上一维度的数字短暂显示成当前结果。
+    setData(null);
     setSelected(null);
     setDetail(null);
+    detailReq.current += 1; // 使在途的 span 详情请求失效
     void getObservability(days, -new Date().getTimezoneOffset(), endpoint || undefined)
       .then((result) => {
         if (active) setData(result);
@@ -171,7 +178,7 @@ export function ObservabilityView({ days }: { days: AnalyticsDays }) {
     return () => {
       active = false;
     };
-  }, [days, endpoint]);
+  }, [days, endpoint, retryKey]);
 
   const dailyMax = useMemo(
     () => observabilityDailyMax((data?.daily || []).map((p) => p.total)),
@@ -179,7 +186,7 @@ export function ObservabilityView({ days }: { days: AnalyticsDays }) {
   );
   const labelStep = dailyLabelStep(data?.daily?.length ?? 0);
   const epTotal = endpointTotal(data?.endpoints || []);
-  const nodeCostTotal = costNodeTotal(data?.cost.by_node || []);
+  const nodeCostTotal = costNodeTotal(data?.cost?.by_node || []);
 
   const toggleTrace = async (trace: ObservabilityTraceSummary) => {
     if (selected === trace.id) {
@@ -189,61 +196,123 @@ export function ObservabilityView({ days }: { days: AnalyticsDays }) {
     }
     setSelected(trace.id);
     setDetail(null);
+    const req = ++detailReq.current;
     try {
-      setDetail(await getTraceDetail(trace.id));
+      const result = await getTraceDetail(trace.id);
+      if (detailReq.current === req) setDetail(result);
     } catch {
-      setDetail(null);
+      if (detailReq.current === req) setDetail(null);
     }
   };
 
-  if (loading && !data) {
+  // 能力维度切换条是「常驻骨架」：加载中 / 请求失败 / 空数据都必须保留。
+  // 曾经的写法把三个状态做成 early return 直接替换整个视图，导致筛选到无数据
+  // 的维度时切换条一起消失，用户被锁死，只能重新挂载页面才能切回「全部」。
+  const tabs = (
+    <div
+      className="flex items-center gap-1 overflow-x-auto rounded-full border border-border bg-card p-1"
+      data-testid="observability-endpoint-tabs"
+    >
+      {ENDPOINT_OPTIONS.map((opt) => (
+        <button
+          key={opt || "all"}
+          type="button"
+          aria-pressed={endpoint === opt}
+          onClick={() => setEndpoint(opt)}
+          className={cn(
+            "h-7 shrink-0 rounded-full px-3 text-[11px] transition-colors duration-150",
+            endpoint === opt
+              ? "bg-xai-text text-xai-canvas"
+              : "text-xai-mute hover:bg-xai-surface-2 hover:text-xai-text"
+          )}
+        >
+          {opt ? endpointLabel(opt, t) : t("observabilityEndpointAll")}
+        </button>
+      ))}
+    </div>
+  );
+
+  const viewState = observabilityViewState({
+    loading,
+    error,
+    total: data ? data.overview.total : null,
+    filtered: Boolean(endpoint),
+  });
+
+  if (viewState === "loading") {
     return (
-      <div className="flex min-h-[360px] items-center justify-center gap-2 text-[13px] text-xai-mute">
-        <Loader2 className="size-4 animate-spin" />
-        {t("observabilityLoading")}
+      <div className="space-y-4">
+        {tabs}
+        <div
+          className="flex min-h-[360px] items-center justify-center gap-2 text-[13px] text-xai-mute"
+          aria-busy="true"
+        >
+          <Loader2 className="size-4 animate-spin" />
+          {t("observabilityLoading")}
+        </div>
       </div>
     );
   }
-  if (error && !data) {
+  if (viewState === "error") {
     return (
-      <div className="flex min-h-[360px] items-center justify-center text-[13px] text-destructive">
-        {t("observabilityLoadError")}
+      <div className="space-y-4">
+        {tabs}
+        <div className="flex min-h-[360px] flex-col items-center justify-center gap-3">
+          <p className="text-[13px] text-destructive">
+            {t("observabilityLoadError")}
+          </p>
+          <button
+            type="button"
+            className="xai-pill-primary"
+            onClick={() => setRetryKey((k) => k + 1)}
+          >
+            <RefreshCw className="size-3.5" />
+            {t("analyticsRetry")}
+          </button>
+        </div>
       </div>
     );
   }
-  if (!data || data.overview.total === 0) {
+  if (viewState === "empty-all" || viewState === "empty-filtered") {
+    const filtered = viewState === "empty-filtered";
     return (
-      <div className="flex min-h-[360px] flex-col items-center justify-center gap-2 text-center">
-        <p className="text-[14px] font-medium text-xai-text-mid">
-          {t("observabilityEmptyTitle")}
-        </p>
-        <p className="max-w-md text-[13px] leading-relaxed text-xai-mute">
-          {t("observabilityEmptyDesc")}
-        </p>
+      <div className="space-y-4">
+        {tabs}
+        <div className="flex min-h-[360px] flex-col items-center justify-center gap-2 text-center">
+          <p className="text-[14px] font-medium text-xai-text-mid">
+            {t(
+              filtered
+                ? "observabilityEmptyFilteredTitle"
+                : "observabilityEmptyTitle"
+            )}
+          </p>
+          <p className="max-w-md text-[13px] leading-relaxed text-xai-mute">
+            {t(
+              filtered
+                ? "observabilityEmptyFilteredDesc"
+                : "observabilityEmptyDesc"
+            )}
+          </p>
+          {filtered && (
+            <button
+              type="button"
+              className="xai-pill-primary mt-2"
+              onClick={() => setEndpoint("")}
+            >
+              {t("observabilityBackToAll")}
+            </button>
+          )}
+        </div>
       </div>
     );
   }
 
+  // ready 态必有数据；此处仅用于把 data 收窄成非 null，方便下方直接读取。
+  if (!data) return null;
+
   return (
     <div className="space-y-4">
-      {/* 能力维度切换 */}
-      <div className="flex items-center gap-1 overflow-x-auto rounded-full border border-border bg-card p-1">
-        {ENDPOINT_OPTIONS.map((opt) => (
-          <button
-            key={opt || "all"}
-            type="button"
-            onClick={() => setEndpoint(opt)}
-            className={cn(
-              "h-7 shrink-0 rounded-full px-3 text-[11px] transition-colors duration-150",
-              endpoint === opt
-                ? "bg-xai-text text-xai-canvas"
-                : "text-xai-mute hover:bg-xai-surface-2 hover:text-xai-text"
-            )}
-          >
-            {opt ? endpointLabel(opt, t) : t("observabilityEndpointAll")}
-          </button>
-        ))}
-      </div>
+      {tabs}
 
       {/* KPI 卡：成功率仍是基础，但不再是唯一 */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6 lg:gap-4">

@@ -17,6 +17,19 @@ describe("dashboard regression guard", () => {
     expect(analytics).toContain("<ObservabilityView");
   });
 
+  it("keeps capability tabs mounted in every observability data state", () => {
+    const view = source("src/components/analytics/ObservabilityView.tsx");
+    // 回归：筛选到无数据维度时，切换条曾被 early return 一起卸载，
+    // 用户无法切回「全部」，只能重新挂载页面。现在它抽成常驻骨架，
+    // loading / error / empty-all / empty-filtered / ready 五个分支都要带它。
+    expect(view).toContain("const tabs = (");
+    expect(view).toContain('data-testid="observability-endpoint-tabs"');
+    expect(view.match(/\{tabs\}/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
+    expect(view).toContain('"empty-filtered"');
+    expect(view).toContain('t("observabilityBackToAll")');
+    expect(view).not.toContain("if (!data || data.overview.total === 0) {");
+  });
+
   it("labels the account balance as credits", () => {
     const zh = JSON.parse(source("src/i18n/locales/zh.json"));
     expect(zh.auth.quota).toBe("剩余积分");
