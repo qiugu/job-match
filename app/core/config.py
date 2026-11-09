@@ -124,6 +124,9 @@ class Settings(BaseSettings):
     pdf_export_max_concurrency: int = 2
     # 单用户每小时导出上限（内存滑动窗口，多实例部署时仅对本实例生效）
     pdf_export_rate_limit_per_hour: int = 20
+    # 两个匿名埋点端点（site-visits / growth-events）各自的单 IP+访客分钟窗口上限；
+    # 0 以下视为无效，由 limiter 构造时拒绝。多实例部署仅对本实例生效。
+    anonymous_telemetry_rate_limit_per_minute: int = 60
 
     @property
     def cors_origin_list(self) -> List[str]:

@@ -4,7 +4,10 @@
 
 **Goal:** 为 `admin` 角色新增受保护的系统管理仪表盘，展示 UV、PV、注册用户、简历、匹配、岗位、LLM 调用等全站业务指标。
 
-**Architecture:** 后端新增按天聚合的访问事件表和管理员统计服务/API；PV 由前端应用启动时上报，UV 使用客户端指纹在服务端按日去重。业务指标直接从现有 users、resume、derived_resume、jobs、llm_usage 表聚合。前端新增管理员专属导航和独立仪表盘，使用现有 XAI 控制台视觉与 EChart。
+> **修订（2026-11-09）**：原文中「按天 + 访客 + 路径唯一约束去重」的 UV/PV 口径已作废，
+> 相关描述保留仅作历史溯源。修订后的实现与口径见文末「口径修订（2026-11-09）」。
+
+**Architecture:** 后端新增**追加式浏览事件表** `site_visit_events`（一行 = 一次页面浏览）与管理员统计服务/API：PV = `count(*)`，日 UV = `count(distinct visitor_hash)`，区间 UV 由后端在整个窗口内去重后给出。前端每次 pathname 变化上报，path 在后端归一化，所有 daily 指标按 `tz_offset`（默认 UTC+8）切分。业务指标直接从现有 users、resume、derived_resume、jobs、llm_usage 表聚合。前端新增管理员专属导航和独立仪表盘，使用现有 XAI 控制台视觉与 EChart。
 
 **Tech Stack:** FastAPI, SQLAlchemy async, Alembic, pytest/httpx, React, TanStack Router, Tailwind, EChart, Vitest.
 
@@ -14,7 +17,7 @@
 - 只有 `User.role == "admin"` 可以读取系统管理接口；普通用户返回 403，未登录返回 401。
 - 数据库 schema 变更必须使用 Alembic 迁移，并同步注册模型。
 - 前后端 API 字段使用 camelCase 响应契约；日期按用户选择的最近 7/30/90 天返回，缺失日期补零。
-- 不采集原始 IP；访问事件只保存客户端匿名指纹哈希和请求日期。
+- 不落库原始 IP；访问事件只保存匿名指纹哈希、归一化路径与 naive UTC 时间戳。客户端 IP 仅在内存限流器中临时分桶，不持久化。
 
 ---
 
@@ -31,10 +34,10 @@
 - Test: `tests/test_admin_routes.py`
 
 **Interfaces:**
-- `POST /api/site-visits` accepts `{path, visitorId}` and records one page view; it is intentionally public but rate-limited by the daily `(day, visitor_hash, path)` uniqueness constraint.
-- `GET /api/admin/dashboard?days=7|30|90` returns `{range, overview, daily}` and requires an admin user.
-- `overview` contains `users`, `newUsers`, `masterResumes`, `derivedResumes`, `jobs`, `llmCalls`, `totalTokens`, `creditsConsumed`.
-- each `daily` item contains `date`, `pv`, `uv`, `newUsers`, `matches`, `jobs`, `llmCalls`.
+- `POST /api/site-visits` accepts `{path, visitorId}` and appends **one row per page view** (no de-duplication). It is intentionally public but protected by a per IP+visitor sliding-window limiter (`app/core/ratelimit.py`). The old `(day, visitor_hash, path)` uniqueness constraint was removed because it measured de-duplicated combinations, not PV.
+- `GET /api/admin/dashboard?days=7|30|90&tz_offset=480` returns `{range, tzOffset, overview, daily, growthFunnel}` and requires an admin user; `tz_offset` is minutes east of UTC.
+- `overview` contains `users`, `newUsers`, `masterResumes`, `derivedResumes`, `jobs`, `llmCalls`, `totalTokens`, `creditsConsumed`, `totalPv`, `uniqueVisitors`. `uniqueVisitors` is de-duplicated across the whole range; the frontend must **not** sum daily `uv`.
+- each `daily` item contains `date`, `pv`, `uv`, `newUsers`, `matches`, `jobs`, `llmCalls`; `date` is the local calendar day under `tz_offset`.
 
 - [ ] **Step 1: Write failing route tests** for unauthorized, forbidden, admin access, and duplicate visit de-duplication.
 - [ ] **Step 2: Run `uv run pytest tests/test_admin_routes.py -q` and verify failure because routes/models do not exist.**
@@ -54,7 +57,7 @@
 
 **Interfaces:**
 - `fetchAdminDashboard(days)` calls `/api/admin/dashboard` with auth headers.
-- `trackPageView(path)` sends one beacon/fetch per browser session path using a locally generated anonymous visitor id.
+- `trackPageView(path)` sends one fetch per pathname change using a locally generated anonymous visitor id; only consecutive duplicate paths are suppressed (StrictMode), and a network failure allows a retry.
 - `AuthUser.role` is the only UI condition for rendering the system management menu.
 
 - [ ] **Step 1: Write a failing telemetry test** asserting a stable visitor id and one request per path per session.
@@ -84,5 +87,30 @@
 ## Self-review
 
 - UV/PV collection, admin-only API authorization, business KPI aggregation, navigation gating, and dashboard visualization are each covered by a task.
+- 口径修订见文末「口径修订（2026-11-09）」：PV 不再去重、区间 UV 后端去重、path 归一化、时区统一、匿名端点限流。
 - No raw IP or user content is added to the telemetry model.
 - The migration and test fixture model registry are explicitly included so production and tests share the same schema.
+
+---
+
+## 口径修订（2026-11-09）
+
+原实现把 `site_visits` 建成 `(visit_date, visitor_hash, path)` 唯一约束的去重表，
+`count(*)` 被当成 PV、管理页又把每日 UV 相加当成区间 UV，两者都不成立。本次修订：
+
+| 项 | 修订后 |
+| --- | --- |
+| 存储 | 新增 append-only 表 `site_visit_events`（迁移 `r3s5t7u9v1w3`）：`id / visitor_hash / path / occurred_at`；旧表保留但不再写入 |
+| PV | `count(*)`：刷新、回访同一路径均计入 |
+| 日 UV | 当日 `count(distinct visitor_hash)` |
+| 区间 UV | `overview.uniqueVisitors`，在整个窗口内去重；**禁止**前端对 `daily[].uv` 求和 |
+| 路径 | 后端 `app/services/visit_path.py` 统一归一化：剥离 `/zh` `/en`、动态 ID 段 → `:id`、去 query |
+| 时区 | `GET /api/admin/dashboard` 支持 `tz_offset`（分钟，默认 480），全部 `daily` 指标统一按本地自然日切分 |
+| 前端 | `trackPageView` 仅抑制连续同路径（StrictMode）；A→B→A 计三次；网络失败可重试 |
+| 防滥用 | `app/core/ratelimit.py` 按客户端 IP 做 60 秒滑动窗口（换 `visitorId` 无法绕过），两个匿名写端点共用同一实现与 IP 解析 |
+
+**历史数据**：迁移把旧表 146 行按「1 行 = 1 次浏览」回填为新表基线。旧数据本身
+已去重，真实历史 PV 无法还原，故不作放大推算；部署后新增浏览按新口径计数。
+
+**回归要点**：`tests/test_admin_routes.py`（真实 PV、区间 UV、路径归一、限流、时区日界）、
+`tests/test_visit_path.py`、`tests/test_ratelimit.py`、`frontend/tests/telemetry.test.ts`。

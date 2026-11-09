@@ -5,6 +5,8 @@ export type AdminRange = 7 | 30 | 90;
 
 export interface AdminDashboard {
   range: AdminRange;
+  // 全部 daily 指标按该偏移（分钟）换算的本地自然日切分。
+  tzOffset: number;
   overview: {
     users: number;
     newUsers: number;
@@ -14,6 +16,9 @@ export interface AdminDashboard {
     llmCalls: number;
     totalTokens: number;
     creditsConsumed: number;
+    // 区间口径由后端给出：PV 可加总，UV 必须在整个窗口内去重。
+    totalPv: number;
+    uniqueVisitors: number;
   };
   daily: Array<{
     date: string;

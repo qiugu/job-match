@@ -1,51 +1,73 @@
-"""管理员系统管理 API。"""
+"""管理员系统管理 API 与匿名站点浏览埋点。"""
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_admin_user, get_db
-from app.models.site_visit import SiteVisit
+from app.core.config import settings
+from app.core.ratelimit import SlidingWindowLimiter, client_ip_from_request
+from app.core.timeutils import utcnow
+from app.models.site_visit_event import SiteVisitEvent
 from app.services import ai_stats
-from app.services.admin_stats import build_admin_dashboard
+from app.services.admin_stats import (
+    DEFAULT_TZ_OFFSET,
+    MAX_TZ_OFFSET,
+    MIN_TZ_OFFSET,
+    build_admin_dashboard,
+)
+from app.services.visit_path import normalize_visit_path
 
 router = APIRouter(tags=["admin"])
 
 
 class SiteVisitIn(BaseModel):
-    path: str = Field(min_length=1, max_length=255)
+    path: str = Field(min_length=1, max_length=512)
     visitorId: str = Field(min_length=8, max_length=128)
 
 
+# 匿名可写端点必须限流：唯一约束已移除，换 visitorId 即可无限插入。
+# 与 growth-events 各自持有独立实例，互不占用配额。
+site_visit_limiter = SlidingWindowLimiter(
+    window_seconds=60,
+    max_hits=settings.anonymous_telemetry_rate_limit_per_minute,
+    detail="访问上报过于频繁，请稍后再试",
+)
+
+
 @router.post("/api/site-visits", status_code=status.HTTP_204_NO_CONTENT, summary="记录匿名页面访问")
-async def record_site_visit(payload: SiteVisitIn, db: AsyncSession = Depends(get_db)) -> None:
+async def record_site_visit(
+    payload: SiteVisitIn,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> None:
     visitor_hash = hashlib.sha256(payload.visitorId.encode("utf-8")).hexdigest()
-    record = SiteVisit(
-        visit_date=datetime.now(timezone.utc).date(),
+    # 只按客户端 IP 分桶：若把 visitor_hash 也放进 key，攻击者每换一个
+    # visitorId 就是一个新桶，限流会形同虚设。
+    site_visit_limiter.check(client_ip_from_request(request))
+    db.add(SiteVisitEvent(
         visitor_hash=visitor_hash,
-        path=payload.path,
-    )
-    db.add(record)
-    try:
-        await db.commit()
-    except IntegrityError:
-        await db.rollback()
+        path=normalize_visit_path(payload.path),
+        occurred_at=utcnow(),
+    ))
+    await db.commit()
 
 
 @router.get("/api/admin/dashboard", summary="读取系统管理仪表盘")
 async def admin_dashboard(
     days: int = 7,
+    tz_offset: int = DEFAULT_TZ_OFFSET,
     _: object = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     if days not in (7, 30, 90):
         raise HTTPException(status_code=422, detail="days 仅支持 7、30 或 90")
-    return await build_admin_dashboard(db, days)
+    if not MIN_TZ_OFFSET <= tz_offset <= MAX_TZ_OFFSET:
+        raise HTTPException(status_code=422, detail="tz_offset 需在 -720 ~ 840 之间")
+    return await build_admin_dashboard(db, days, tz_offset)
 
 
 # AI 端点白名单：与 models/llm_usage.py 的 ENDPOINT_* 常量对齐，

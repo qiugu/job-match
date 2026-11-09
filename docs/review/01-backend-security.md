@@ -104,20 +104,28 @@
 
 ---
 
-### S6 · 匿名可写端点缺限流（P2）
+### S6 · 匿名可写端点缺限流（P2，2026-11-09 已修复）
 
 **证据**
 
-- `app/api/admin.py:24-36` `POST /api/site-visits`：依赖仅 `get_db`，无用户、无限流，直接 `db.add` + `commit`。
-- `app/api/telemetry.py:18-39` `POST /api/growth-events`：依赖 `get_optional_user`（允许匿名），同上。
+- 原 `app/api/admin.py` `POST /api/site-visits`：依赖仅 `get_db`，无用户、无限流，直接 `db.add` + `commit`。
+- 原 `app/api/telemetry.py` `POST /api/growth-events`：依赖 `get_optional_user`（允许匿名），同上。
 - 对照：登录/注册有进程内滑动窗口限流（`auth.py:99-134`）、导出有限流（`export.py:53`）—— 唯独这两个匿名写端点没有。
 
-**影响** `SiteVisit` 有唯一约束、`GrowthEvent` 按 `eventId` 幂等（`telemetry.py:38` 注释），所以
+**影响（原实现）** 旧 `SiteVisit` 有唯一约束、`GrowthEvent` 按 `eventId` 幂等，所以
 单条重复投递无害；但攻击者每次换 `visitorId` / `eventId` 即可无限插入，直接把 SQLite 撑大，
-并污染后台仪表盘（`services/admin_stats.py`）。属 OWASP API4。
+并污染后台仪表盘。属 OWASP API4。该唯一约束在 2026-11-09 的 PV 口径修订中移除后风险更高，
+故同批补上按客户端 IP 的限流。
 
-**建议** 复用 `auth.py` 已有的限流器（抽成 `app/core/ratelimit.py` 共用），对匿名写端点按 IP
-做分钟级窗口；`path` / `referrer` 已限长（`schemas/telemetry.py`），补上频率即可。
+**修复（2026-11-09）** 按上述建议新增 `app/core/ratelimit.py::SlidingWindowLimiter`
+（`time.monotonic()` 滑动窗口、429 + `Retry-After`、过期 key 清理），两个匿名写端点各自
+持有实例，按客户端 IP 做 60 秒窗口（不把 `visitor_hash` 拼进 key，否则换 ID 即可绕过），阈值由
+`ANONYMOUS_TELEMETRY_RATE_LIMIT_PER_MINUTE`（默认 60）配置。旧 `site_visits` 唯一约束同期
+移除（它是错误 PV 口径的根源），滥用防护改由该限流器承担；`growth-events` 的 `eventId`
+幂等保留。
+
+**剩余局限** 进程内计数仅对单实例生效，多实例部署仍需 Redis；客户端 IP 取
+`X-Forwarded-For` 链尾，依赖「单层 Nginx 反代」的部署假设，多层代理需重新校准。
 
 ---
 
@@ -209,7 +217,7 @@ result[job_id]["latest_acceptance"] = bool(accepted)
 | --- | --- | --- | --- |
 | 1 | 统一令牌有效期三处取值，并加断言 | C1 | 10 分钟 |
 | 2 | 上传侧补体积/页数上限 | S4 | 30 分钟 |
-| 3 | 抽出共享限流器，接入两个匿名写端点 | S6 | 1 小时 |
+| 3 | 抽出共享限流器，接入两个匿名写端点 | S6 | ✅ 已落地（2026-11-09） |
 | 4 | `/api/ai/*` 接入积分扣减（或至少按次限流） | S3 | 2 小时（需产品定单价） |
 | 5 | 异常文案映射表，禁止 `detail=str(e)` | S7 | 1 小时 |
 | 6 | Cookie 二选一（删或真接入），同步改注释 | S5 | 决策 10 分钟 / 实施 半天 |
@@ -232,7 +240,7 @@ grep -c "consume_credits" app/api/ai.py        # 期望 >= 1（当前为 0）
 grep -n "resume_upload_max_bytes" app/core/config.py app/api/resume.py   # 两者均需命中
 
 # S6：匿名写端点接入限流
-grep -n "ratelimit\|rate_limit" app/api/admin.py app/api/telemetry.py    # 两者均需命中
+grep -n "SlidingWindowLimiter" app/api/admin.py app/api/telemetry.py     # S6：两者均需命中（当前已命中）
 
 # S7：不再向上游异常原文透传
 grep -rn "detail=str(e)" app/api/    # 期望 0 行（或仅剩经映射的包装）

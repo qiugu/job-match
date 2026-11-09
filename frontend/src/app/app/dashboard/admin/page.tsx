@@ -153,8 +153,10 @@ export default function AdminPage() {
     );
   }
 
+  // 区间 KPI 一律取后端 overview：daily 里的 UV 是「当日独立访客」，
+  // 跨天求和会把回访用户重复计数，不能当作区间独立访客数。
   const traffic = data
-    ? data.daily.reduce((totals, item) => ({ pv: totals.pv + item.pv, uv: totals.uv + item.uv }), { pv: 0, uv: 0 })
+    ? { pv: data.overview.totalPv, uv: data.overview.uniqueVisitors }
     : { pv: 0, uv: 0 };
 
   return (
@@ -185,18 +187,20 @@ export default function AdminPage() {
           <div className="flex h-full items-center justify-center text-[13px] text-danger">{t("adminLoadError")}</div>
         ) : data ? (
           <div className="mx-auto max-w-[1440px] space-y-7">
+            {/* bg-ink / text-paper 在深色主题下互换；块内文字与描边必须随令牌翻色，
+                硬编码固定白色类名会在深色主题变成「浅字落浅底」而不可读。 */}
             <section className="relative overflow-hidden rounded-[24px] bg-ink px-5 py-5 text-paper sm:px-7 sm:py-6">
-              <div className="pointer-events-none absolute -right-10 -top-16 size-48 rounded-full border border-white/10" />
-              <div className="pointer-events-none absolute -bottom-24 right-24 size-44 rounded-full border border-white/10" />
+              <div className="pointer-events-none absolute -right-10 -top-16 size-48 rounded-full border border-paper opacity-10" />
+              <div className="pointer-events-none absolute -bottom-24 right-24 size-44 rounded-full border border-paper opacity-10" />
               <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <div className="mb-4 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.16em] text-white/70"><span className="size-1.5 animate-pulse rounded-full bg-tangerine" />LIVE / ANONYMOUS TRAFFIC</div>
+                  <div className="mb-4 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.16em] text-paper opacity-70"><span className="size-1.5 animate-pulse rounded-full bg-tangerine" />LIVE / ANONYMOUS TRAFFIC</div>
                   <p className="font-mono text-[44px] font-semibold leading-none tracking-[-0.08em] sm:text-[56px]">{traffic.pv.toLocaleString()}</p>
-                  <p className="mt-2 text-[12px] text-white/70">{t("adminPV")}</p>
+                  <p className="mt-2 text-[12px] text-paper opacity-70">{t("adminPV")}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-6 border-t border-white/15 pt-4 sm:min-w-[280px] sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
-                  <div><p className="xai-eyebrow text-[10px] text-white/70">{t("adminUV")}</p><p className="mt-2 font-mono text-[24px] font-semibold tracking-[-0.05em]">{traffic.uv.toLocaleString()}</p></div>
-                  <div><p className="xai-eyebrow text-[10px] text-white/70">{t("adminNewUsers")}</p><p className="mt-2 font-mono text-[24px] font-semibold tracking-[-0.05em]">{data.overview.newUsers.toLocaleString()}</p></div>
+                <div className="grid grid-cols-2 gap-6 border-t border-[color:color-mix(in_srgb,var(--paper)_15%,transparent)] pt-4 sm:min-w-[280px] sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
+                  <div><p className="xai-eyebrow text-[10px] text-paper opacity-70">{t("adminUV")}</p><p className="mt-2 font-mono text-[24px] font-semibold tracking-[-0.05em]">{traffic.uv.toLocaleString()}</p></div>
+                  <div><p className="xai-eyebrow text-[10px] text-paper opacity-70">{t("adminNewUsers")}</p><p className="mt-2 font-mono text-[24px] font-semibold tracking-[-0.05em]">{data.overview.newUsers.toLocaleString()}</p></div>
                 </div>
               </div>
             </section>

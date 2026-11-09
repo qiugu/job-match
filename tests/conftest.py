@@ -87,6 +87,13 @@ def _test_isolation(monkeypatch, session_factory):
         auth_module, "_check_login_ratelimit", lambda username, ip: None
     )
 
+    # 匿名埋点限流器是进程内单例，跨用例累积会互相干扰；每个用例前清零。
+    import app.api.admin as admin_module
+    import app.api.telemetry as telemetry_module
+
+    admin_module.site_visit_limiter.reset()
+    telemetry_module.growth_event_limiter.reset()
+
 
 class _NoLifespanTransport(ASGITransport):
     """包装 ASGI app，跳过 lifespan（避免触发 Alembic 迁移子进程）。"""

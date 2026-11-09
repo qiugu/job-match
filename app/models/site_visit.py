@@ -1,4 +1,10 @@
-"""匿名站点访问事件：按天、访客和路径去重，用于管理员 UV/PV。"""
+"""遗留表：匿名站点访问（按天、访客、路径去重）。
+
+自 2026-11-09（迁移 r3s5t7u9v1w3）起不再写入、也不再参与统计：
+该唯一约束只能表达「访客×路径」组合数，无法作为 PV。统计改读
+``app.models.site_visit_event.SiteVisitEvent``。此模型与表保留，避免历史
+数据失去 ORM 映射；历史行已在迁移中按 1 行 = 1 次浏览回填为新表基线。
+"""
 from __future__ import annotations
 
 import uuid

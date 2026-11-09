@@ -28,7 +28,9 @@ interface GrowthEventPayloadInput {
 const VISITOR_KEY = "jdmatch.analytics.visitor-id";
 const ATTRIBUTION_KEY = "jdmatch.growth.first-touch";
 const SESSION_DATE_KEY = "jdmatch.growth.session-date";
-const trackedPaths = new Set<string>();
+// 只抑制「连续相同路径」的重复上报（React StrictMode / effect 重入）。
+// 不再按整个 SPA 生命周期去重：A→B→A 是两次真实浏览，PV 必须各计一次。
+let lastTrackedPath: string | null = null;
 
 function safeLocalStorage(): Storage | null {
   if (typeof window === "undefined") return null;
@@ -123,17 +125,19 @@ export function shouldTrackDailySession(lastDate: string | null, today: string):
 }
 
 export async function trackPageView(path: string): Promise<void> {
-  if (typeof window === "undefined" || !path || trackedPaths.has(path)) return;
-  trackedPaths.add(path);
+  if (typeof window === "undefined" || !path || lastTrackedPath === path) return;
+  lastTrackedPath = path;
   try {
     await fetch(`${API_BASE}/api/site-visits`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: path.slice(0, 255), visitorId: getVisitorId() }),
+      body: JSON.stringify({ path: path.slice(0, 512), visitorId: getVisitorId() }),
       keepalive: true,
     });
   } catch {
-    // 遥测失败不能影响主业务页面。
+    // 网络失败不能影响主业务；清空标记，允许下次路由变化时重试同一路径。
+    // HTTP 4xx/5xx（含 429）不重试，避免在限流期间继续放大请求。
+    lastTrackedPath = null;
   }
 }
 
@@ -173,5 +177,5 @@ export async function trackDailySession(path: string): Promise<void> {
 }
 
 export function __resetTelemetryForTests(): void {
-  trackedPaths.clear();
+  lastTrackedPath = null;
 }
