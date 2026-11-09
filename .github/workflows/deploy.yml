@@ -256,9 +256,19 @@ jobs:
             CACHE_FLAG="--no-cache"
           fi
 
+          # 上一次 run 被取消/超时时，runner 侧的 ssh 会被杀掉，但服务器上的
+          # BuildKit 构建可能仍在后台跑；并发构建会互相拖慢甚至争用磁盘。
+          echo "==> 构建前诊断：磁盘余量 / Docker 缓存 / 残留构建进程"
+          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+            "df -h ${RP} | tail -n 2; docker system df | head -n 6; echo '--- 残留构建进程 ---'; pgrep -af 'docker compose|buildkit' | head -n 8 || true" || true
+
           echo "==> 在服务器本地构建 backend/frontend（缓存策略：${CACHE_FLAG:-复用层缓存}）"
-          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build ${CACHE_FLAG} backend"
-          ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build ${CACHE_FLAG} frontend"
+          # 单次构建上限 45 分钟：卡死要早暴露，不要挂到 job 的 180 分钟才被发现。
+          # 注意 timeout 只终止 runner 侧 ssh；重跑前请看上面的残留进程诊断。
+          timeout --signal=TERM --kill-after=30s 45m \
+            ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build ${CACHE_FLAG} backend"
+          timeout --signal=TERM --kill-after=30s 45m \
+            ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" "docker compose --project-directory ${RP} build ${CACHE_FLAG} frontend"
           echo "    服务器镜像构建完成"
         env:
           FORCE_REBUILD: ${{ github.event.inputs.force_rebuild }}

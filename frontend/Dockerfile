@@ -1,6 +1,7 @@
 # syntax=docker.io/docker/dockerfile:1
 
-FROM node:22-alpine AS base
+# 同后端 Dockerfile：pin digest 防止上游 tag 漂移打断整条层缓存链。
+FROM node:22-alpine@sha256:0e1754758c2df4cfa3e68d59e2e1b7374bb7fd9ea6328eaaacf15cc934af8202 AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 # corepack 缓存放卷上：pnpm 二进制（packageManager 锁定 8.14.3）只下载一次
@@ -11,6 +12,11 @@ RUN npm install -g corepack@latest && corepack enable
 ENV PUPPETEER_SKIP_DOWNLOAD=true \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 WORKDIR /app
+# 国内服务器构建：npm 包走国内镜像，避免层缓存失效时全量下载超时。
+# frontend/pnpm-lock.yaml 不含硬编码 registry URL，可安全切换；
+# 这条 ENV 会被 deps / prod-deps / builder / runner 各阶段继承。
+ARG NPM_REGISTRY=https://registry.npmmirror.com
+ENV npm_config_registry=${NPM_REGISTRY}
 
 FROM base AS deps
 COPY package.json pnpm-lock.yaml ./

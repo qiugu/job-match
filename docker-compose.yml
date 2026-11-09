@@ -38,6 +38,8 @@ services:
         # 可在服务器 .env 中覆盖；海外构建可改回 Debian 官方 HTTPS 源。
         DEBIAN_MIRROR: "${DEBIAN_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/debian}"
         DEBIAN_SECURITY_MIRROR: "${DEBIAN_SECURITY_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/debian-security}"
+        # Python 依赖源：服务器直连 pypi.org 下载大 wheel 会超时；可在服务器 .env 覆盖。
+        UV_DEFAULT_INDEX: "${UV_DEFAULT_INDEX:-https://pypi.tuna.tsinghua.edu.cn/simple}"
     # GitHub Actions 上传代码后在服务器构建，后续部署复用本地镜像。
     image: job-matcher-backend:deploy
     # 统一使用 8005：Dockerfile EXPOSE、run 启动端口、nginx 转发三者一致
@@ -83,6 +85,8 @@ services:
         # 站点基址：canonical / hreflang / OG / sitemap 全部由此派生，必须与对外
         # 域名与协议一致（生产为 https://jdmatch.site）。
         VITE_SITE_URL: "https://jdmatch.site"
+        # npm 依赖源：与 backend 同理，可在服务器 .env 覆盖。
+        NPM_REGISTRY: "${NPM_REGISTRY:-https://registry.npmmirror.com}"
     image: job-matcher-frontend:deploy
     expose:
       - "3005"

@@ -5,7 +5,10 @@
 #   1. uv 版本固定（:latest 会随上游发版漂移，导致依赖安装层反复失效重建）
 #   2. BuildKit 层缓存复用依赖；cache mount 仅在同一 builder 上复用下载，
 #      不会随 GHA 层缓存自动迁移到下一台临时 runner
-FROM python:3.12-slim
+# 必须 pin digest：上游 tag 会漂移（2026-11-05 一天内变一次、11-08 又变一次）。
+# digest 一变，下方全部构建层缓存失效，uv sync / Playwright / apt 需全量重下，
+# 国内服务器上实测拖到 80 分钟以上并超时失败。升级时显式改此行，并接受一次重建。
+FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
 
 # 固定 uv 版本（升级时手动改此标签，改完依赖层会重建一次属预期）
 COPY --from=ghcr.io/astral-sh/uv:0.12.9 /uv /usr/local/bin/uv
@@ -35,12 +38,18 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+# 依赖源默认走国内 PyPI 镜像：服务器直连 pypi.org 下载 pymupdf(41MB) /
+# playwright(45MB) / onnxruntime(22MB) 会反复超时（2026-11-05 部署失败即由此引起）。
+# 可在服务器 .env 用 UV_DEFAULT_INDEX 覆盖（海外部署设为 https://pypi.org/simple）。
+# 注：UV_DEFAULT_INDEX 是 uv 当前的默认源变量（旧别名已弃用）；
+# 本地已实测 uv sync --frozen 换源后 lockfile 无需更新。
+ARG UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple
 # 优先安装依赖以利用层缓存
 # 仅复制依赖声明与锁定文件，避免代码改动导致依赖层失效
 COPY pyproject.toml uv.lock ./
 # cache mount：wheel 缓存放卷上不进镜像层，依赖变更无需全量重新下载
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev
+    UV_DEFAULT_INDEX="${UV_DEFAULT_INDEX}" uv sync --frozen --no-install-project --no-dev
 
 # 本地/海外构建默认使用 Debian 官方源；Compose 的国内部署可覆盖为 HTTPS 镜像。
 # 同时覆盖安全更新源，保留发行版及 Debian 签名验证。
