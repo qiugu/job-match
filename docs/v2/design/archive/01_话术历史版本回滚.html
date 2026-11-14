@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>话术历史版本回滚 — JDMatch 2.0 交互设计</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5efe4;
+    color: #171310;
+    line-height: 1.6;
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .meta {
+    font-size: 12px; color: #75695c; margin-bottom: 16px;
+    letter-spacing: 0.02em;
+  }
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 4px; border: 1.5px solid #171310;
+    margin-right: 6px;
+  }
+  .badge.final { background: #b9f2ce; }
+  .badge.archive { background: #ffd7d3; color: #7a271a; }
+  .desc {
+    font-size: 13px; color: #3d352c; background: #fffdf8;
+    border: 1.5px solid #171310; border-radius: 6px;
+    padding: 12px 14px; margin: 16px 0 20px;
+  }
+  .stage {
+    background: #fffdf8; border: 2px solid #171310; border-radius: 8px;
+    box-shadow: 4px 4px 0 #171310; padding: 12px; overflow: hidden;
+  }
+  .stage svg { width: 100%; height: auto; display: block; }
+  .note {
+    font-size: 12px; color: #75695c; margin-top: 20px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>话术历史版本回滚</h1>
+  <div class="meta">JDMatch 2.0 · 交互设计稿 · <span class="badge archive">已归档（早期方案）</span></div>
+  <div class="desc">早期方案：话术多版本链（cover_letter_versions）与回滚交互。已废弃（打招呼极少需要多版本）。</div>
+  <div class="stage">
+<div style="font-family: var(--font-sans); color: var(--color-text-primary); max-width: 560px;">
+<h2 class="sr-only">话术历史版本列表，支持查看与回滚到任意历史版本</h2>
+
+<div style="padding: 6px;">
+
+  <div style="border:0.5px solid var(--color-border-tertiary); border-radius:12px; padding:14px 16px; background:var(--color-background-primary);">
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+      <span style="font-size:11px; font-weight:500; color:#26215c; background:#eeedfe; padding:2px 8px; border-radius:6px;">打招呼</span>
+      <span style="font-size:11px; color:var(--color-text-tertiary);">历史版本</span>
+      <span style="margin-left:auto; font-size:11px; color:var(--color-text-tertiary);">3 个版本</span>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:10px;">
+
+      <div style="display:flex; align-items:flex-start; gap:12px; border:0.5px solid var(--color-border-secondary); border-radius:10px; padding:10px 12px;">
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <span style="font-size:11px; font-weight:500; color:var(--color-text-primary);">v3 · 当前版本</span>
+            <span style="font-size:11px; color:var(--color-text-tertiary);">今天 16:02</span>
+          </div>
+          <p style="margin:0; font-size:12.5px; line-height:1.6; color:var(--color-text-secondary);">您好，我在 React 工程化与 SSR 性能优化方向有五年落地经验，与贵司岗位高度契合……</p>
+        </div>
+        <span style="flex-shrink:0; font-size:11px; font-weight:500; color:#0f6e56; background:#e1f5ee; padding:2px 8px; border-radius:6px;">生效中</span>
+      </div>
+
+      <div style="display:flex; align-items:flex-start; gap:12px; border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:10px 12px; opacity:0.82;">
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <span style="font-size:11px; color:var(--color-text-secondary);">v2</span>
+            <span style="font-size:11px; color:var(--color-text-tertiary);">今天 15:58</span>
+          </div>
+          <p style="margin:0; font-size:12.5px; line-height:1.6; color:var(--color-text-secondary);">看到贵司高级前端工程师职位，我的经验与岗位要求高度匹配，期待进一步沟通……</p>
+        </div>
+        <span style="flex-shrink:0; font-size:12px; color:var(--color-text-info); border:0.5px solid var(--color-border-info); padding:3px 10px; border-radius:999px;">回滚</span>
+      </div>
+
+      <div style="display:flex; align-items:flex-start; gap:12px; border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:10px 12px; opacity:0.82;">
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <span style="font-size:11px; color:var(--color-text-secondary);">v1</span>
+            <span style="font-size:11px; color:var(--color-text-tertiary);">昨天 21:40</span>
+          </div>
+          <p style="margin:0; font-size:12.5px; line-height:1.6; color:var(--color-text-secondary);">您好，看到贵司正在招聘高级前端工程师，附上简历，期待有机会进一步交流……</p>
+        </div>
+        <span style="flex-shrink:0; font-size:12px; color:var(--color-text-info); border:0.5px solid var(--color-border-info); padding:3px 10px; border-radius:999px;">回滚</span>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</div>
+  </div>
+  <div class="note">本设计稿采用项目 Paper &amp; Punch 设计语言（奶油纸 #fbf6ea / 硬墨 #171310 / 钴蓝 #2b3aff / 撞色黄油 #ffe27a）。</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>匹配进度 SSE 事件流 — JDMatch 2.0 交互设计</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5efe4;
+    color: #171310;
+    line-height: 1.6;
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .meta {
+    font-size: 12px; color: #75695c; margin-bottom: 16px;
+    letter-spacing: 0.02em;
+  }
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 4px; border: 1.5px solid #171310;
+    margin-right: 6px;
+  }
+  .badge.final { background: #b9f2ce; }
+  .badge.archive { background: #ffd7d3; color: #7a271a; }
+  .desc {
+    font-size: 13px; color: #3d352c; background: #fffdf8;
+    border: 1.5px solid #171310; border-radius: 6px;
+    padding: 12px 14px; margin: 16px 0 20px;
+  }
+  .stage {
+    background: #fffdf8; border: 2px solid #171310; border-radius: 8px;
+    box-shadow: 4px 4px 0 #171310; padding: 12px; overflow: hidden;
+  }
+  .stage svg { width: 100%; height: auto; display: block; }
+  .note {
+    font-size: 12px; color: #75695c; margin-top: 20px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>匹配进度 SSE 事件流</h1>
+  <div class="meta">JDMatch 2.0 · 交互设计稿 · <span class="badge final">最终方案</span></div>
+  <div class="desc">最终方案：匹配不流式文本、但走进度事件的 SSE 阶段展示（解析 JD → 分析匹配度 → 优化简历）。</div>
+  <div class="stage">
+<svg viewBox="0 0 680 400" xmlns="http://www.w3.org/2000/svg" role="img" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+<title>匹配进度 SSE 事件流</title>
+<desc>简历匹配的三阶段进度事件，流式逐阶段推进</desc>
+
+<rect x="0" y="0" width="680" height="400" fill="#fbf6ea"/>
+
+<text x="24" y="40" font-size="14" font-weight="500" fill="#171310">正在分析这份 JD，为你匹配简历…</text>
+
+<rect x="24" y="62" width="632" height="300" rx="12" fill="#fffdf8" stroke="#171310" stroke-width="1.5"/>
+
+<line x1="60" y1="100" x2="60" y2="330" stroke="#e2d9c6" stroke-width="2"/>
+
+<circle cx="60" cy="100" r="8" fill="#7a81f7" stroke="#171310" stroke-width="1.5"/>
+<rect x="86" y="80" width="540" height="40" rx="8" fill="#f3ecdc"/>
+<text x="102" y="97" font-size="13" font-weight="500" fill="#171310">解析 JD 关键词</text>
+<text x="102" y="113" font-size="11" fill="#75695c">已提取：Vue、TypeScript、工程化、性能优化…</text>
+<circle cx="606" cy="100" r="6" fill="#1d9e75"/>
+
+<circle cx="60" cy="176" r="8" fill="#2b3aff" stroke="#171310" stroke-width="1.5"/>
+<rect x="86" y="156" width="540" height="40" rx="8" fill="#f3ecdc"/>
+<text x="102" y="173" font-size="13" font-weight="500" fill="#171310">分析匹配度</text>
+<text x="102" y="189" font-size="11" fill="#75695c">对比您的《前端工程师》简历…</text>
+<circle cx="606" cy="176" r="6" fill="#1d9e75"/>
+
+<circle cx="60" cy="252" r="8" fill="#2b3aff" stroke="#171310" stroke-width="1.5"/>
+<rect x="86" y="232" width="540" height="40" rx="8" fill="#f3ecdc"/>
+<text x="102" y="249" font-size="13" font-weight="500" fill="#171310">优化简历</text>
+<text x="102" y="265" font-size="11" fill="#75695c">正在按 JD 重写关键经历…</text>
+<circle cx="606" cy="252" r="6" fill="#1d9e75"/>
+
+<circle cx="60" cy="314" r="8" fill="#2b3aff" stroke="#171310" stroke-width="1.5"/>
+<rect x="86" y="294" width="540" height="40" rx="8" fill="#b9f2ce" stroke="#0f6e56" stroke-width="1"/>
+<text x="102" y="311" font-size="13" font-weight="500" fill="#085041">完成</text>
+<text x="102" y="327" font-size="11" fill="#0f6e56">匹配度 82% · 已生成定制简历</text>
+<circle cx="606" cy="314" r="6" fill="#085041"/>
+
+<rect x="24" y="380" width="300" height="1" fill="#e2d9c6"/>
+<text x="24" y="394" font-size="11" fill="#75695c">SSE 事件：stage / resume_selected / done</text>
+</svg>
+  </div>
+  <div class="note">本设计稿采用项目 Paper &amp; Punch 设计语言（奶油纸 #fbf6ea / 硬墨 #171310 / 钴蓝 #2b3aff / 撞色黄油 #ffe27a）。</div>
+</div>
+</body>
+</html>

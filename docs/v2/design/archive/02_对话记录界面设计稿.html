@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>对话记录界面设计稿 — JDMatch 2.0 交互设计</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5efe4;
+    color: #171310;
+    line-height: 1.6;
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .meta {
+    font-size: 12px; color: #75695c; margin-bottom: 16px;
+    letter-spacing: 0.02em;
+  }
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 4px; border: 1.5px solid #171310;
+    margin-right: 6px;
+  }
+  .badge.final { background: #b9f2ce; }
+  .badge.archive { background: #ffd7d3; color: #7a271a; }
+  .desc {
+    font-size: 13px; color: #3d352c; background: #fffdf8;
+    border: 1.5px solid #171310; border-radius: 6px;
+    padding: 12px 14px; margin: 16px 0 20px;
+  }
+  .stage {
+    background: #fffdf8; border: 2px solid #171310; border-radius: 8px;
+    box-shadow: 4px 4px 0 #171310; padding: 12px; overflow: hidden;
+  }
+  .stage svg { width: 100%; height: auto; display: block; }
+  .note {
+    font-size: 12px; color: #75695c; margin-top: 20px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>对话记录界面设计稿</h1>
+  <div class="meta">JDMatch 2.0 · 交互设计稿 · <span class="badge archive">已归档（早期方案）</span></div>
+  <div class="desc">早期方案：左侧会话列表 + 右侧聊天对话流整体形态。方向已修正。</div>
+  <div class="stage">
+<div style="font-family: 'Instrument Sans','PingFang SC','Noto Sans SC',sans-serif; color:#171310; max-width:880px;">
+<h2 class="sr-only">对话记录界面设计稿，左侧岗位会话列表，右侧聊天对话流</h2>
+
+<div style="display:grid; grid-template-columns: 248px 1fr; border:2px solid #171310; border-radius:20px; overflow:hidden; background:#FBF6EA;">
+
+  <div style="border-right:2px solid #171310; background:#F3ECDC; display:flex; flex-direction:column; min-height:560px;">
+    <div style="padding:16px 14px 10px; border-bottom:1px solid #E2D9C6;">
+      <div style="font-size:11px; letter-spacing:0.08em; color:#75695C; margin-bottom:10px;">对话记录</div>
+      <div style="display:flex; align-items:center; gap:8px; background:#FFFDF8; border:2px solid #171310; border-radius:999px; padding:7px 12px; box-shadow:2px 2px 0 #171310;">
+        <span style="width:14px; height:14px; border-radius:3px; background:#2B3AFF;"></span>
+        <span style="font-size:12.5px; font-weight:500; color:#171310;">新建对话</span>
+      </div>
+    </div>
+
+    <div style="flex:1; overflow:hidden; padding:8px 8px;">
+      <div style="padding:8px 10px; border-radius:12px; background:#2B3AFF; box-shadow:2px 2px 0 #171310; margin-bottom:6px;">
+        <div style="font-size:12.5px; font-weight:500; color:#FBF6EA;">小红书 · 高级前端工程师</div>
+        <div style="font-size:11px; color:#B8BAF1; margin-top:2px;">昨天 21:40 · 3 条消息</div>
+      </div>
+      <div style="padding:8px 10px; border-radius:12px; margin-bottom:6px;">
+        <div style="font-size:12.5px; color:#4B423A;">字节跳动 · 后端工程师</div>
+        <div style="font-size:11px; color:#75695C; margin-top:2px;">11-04 · 2 条消息</div>
+      </div>
+      <div style="padding:8px 10px; border-radius:12px; margin-bottom:6px;">
+        <div style="font-size:12.5px; color:#4B423A;">美团 · 前端负责人</div>
+        <div style="font-size:11px; color:#75695C; margin-top:2px;">11-02 · 1 条消息</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; min-height:560px; background:#FBF6EA;">
+
+    <div style="display:flex; align-items:center; gap:10px; padding:14px 20px; border-bottom:1px solid #E2D9C6;">
+      <span style="width:30px; height:30px; border-radius:8px; background:#2B3AFF; color:#FBF6EA; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:500; box-shadow:2px 2px 0 #171310;">小</span>
+      <div>
+        <div style="font-size:15px; font-weight:500; color:#171310;">小红书 · 高级前端工程师</div>
+        <div style="font-size:11px; color:#75695C;">打招呼话术 · 待回复</div>
+      </div>
+      <span style="margin-left:auto; font-size:11px; color:#75695C; border:1px solid #9C8B71; padding:3px 10px; border-radius:999px;">岗位卡 ↗</span>
+    </div>
+
+    <div style="flex:1; padding:20px 22px; display:flex; flex-direction:column; gap:16px; overflow:hidden;">
+
+      <div style="display:flex; justify-content:flex-end;">
+        <div style="max-width:68%; background:#2B3AFF; color:#FBF6EA; padding:12px 14px; border-radius:14px 14px 4px 14px; box-shadow:2px 2px 0 #171310;">
+          <div style="font-size:13px; line-height:1.6;">帮我给这个岗位写一段打招呼的话术</div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-start; gap:10px;">
+        <span style="width:26px; height:26px; border-radius:8px; background:#FFE27A; border:2px solid #171310; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0;">A</span>
+        <div style="max-width:78%; background:#FFFDF8; border:2px solid #171310; border-radius:4px 14px 14px 14px; padding:12px 14px;">
+          <div style="font-size:13px; line-height:1.7; color:#171310;">您好，看到贵司正在招聘高级前端工程师，我在 React 工程化与 SSR 性能优化方面有 5 年经验，附上简历，期待有机会进一步交流。</div>
+          <div style="display:flex; gap:6px; margin-top:10px;">
+            <span style="font-size:11px; color:#2B3AFF; border:1px solid #2B3AFF; padding:2px 8px; border-radius:6px;">更正式</span>
+            <span style="font-size:11px; color:#2B3AFF; border:1px solid #2B3AFF; padding:2px 8px; border-radius:6px;">更简短</span>
+            <span style="font-size:11px; color:#75695C; border:1px solid #E2D9C6; padding:2px 8px; border-radius:6px;">复制</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end;">
+        <div style="max-width:68%; background:#2B3AFF; color:#FBF6EA; padding:12px 14px; border-radius:14px 14px 4px 14px; box-shadow:2px 2px 0 #171310;">
+          <div style="font-size:13px; line-height:1.6;">再正式一点，突出我的核心项目</div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-start; gap:10px;">
+        <span style="width:26px; height:26px; border-radius:8px; background:#FFE27A; border:2px solid #171310; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0;">A</span>
+        <div style="max-width:78%; background:#FFFDF8; border:2px solid #171310; border-radius:4px 14px 14px 14px; padding:12px 14px;">
+          <div style="font-size:13px; line-height:1.7; color:#171310;">您好，我是 XX 大学计算机硕士，5 年前端研发经验，主导过日活千万级 H5 项目的性能优化（首屏加载降低 42%），与贵司高级前端岗位高度匹配，附上简历，期待深入交流。</div>
+          <div style="display:flex; gap:6px; margin-top:10px;">
+            <span style="font-size:11px; color:#2B3AFF; border:1px solid #2B3AFF; padding:2px 8px; border-radius:6px;">换措辞</span>
+            <span style="font-size:11px; color:#75695C; border:1px solid #E2D9C6; padding:2px 8px; border-radius:6px;">复制</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="padding:14px 20px; border-top:1px solid #E2D9C6;">
+      <div style="display:flex; align-items:center; gap:8px; background:#FFFDF8; border:2px solid #171310; border-radius:999px; padding:5px 6px 5px 16px; box-shadow:2px 2px 0 #171310;">
+        <input placeholder="继续追问，或输入你的要求…" style="flex:1; border:none; outline:none; background:transparent; font-size:13px; color:#171310; font-family:inherit;" />
+        <span style="width:30px; height:30px; border-radius:999px; background:#2B3AFF; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <span style="width:0; height:0; border-left:8px solid #FBF6EA; border-top:5px solid transparent; border-bottom:5px solid transparent; margin-left:2px;"></span>
+        </span>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+  </div>
+  <div class="note">本设计稿采用项目 Paper &amp; Punch 设计语言（奶油纸 #fbf6ea / 硬墨 #171310 / 钴蓝 #2b3aff / 撞色黄油 #ffe27a）。</div>
+</div>
+</body>
+</html>

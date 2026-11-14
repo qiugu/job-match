@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>左侧菜单与会话删除 — JDMatch 2.0 交互设计</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5efe4;
+    color: #171310;
+    line-height: 1.6;
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .meta {
+    font-size: 12px; color: #75695c; margin-bottom: 16px;
+    letter-spacing: 0.02em;
+  }
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 4px; border: 1.5px solid #171310;
+    margin-right: 6px;
+  }
+  .badge.final { background: #b9f2ce; }
+  .badge.archive { background: #ffd7d3; color: #7a271a; }
+  .desc {
+    font-size: 13px; color: #3d352c; background: #fffdf8;
+    border: 1.5px solid #171310; border-radius: 6px;
+    padding: 12px 14px; margin: 16px 0 20px;
+  }
+  .stage {
+    background: #fffdf8; border: 2px solid #171310; border-radius: 8px;
+    box-shadow: 4px 4px 0 #171310; padding: 12px; overflow: hidden;
+  }
+  .stage svg { width: 100%; height: auto; display: block; }
+  .note {
+    font-size: 12px; color: #75695c; margin-top: 20px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>左侧菜单与会话删除</h1>
+  <div class="meta">JDMatch 2.0 · 交互设计稿 · <span class="badge archive">已归档（早期方案）</span></div>
+  <div class="desc">早期方案：固定菜单新增「对话记录」项 + 会话悬停删除交互。</div>
+  <div class="stage">
+<div style="font-family: 'Instrument Sans','PingFang SC','Noto Sans SC',sans-serif; color:#171310; max-width:760px;">
+<h2 class="sr-only">左侧固定菜单新增对话记录入口，会话条目支持悬停删除与二次确认</h2>
+
+<div style="display:grid; grid-template-columns: 228px 1fr; gap:24px; align-items:start;">
+
+  <div style="border:2px solid #171310; border-radius:16px; background:#FBF6EA; overflow:hidden;">
+    <div style="padding:14px 14px 10px; border-bottom:2px solid #171310;">
+      <span style="font-size:13px; font-weight:500;">Logo · 工作台</span>
+    </div>
+    <div style="padding:10px 8px;">
+      <div style="padding:8px 10px; border-radius:10px; display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+        <span style="width:16px; height:16px; border-radius:4px; background:#D3D1C7;"></span>
+        <span style="font-size:13px; color:#4B423A;">JD 简历匹配</span>
+      </div>
+      <div style="padding:8px 10px; border-radius:10px; display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+        <span style="width:16px; height:16px; border-radius:4px; background:#D3D1C7;"></span>
+        <span style="font-size:13px; color:#4B423A;">岗位卡</span>
+      </div>
+      <div style="padding:8px 10px; border-radius:10px; display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+        <span style="width:16px; height:16px; border-radius:4px; background:#D3D1C7;"></span>
+        <span style="font-size:13px; color:#4B423A;">投递分析</span>
+      </div>
+      <div style="padding:8px 10px; border-radius:10px; display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+        <span style="width:16px; height:16px; border-radius:4px; background:#D3D1C7;"></span>
+        <span style="font-size:13px; color:#4B423A;">我的简历</span>
+      </div>
+      <div style="margin:8px 2px; border-top:1px solid #E2D9C6;"></div>
+      <div style="padding:8px 10px; border-radius:10px; display:flex; align-items:center; gap:8px; background:#2B3AFF; box-shadow:2px 2px 0 #171310;">
+        <span style="width:16px; height:16px; border-radius:4px; background:#FBF6EA;"></span>
+        <span style="font-size:13px; font-weight:500; color:#FBF6EA;">对话记录</span>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <p style="font-size:11px; letter-spacing:0.08em; color:#75695C; margin:0 0 10px;">对话记录 · 会话列表</p>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+
+      <div style="border:2px solid #171310; border-radius:12px; background:#FFFDF8; padding:10px 12px; display:flex; align-items:center; gap:10px; box-shadow:2px 2px 0 #171310; position:relative;">
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:13px; font-weight:500; color:#171310;">小红书 · 高级前端工程师</div>
+          <div style="font-size:11px; color:#75695C; margin-top:2px;">昨天 21:40 · 5 条消息</div>
+        </div>
+        <span style="font-size:11px; color:#B42318; border:1px solid #B42318; padding:3px 10px; border-radius:999px; background:#FFD7D3;">删除</span>
+      </div>
+
+      <div style="border:1px solid #E2D9C6; border-radius:12px; background:#FFFDF8; padding:10px 12px; display:flex; align-items:center; gap:10px;">
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:13px; color:#4B423A;">字节跳动 · 后端工程师</div>
+          <div style="font-size:11px; color:#75695C; margin-top:2px;">11-04 · 3 条消息</div>
+        </div>
+      </div>
+
+      <div style="border:2px solid #B42318; border-radius:12px; background:#FFD7D3; padding:12px 14px;">
+        <div style="font-size:13px; font-weight:500; color:#171310;">删除这条对话记录？</div>
+        <div style="font-size:12px; color:#4B423A; line-height:1.6; margin-top:4px;">将同时删除该岗位下的全部匹配结果、话术与投递记录，且不可恢复。</div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <span style="font-size:12px; color:#FBF6EA; background:#B42318; padding:6px 14px; border-radius:8px; border:2px solid #171310; box-shadow:2px 2px 0 #171310;">确认删除</span>
+          <span style="font-size:12px; color:#4B423A; padding:6px 14px; border-radius:8px; border:1px solid #9C8B71;">取消</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</div>
+  </div>
+  <div class="note">本设计稿采用项目 Paper &amp; Punch 设计语言（奶油纸 #fbf6ea / 硬墨 #171310 / 钴蓝 #2b3aff / 撞色黄油 #ffe27a）。</div>
+</div>
+</body>
+</html>

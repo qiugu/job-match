@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>对话流预设语句与匹配卡片 — JDMatch 2.0 交互设计</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5efe4;
+    color: #171310;
+    line-height: 1.6;
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .meta {
+    font-size: 12px; color: #75695c; margin-bottom: 16px;
+    letter-spacing: 0.02em;
+  }
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 4px; border: 1.5px solid #171310;
+    margin-right: 6px;
+  }
+  .badge.final { background: #b9f2ce; }
+  .badge.archive { background: #ffd7d3; color: #7a271a; }
+  .desc {
+    font-size: 13px; color: #3d352c; background: #fffdf8;
+    border: 1.5px solid #171310; border-radius: 6px;
+    padding: 12px 14px; margin: 16px 0 20px;
+  }
+  .stage {
+    background: #fffdf8; border: 2px solid #171310; border-radius: 8px;
+    box-shadow: 4px 4px 0 #171310; padding: 12px; overflow: hidden;
+  }
+  .stage svg { width: 100%; height: auto; display: block; }
+  .note {
+    font-size: 12px; color: #75695c; margin-top: 20px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>对话流预设语句与匹配卡片</h1>
+  <div class="meta">JDMatch 2.0 · 交互设计稿 · <span class="badge archive">已归档（早期方案）</span></div>
+  <div class="desc">早期方案：预设语句 chip + 折叠输入框 + 匹配结果工具卡入对话。</div>
+  <div class="stage">
+<div style="font-family: 'Instrument Sans','PingFang SC','Noto Sans SC',sans-serif; color:#171310; max-width:720px;">
+<h2 class="sr-only">对话流展示预设语句芯片与匹配结果工具卡片，输入框可折叠</h2>
+
+<div style="border:2px solid #171310; border-radius:20px; background:#FBF6EA; overflow:hidden;">
+
+  <div style="display:flex; align-items:center; gap:10px; padding:14px 20px; border-bottom:2px solid #171310;">
+    <span style="width:30px; height:30px; border-radius:8px; background:#2B3AFF; color:#FBF6EA; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:500; box-shadow:2px 2px 0 #171310;">小</span>
+    <div>
+      <div style="font-size:15px; font-weight:500;">小红书 · 高级前端工程师</div>
+      <div style="font-size:11px; color:#75695C;">对话记录 · 待投递</div>
+    </div>
+    <span style="margin-left:auto; font-size:11px; color:#75695C; border:1px solid #9C8B71; padding:3px 10px; border-radius:999px;">岗位卡 ↗</span>
+  </div>
+
+  <div style="padding:20px 22px; display:flex; flex-direction:column; gap:16px;">
+
+    <div style="display:flex; justify-content:flex-end;">
+      <div style="max-width:70%; background:#2B3AFF; color:#FBF6EA; padding:12px 14px; border-radius:14px 14px 4px 14px; box-shadow:2px 2px 0 #171310;">
+        <div style="font-size:13px; line-height:1.6;">帮我给这个岗位写一段打招呼的话术</div>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-start; gap:10px;">
+      <span style="width:26px; height:26px; border-radius:8px; background:#FFE27A; border:2px solid #171310; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0;">A</span>
+      <div style="max-width:80%;">
+        <div style="background:#FFFDF8; border:2px solid #171310; border-radius:4px 14px 14px 14px; padding:12px 14px;">
+          <div style="font-size:13px; line-height:1.7;">您好，看到贵司正在招聘高级前端工程师，我在 React 工程化与 SSR 性能优化方面有 5 年经验，附上简历，期待有机会进一步交流。</div>
+        </div>
+        <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+          <span style="font-size:11px; color:#2B3AFF; border:1px solid #2B3AFF; padding:2px 8px; border-radius:6px;">更正式</span>
+          <span style="font-size:11px; color:#2B3AFF; border:1px solid #2B3AFF; padding:2px 8px; border-radius:6px;">更简短</span>
+          <span style="font-size:11px; color:#2B3AFF; border:1px solid #2B3AFF; padding:2px 8px; border-radius:6px;">更热情</span>
+          <span style="font-size:11px; color:#75695C; border:1px solid #E2D9C6; padding:2px 8px; border-radius:6px;">复制</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end;">
+      <div style="max-width:70%; background:#2B3AFF; color:#FBF6EA; padding:12px 14px; border-radius:14px 14px 4px 14px; box-shadow:2px 2px 0 #171310;">
+        <div style="font-size:13px; line-height:1.6;">帮我针对这个岗位定制一份简历</div>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-start; gap:10px;">
+      <span style="width:26px; height:26px; border-radius:8px; background:#FFE27A; border:2px solid #171310; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0;">A</span>
+      <div style="max-width:80%; background:#FFFDF8; border:2px solid #171310; border-radius:4px 14px 14px 14px; padding:12px 14px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+          <span style="font-size:11px; font-weight:500; color:#085041; background:#B9F2CE; padding:2px 8px; border-radius:6px;">匹配结果</span>
+          <span style="font-size:12px; font-weight:500; color:#1F8A57; margin-left:auto;">82% 匹配</span>
+        </div>
+        <div style="font-size:13px; line-height:1.6; color:#4B423A;">已针对「SSR 性能优化」「交易链路稳定性」重写项目经历，强化量化结果。定制简历已生成，可预览或继续调整。</div>
+        <div style="display:flex; gap:6px; margin-top:10px;">
+          <span style="font-size:11px; color:#2B3AFF; border:1px solid #2B3AFF; padding:2px 8px; border-radius:6px;">查看全文</span>
+          <span style="font-size:11px; color:#2B3AFF; border:1px solid #2B3AFF; padding:2px 8px; border-radius:6px;">匹配分析</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="padding:14px 20px; border-top:2px solid #171310;">
+    <div style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap;">
+      <span style="font-size:11px; color:#2B3AFF; border:1px solid #2B3AFF; padding:3px 10px; border-radius:999px;">打招呼话术</span>
+      <span style="font-size:11px; color:#2B3AFF; border:1px solid #2B3AFF; padding:3px 10px; border-radius:999px;">定制简历</span>
+      <span style="font-size:11px; color:#2B3AFF; border:1px solid #2B3AFF; padding:3px 10px; border-radius:999px;">跟进话术</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px; background:#FFFDF8; border:2px solid #171310; border-radius:999px; padding:5px 6px 5px 16px; box-shadow:2px 2px 0 #171310;">
+      <input placeholder="或输入自定义要求…" style="flex:1; border:none; outline:none; background:transparent; font-size:13px; color:#171310; font-family:inherit;" />
+      <span style="width:30px; height:30px; border-radius:999px; background:#2B3AFF; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <span style="width:0; height:0; border-left:8px solid #FBF6EA; border-top:5px solid transparent; border-bottom:5px solid transparent; margin-left:2px;"></span>
+      </span>
+    </div>
+  </div>
+
+</div>
+</div>
+  </div>
+  <div class="note">本设计稿采用项目 Paper &amp; Punch 设计语言（奶油纸 #fbf6ea / 硬墨 #171310 / 钴蓝 #2b3aff / 撞色黄油 #ffe27a）。</div>
+</div>
+</body>
+</html>
